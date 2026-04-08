@@ -1,26 +1,60 @@
 @import "tailwindcss";
 
+@theme {
+  /* PICK PICK 브랜드 컬러 */
+  --color-pick-purple:       #6B21A8;
+  --color-pick-purple-light: #A855F7;
+  --color-pick-purple-dark:  #4C1D95;
+  --color-pick-yellow:       #D97706;
+  --color-pick-yellow-light: #FCD34D;
+  --color-pick-yellow-dark:  #92400E;
+  --color-pick-bg:           #FAF5FF;
+  --color-pick-border:       #E9D5FF;
+  --color-pick-text:         #1F1235;
+  --color-pick-text-sub:     #6B7280;
+
+  /* 폰트 */
+  --font-sans: 'Noto Sans KR', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-logo: 'Jua', 'Noto Sans KR', sans-serif;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-primary:        #6B21A8;
+  --color-primary-light:  #A855F7;
+  --color-primary-dark:   #4C1D95;
+  --color-accent:         #D97706;
+  --color-accent-light:   #FCD34D;
+  --color-accent-dark:    #92400E;
+  --color-bg-main:        #FAF5FF;
+  --color-bg-card:        #FFFFFF;
+  --color-text-primary:   #1F1235;
+  --color-text-secondary: #6B7280;
+  --color-border:         #E9D5FF;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: #FAF5FF;
+  color: #1F1235;
+  font-family: 'Noto Sans KR', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 모바일 최대 너비 중앙 정렬 */
+#app-shell {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  position: relative;
+  background-color: #FAF5FF;
+  box-shadow: 0 0 24px rgba(107, 33, 168, 0.06);
 }
