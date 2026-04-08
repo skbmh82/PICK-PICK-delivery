@@ -8,7 +8,7 @@ export default function UserLayout({
 }) {
   return (
     <div id="app-shell">
-      <Header pickBalance={0} />
+      <Header />
       <main className="pb-20">{children}</main>
       <BottomNav />
     </div>
