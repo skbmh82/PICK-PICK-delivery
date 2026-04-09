@@ -47,6 +47,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   signOut: async () => {
     await supabase.auth.signOut();
+    // pick-role 쿠키 삭제 (미들웨어 역할 체크용)
+    await fetch("/api/auth/session", { method: "DELETE" });
     set({ user: null });
   },
 }));

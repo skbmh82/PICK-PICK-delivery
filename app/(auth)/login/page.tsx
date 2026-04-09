@@ -44,6 +44,8 @@ export default function LoginPage() {
       return;
     }
 
+    // pick-role 쿠키 설정 (미들웨어 역할 체크용)
+    await fetch("/api/auth/session", { method: "POST" });
     router.replace("/home");
   };
 

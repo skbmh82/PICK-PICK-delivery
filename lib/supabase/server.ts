@@ -1,15 +1,34 @@
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient as _createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// 서버 전용 클라이언트 — 매 요청마다 새 인스턴스 생성 (서버 컴포넌트, Route Handler 용)
-export function createServerClient() {
-  return createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      // 서버 사이드에서는 세션 자동 저장 비활성화
-      persistSession: false,
-      autoRefreshToken: false,
+// 서버 컴포넌트 / Route Handler 전용 (쿠키 기반 세션 포함)
+export async function createServerSupabaseClient() {
+  const cookieStore = await cookies();
+
+  return _createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          );
+        } catch {
+          // 서버 컴포넌트에서 쿠키 쓰기 무시
+        }
+      },
     },
+  });
+}
+
+// 기존 코드 호환 — 쿠키 없이 데이터 페칭만 하는 서버 클라이언트
+export function createServerClient() {
+  return _createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: { getAll: () => [], setAll: () => {} },
   });
 }

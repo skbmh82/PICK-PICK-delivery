@@ -3,24 +3,26 @@
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
+import { useEffect, useState } from "react";
+import { fetchMyPickBalance } from "@/lib/supabase/wallet";
 
 export default function Header() {
   const user = useAuthStore((s) => s.user);
+  const [balance, setBalance] = useState<number>(0);
+
+  useEffect(() => {
+    if (!user) return;
+    fetchMyPickBalance(user.id).then(setBalance);
+  }, [user]);
 
   return (
     <header className="sticky top-0 z-40 flex items-center justify-between px-5 py-3.5 bg-pick-purple-dark">
       {/* 로고 */}
       <Link href="/home" className="flex items-center gap-0.5">
-        <span
-          className="text-3xl text-pick-yellow-light drop-shadow-sm"
-          style={{ fontFamily: "var(--font-logo)" }}
-        >
+        <span className="text-3xl text-pick-yellow-light drop-shadow-sm" style={{ fontFamily: "var(--font-logo)" }}>
           PICK
         </span>
-        <span
-          className="text-3xl text-white drop-shadow-sm"
-          style={{ fontFamily: "var(--font-logo)" }}
-        >
+        <span className="text-3xl text-white drop-shadow-sm" style={{ fontFamily: "var(--font-logo)" }}>
           PICK
         </span>
         <span className="ml-1.5 text-2xl">🛵</span>
@@ -34,7 +36,7 @@ export default function Header() {
             className="flex items-center gap-1.5 bg-white/15 border border-white/20 px-3.5 py-2 rounded-full"
           >
             <span className="text-pick-yellow-light text-sm font-black">P</span>
-            <span className="text-white text-sm font-bold">0</span>
+            <span className="text-white text-sm font-bold">{balance.toLocaleString()}</span>
           </Link>
         ) : (
           <Link

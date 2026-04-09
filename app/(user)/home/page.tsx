@@ -1,5 +1,7 @@
-import { Search, MapPin, ChevronRight } from "lucide-react";
+import { Search, MapPin, ChevronRight, Star, Clock, Bike, ArrowLeft, Frown } from "lucide-react";
 import Link from "next/link";
+import { fetchStoresByCategory, type StoreRow } from "@/lib/supabase/stores";
+import { CATEGORY_META, getCategoryEmoji } from "@/lib/utils/categoryEmoji";
 
 /* ────────────── 카테고리 데이터 ────────────── */
 const CATEGORIES = [
@@ -46,24 +48,16 @@ function LocationBar() {
 function CategoryGrid() {
   return (
     <section className="px-4 pt-2 pb-4">
-      <h2 className="text-lg font-bold text-pick-text mb-4 px-1">
-        무엇을 드시고 싶으세요? 🤔
-      </h2>
+      <h2 className="text-lg font-bold text-pick-text mb-4 px-1">무엇을 드시고 싶으세요? 🤔</h2>
       <div className="grid grid-cols-2 gap-3">
         {CATEGORIES.map((cat) => (
           <Link
             key={cat.id}
             href={`/home?category=${cat.id}`}
-            className={`
-              flex items-center gap-4 px-5 py-5 rounded-3xl border-2
-              ${cat.bg} ${cat.border}
-              shadow-sm active:scale-95 transition-transform duration-150
-            `}
+            className={`flex items-center gap-4 px-5 py-5 rounded-3xl border-2 ${cat.bg} ${cat.border} shadow-sm active:scale-95 transition-transform duration-150`}
           >
             <span className="text-4xl leading-none">{cat.emoji}</span>
-            <span className={`text-base font-bold ${cat.text} leading-tight`}>
-              {cat.label}
-            </span>
+            <span className={`text-base font-bold ${cat.text} leading-tight`}>{cat.label}</span>
           </Link>
         ))}
       </div>
@@ -71,13 +65,112 @@ function CategoryGrid() {
   );
 }
 
+/* ────────────── 가게 카드 (실데이터) ────────────── */
+function StoreCard({ store }: { store: StoreRow }) {
+  const emoji = getCategoryEmoji(store.category);
+
+  return (
+    <Link
+      href={`/store/${store.id}`}
+      className="block bg-white rounded-3xl border-2 border-pick-border shadow-sm active:scale-95 transition-transform duration-150 overflow-hidden"
+    >
+      <div className="h-36 bg-gradient-to-br from-pick-bg to-pick-border flex items-center justify-center">
+        <span className="text-7xl">{emoji}</span>
+      </div>
+      <div className="px-4 pt-3 pb-4">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h3 className="font-black text-pick-text text-base leading-snug flex-1">{store.name}</h3>
+          <span className="flex-shrink-0 text-xs font-black bg-pick-yellow-light text-pick-yellow-dark px-2.5 py-1 rounded-full">
+            +{store.pick_reward_rate}%
+          </span>
+        </div>
+        {store.description && (
+          <p className="text-xs text-pick-text-sub mb-2 line-clamp-1">{store.description}</p>
+        )}
+        <div className="flex items-center gap-3 text-xs text-pick-text-sub">
+          <span className="flex items-center gap-1">
+            <Star size={12} className="text-pick-yellow fill-pick-yellow" />
+            <span className="font-bold text-pick-text">{store.rating}</span>
+            <span>({store.review_count})</span>
+          </span>
+          <span className="w-0.5 h-3 bg-pick-border" />
+          <span className="flex items-center gap-1">
+            <Clock size={12} />
+            {store.delivery_time}분
+          </span>
+          <span className="w-0.5 h-3 bg-pick-border" />
+          <span className="flex items-center gap-1">
+            <Bike size={12} />
+            {store.delivery_fee === 0
+              ? <span className="font-bold text-green-600">무료배달</span>
+              : `${store.delivery_fee.toLocaleString()}원`}
+          </span>
+        </div>
+        <p className="text-xs text-pick-text-sub mt-1.5">
+          최소주문 {store.min_order_amount.toLocaleString()}원
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+/* ────────────── 가게 목록 뷰 (실데이터) ────────────── */
+async function StoreListView({ category }: { category: string }) {
+  const info = CATEGORY_META[category];
+  const stores = await fetchStoresByCategory(category);
+
+  return (
+    <section className="px-4 pt-3 pb-4">
+      <div className="flex items-center gap-2 mb-4">
+        <Link
+          href="/home"
+          className="w-9 h-9 flex items-center justify-center rounded-full bg-white border-2 border-pick-border shadow-sm active:scale-95 transition-transform"
+        >
+          <ArrowLeft size={18} className="text-pick-purple" />
+        </Link>
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">{info?.emoji ?? "🍽️"}</span>
+          <h2 className="text-lg font-black text-pick-text">{info?.label ?? category}</h2>
+          <span className="text-sm text-pick-text-sub font-medium">{stores.length}개</span>
+        </div>
+      </div>
+
+      {stores.length === 0 ? (
+        <div className="flex flex-col items-center py-16 text-pick-text-sub">
+          <Frown size={48} className="mb-3 opacity-20" />
+          <p className="text-sm font-medium">아직 이 카테고리 가게가 없어요</p>
+          <p className="text-xs mt-1 opacity-70">다른 카테고리를 선택해보세요!</p>
+          <Link
+            href="/home"
+            className="mt-5 bg-pick-purple text-white text-sm font-bold px-6 py-2.5 rounded-full active:scale-95 transition-all"
+          >
+            카테고리 보러가기
+          </Link>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {stores.map((store) => (
+            <StoreCard key={store.id} store={store} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 /* ────────────── 메인 페이지 ────────────── */
-export default function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string }>;
+}) {
+  const { category } = await searchParams;
+
   return (
     <div className="min-h-full">
       <LocationBar />
       <SearchBar />
-      <CategoryGrid />
+      {category ? <StoreListView category={category} /> : <CategoryGrid />}
     </div>
   );
 }

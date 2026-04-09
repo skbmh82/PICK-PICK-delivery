@@ -89,6 +89,7 @@ export default function RegisterPage() {
       return;
     }
 
+    await fetch("/api/auth/session", { method: "POST" });
     router.replace("/home");
   };
 
