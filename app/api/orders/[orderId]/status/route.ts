@@ -45,14 +45,15 @@ export async function PATCH(
     return NextResponse.json({ error: "주문 상태 변경에 실패했습니다" }, { status: 500 });
   }
 
-  // 배달 완료 시 PICK 적립
+  // 배달 완료 시 고객 PICK 적립 + 라이더 PICK 지급
   if (status === "delivered") {
     const { data: order } = await admin
       .from("orders")
-      .select("user_id, pick_reward")
+      .select("user_id, rider_id, pick_reward")
       .eq("id", orderId)
       .single();
 
+    // 고객 PICK 적립
     if (order && Number(order.pick_reward) > 0) {
       await admin.rpc("reward_pick", {
         p_user_id:  order.user_id,
@@ -60,8 +61,35 @@ export async function PATCH(
         p_order_id: orderId,
         p_desc:     "주문 완료 적립",
       }).then(({ error: e }) => {
-        if (e) console.error("reward_pick 오류:", e.message);
+        if (e) console.error("고객 reward_pick 오류:", e.message);
       });
+    }
+
+    // 라이더 PICK 지급 (rider_earnings 참조)
+    if (order?.rider_id) {
+      const { data: earning } = await admin
+        .from("rider_earnings")
+        .select("id, amount_pick")
+        .eq("order_id", orderId)
+        .eq("rider_id", order.rider_id)
+        .single();
+
+      if (earning && Number(earning.amount_pick) > 0) {
+        await Promise.all([
+          admin.rpc("reward_pick", {
+            p_user_id:  order.rider_id,
+            p_amount:   earning.amount_pick,
+            p_order_id: orderId,
+            p_desc:     "배달 완료 수익",
+          }).then(({ error: e }) => {
+            if (e) console.error("라이더 reward_pick 오류:", e.message);
+          }),
+          admin
+            .from("rider_earnings")
+            .update({ status: "settled", settled_at: new Date().toISOString() })
+            .eq("id", earning.id),
+        ]);
+      }
     }
   }
 
