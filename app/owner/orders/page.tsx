@@ -1,10 +1,57 @@
 "use client";
 
-import { useState } from "react";
-import { Check, X, ChefHat, Clock, Bike, CheckCircle, XCircle, ChevronDown, ChevronUp } from "lucide-react";
-import { MOCK_ORDERS, STATUS_LABEL, type MockOrder, type OrderStatus } from "@/lib/mock/orders";
+import { useState, useEffect, useCallback } from "react";
+import {
+  Check, X, ChefHat, Clock, Bike, CheckCircle,
+  XCircle, ChevronDown, ChevronUp, RefreshCw,
+} from "lucide-react";
+import { useStoreOrderRealtime } from "@/hooks/useRealtime";
 
-/* ────────────── 상태 설정 ────────────── */
+// ── 타입 ──────────────────────────────────────────────
+type OrderStatus =
+  | "pending" | "confirmed" | "preparing" | "ready"
+  | "picked_up" | "delivering" | "delivered" | "cancelled" | "refunded";
+
+interface OrderItem {
+  id: string;
+  menu_name: string;
+  price: number;
+  quantity: number;
+}
+
+interface OrderUser {
+  id: string;
+  name: string;
+  phone: string | null;
+}
+
+interface Order {
+  id: string;
+  status: OrderStatus;
+  total_amount: number;
+  delivery_fee: number;
+  pick_used: number;
+  delivery_address: string;
+  delivery_note: string | null;
+  estimated_time: number;
+  created_at: string;
+  users: OrderUser | null;
+  order_items: OrderItem[];
+}
+
+// ── 상태 설정 ─────────────────────────────────────────
+const STATUS_LABEL: Record<OrderStatus, string> = {
+  pending:    "신규 주문 🔴",
+  confirmed:  "수락됨",
+  preparing:  "조리 중 🍳",
+  ready:      "픽업 대기",
+  picked_up:  "라이더 픽업",
+  delivering: "배달 중",
+  delivered:  "배달 완료",
+  cancelled:  "취소",
+  refunded:   "환불",
+};
+
 const STATUS_CONFIG: Record<OrderStatus, { color: string; bg: string; border: string }> = {
   pending:    { color: "text-red-600",    bg: "bg-red-50",    border: "border-red-200" },
   confirmed:  { color: "text-blue-600",   bg: "bg-blue-50",   border: "border-blue-200" },
@@ -14,23 +61,30 @@ const STATUS_CONFIG: Record<OrderStatus, { color: string; bg: string; border: st
   delivering: { color: "text-purple-600", bg: "bg-purple-50", border: "border-purple-200" },
   delivered:  { color: "text-gray-500",   bg: "bg-gray-50",   border: "border-gray-200" },
   cancelled:  { color: "text-gray-400",   bg: "bg-gray-50",   border: "border-gray-100" },
+  refunded:   { color: "text-gray-400",   bg: "bg-gray-50",   border: "border-gray-100" },
 };
 
-/* ────────────── 주문 카드 ────────────── */
+// ── 주문 카드 ─────────────────────────────────────────
 function OrderCard({
   order,
-  onAccept,
-  onReject,
-  onComplete,
+  onStatusChange,
 }: {
-  order: MockOrder;
-  onAccept: (id: string) => void;
-  onReject: (id: string) => void;
-  onComplete: (id: string) => void;
+  order: Order;
+  onStatusChange: (id: string, status: OrderStatus) => Promise<void>;
 }) {
-  const [expanded, setExpanded] = useState(order.status === "pending");
+  const [expanded, setExpanded]   = useState(order.status === "pending");
+  const [loading, setLoading]     = useState(false);
   const cfg = STATUS_CONFIG[order.status];
-  const isCompleted = order.status === "delivered" || order.status === "cancelled";
+
+  const handleStatus = async (status: OrderStatus) => {
+    setLoading(true);
+    await onStatusChange(order.id, status);
+    setLoading(false);
+  };
+
+  const timeStr = new Date(order.created_at).toLocaleTimeString("ko-KR", {
+    hour: "2-digit", minute: "2-digit",
+  });
 
   return (
     <div className={`bg-white rounded-3xl border-2 ${cfg.border} shadow-sm overflow-hidden`}>
@@ -40,52 +94,52 @@ function OrderCard({
         onClick={() => setExpanded((v) => !v)}
       >
         <div className="flex items-center gap-3">
-          {/* 상태 뱃지 */}
           <span className={`text-xs font-black px-3 py-1.5 rounded-full ${cfg.bg} ${cfg.color} ${cfg.border} border`}>
             {STATUS_LABEL[order.status]}
           </span>
           <div className="text-left">
-            <p className="font-black text-pick-text text-sm">{order.customerName}님</p>
-            <p className="text-xs text-pick-text-sub">{order.createdAt} 주문</p>
+            <p className="font-black text-pick-text text-sm">
+              {order.users?.name ?? "고객"}님
+            </p>
+            <p className="text-xs text-pick-text-sub">{timeStr} 주문</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <span className="font-black text-pick-text text-sm">
-            {order.totalAmount.toLocaleString()}원
+            {Number(order.total_amount).toLocaleString()}원
           </span>
-          {expanded ? (
-            <ChevronUp size={16} className="text-pick-text-sub" />
-          ) : (
-            <ChevronDown size={16} className="text-pick-text-sub" />
-          )}
+          {expanded ? <ChevronUp size={16} className="text-pick-text-sub" />
+                    : <ChevronDown size={16} className="text-pick-text-sub" />}
         </div>
       </button>
 
-      {/* 상세 (접힘/펼침) */}
+      {/* 상세 */}
       {expanded && (
         <div className="px-4 pb-4">
           {/* 주문 아이템 */}
           <div className={`${cfg.bg} rounded-2xl px-4 py-3 mb-3`}>
-            {order.items.map((item, i) => (
-              <div key={i} className="flex items-center justify-between py-1">
+            {order.order_items.map((item) => (
+              <div key={item.id} className="flex items-center justify-between py-1">
                 <span className="text-sm text-pick-text">
-                  {item.name} <span className="text-pick-text-sub">x{item.quantity}</span>
+                  {item.menu_name} <span className="text-pick-text-sub">x{item.quantity}</span>
                 </span>
                 <span className="text-sm font-bold text-pick-text">
-                  {(item.price * item.quantity).toLocaleString()}원
+                  {(Number(item.price) * item.quantity).toLocaleString()}원
                 </span>
               </div>
             ))}
             <div className="border-t border-dashed border-pick-border mt-2 pt-2 flex items-center justify-between">
               <span className="text-xs text-pick-text-sub">배달비</span>
               <span className="text-xs text-pick-text-sub">
-                {order.deliveryFee === 0 ? "무료" : `+${order.deliveryFee.toLocaleString()}원`}
+                {Number(order.delivery_fee) === 0 ? "무료" : `+${Number(order.delivery_fee).toLocaleString()}원`}
               </span>
             </div>
-            {order.pickUsed > 0 && (
+            {Number(order.pick_used) > 0 && (
               <div className="flex items-center justify-between mt-1">
-                <span className="text-xs text-pick-text-sub">PICK 사용</span>
-                <span className="text-xs text-purple-600 font-bold">-{order.pickUsed.toLocaleString()}원</span>
+                <span className="text-xs text-pick-text-sub">PICK 할인</span>
+                <span className="text-xs text-purple-600 font-bold">
+                  -{Number(order.pick_used).toLocaleString()}원
+                </span>
               </div>
             )}
           </div>
@@ -94,12 +148,18 @@ function OrderCard({
           <div className="flex flex-col gap-1.5 mb-4">
             <div className="flex items-start gap-2">
               <Bike size={13} className="text-pick-text-sub mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-pick-text">{order.deliveryAddress}</p>
+              <p className="text-xs text-pick-text">{order.delivery_address}</p>
             </div>
-            {order.deliveryNote && (
+            {order.delivery_note && (
               <div className="flex items-start gap-2">
-                <span className="text-xs text-pick-text-sub flex-shrink-0">📝</span>
-                <p className="text-xs text-pick-text-sub">{order.deliveryNote}</p>
+                <span className="text-xs flex-shrink-0">📝</span>
+                <p className="text-xs text-pick-text-sub">{order.delivery_note}</p>
+              </div>
+            )}
+            {order.users?.phone && (
+              <div className="flex items-start gap-2">
+                <span className="text-xs flex-shrink-0">📞</span>
+                <p className="text-xs text-pick-text-sub">{order.users.phone}</p>
               </div>
             )}
           </div>
@@ -108,17 +168,18 @@ function OrderCard({
           {order.status === "pending" && (
             <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => onReject(order.id)}
-                className="flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-red-200 bg-red-50 text-red-600 font-bold text-sm active:scale-95 transition-transform"
+                disabled={loading}
+                onClick={() => handleStatus("cancelled")}
+                className="flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-red-200 bg-red-50 text-red-600 font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
               >
-                <X size={16} />
-                거절
+                <X size={16} /> 거절
               </button>
               <button
-                onClick={() => onAccept(order.id)}
-                className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-400 text-white font-bold text-sm active:scale-95 transition-transform shadow-md"
+                disabled={loading}
+                onClick={() => handleStatus("confirmed")}
+                className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-400 text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
               >
-                <Check size={16} />
+                {loading ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Check size={16} />}
                 수락
               </button>
             </div>
@@ -126,10 +187,11 @@ function OrderCard({
 
           {order.status === "confirmed" && (
             <button
-              onClick={() => onComplete(order.id)}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-blue-500 text-white font-bold text-sm active:scale-95 transition-transform shadow-md"
+              disabled={loading}
+              onClick={() => handleStatus("preparing")}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-blue-500 text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
             >
-              <ChefHat size={16} />
+              {loading ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <ChefHat size={16} />}
               조리 시작
             </button>
           )}
@@ -141,10 +203,11 @@ function OrderCard({
                 <span className="text-xs text-amber-600 font-bold">조리 중...</span>
               </div>
               <button
-                onClick={() => onComplete(order.id)}
-                className="flex items-center gap-2 py-2.5 px-5 rounded-2xl bg-green-500 text-white font-bold text-sm active:scale-95 transition-transform shadow-md"
+                disabled={loading}
+                onClick={() => handleStatus("ready")}
+                className="flex items-center gap-2 py-2.5 px-5 rounded-2xl bg-green-500 text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
               >
-                <ChefHat size={14} />
+                {loading ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <ChefHat size={14} />}
                 조리 완료
               </button>
             </div>
@@ -157,6 +220,13 @@ function OrderCard({
             </div>
           )}
 
+          {(order.status === "picked_up" || order.status === "delivering") && (
+            <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-2xl px-4 py-3">
+              <Bike size={16} className="text-purple-600" />
+              <span className="text-sm font-bold text-purple-700">배달 중 🛵</span>
+            </div>
+          )}
+
           {order.status === "delivered" && (
             <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3">
               <CheckCircle size={16} className="text-gray-400" />
@@ -164,7 +234,7 @@ function OrderCard({
             </div>
           )}
 
-          {order.status === "cancelled" && (
+          {(order.status === "cancelled" || order.status === "refunded") && (
             <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3">
               <XCircle size={16} className="text-gray-400" />
               <span className="text-sm font-bold text-gray-500">취소된 주문</span>
@@ -176,122 +246,137 @@ function OrderCard({
   );
 }
 
-/* ────────────── 탭 필터 ────────────── */
+// ── 메인 페이지 ──────────────────────────────────────
 type Tab = "active" | "done";
 
-/* ────────────── 메인 페이지 ────────────── */
 export default function OwnerOrdersPage() {
-  const [orders, setOrders] = useState<MockOrder[]>(MOCK_ORDERS);
-  const [tab, setTab] = useState<Tab>("active");
+  const [orders, setOrders]   = useState<Order[]>([]);
+  const [storeId, setStoreId] = useState<string | null>(null);
+  const [tab, setTab]         = useState<Tab>("active");
+  const [loading, setLoading] = useState(true);
+  const [newAlert, setNewAlert] = useState(false);
 
-  const handleAccept = (id: string) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, status: "confirmed" as OrderStatus } : o))
-    );
+  const fetchOrders = useCallback(async (t: Tab = tab) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/stores/my/orders?tab=${t}`);
+      if (res.ok) {
+        const data = await res.json();
+        setOrders(data.orders ?? []);
+        if (data.storeId) setStoreId(data.storeId);
+      }
+    } finally {
+      setLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  // 신규 주문 Realtime 알림
+  useStoreOrderRealtime(storeId, () => {
+    setNewAlert(true);
+    if (tab === "active") fetchOrders("active");
+  });
+
+  const handleStatusChange = async (id: string, status: OrderStatus) => {
+    const res = await fetch(`/api/orders/${id}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (res.ok) {
+      // 상태 변경 후 목록 새로고침
+      setOrders((prev) =>
+        prev.map((o) => (o.id === id ? { ...o, status } : o))
+      );
+    } else {
+      alert("상태 변경에 실패했습니다");
+    }
   };
 
-  const handleReject = (id: string) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, status: "cancelled" as OrderStatus } : o))
-    );
+  const handleTabChange = (t: Tab) => {
+    setTab(t);
+    fetchOrders(t);
+    if (t === "active") setNewAlert(false);
   };
 
-  const handleComplete = (id: string) => {
-    setOrders((prev) =>
-      prev.map((o) => {
-        if (o.id !== id) return o;
-        if (o.status === "confirmed") return { ...o, status: "preparing" as OrderStatus };
-        if (o.status === "preparing") return { ...o, status: "ready" as OrderStatus };
-        return o;
-      })
-    );
-  };
-
-  const activeOrders = orders.filter(
-    (o) => !["delivered", "cancelled"].includes(o.status)
-  );
-  const doneOrders = orders.filter(
-    (o) => o.status === "delivered" || o.status === "cancelled"
-  );
-
-  const pendingCount = orders.filter((o) => o.status === "pending").length;
+  const activeOrders  = orders.filter((o) => !["delivered","cancelled","refunded"].includes(o.status));
+  const doneOrders    = orders.filter((o) => ["delivered","cancelled","refunded"].includes(o.status));
+  const pendingCount  = orders.filter((o) => o.status === "pending").length;
+  const displayOrders = tab === "active" ? activeOrders : doneOrders;
 
   return (
     <div className="min-h-full py-5">
-      <div className="px-4 mb-4">
-        <h1 className="font-black text-pick-text text-xl">주문 관리 📋</h1>
-        <p className="text-sm text-pick-text-sub mt-0.5">
-          실시간으로 주문을 확인하고 처리하세요
-        </p>
+      <div className="px-4 mb-4 flex items-center justify-between">
+        <div>
+          <h1 className="font-black text-pick-text text-xl">주문 관리 📋</h1>
+          <p className="text-sm text-pick-text-sub mt-0.5">실시간으로 주문을 확인하고 처리하세요</p>
+        </div>
+        <button
+          onClick={() => fetchOrders()}
+          className="p-2 rounded-full bg-pick-bg border border-pick-border text-pick-text-sub"
+        >
+          <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+        </button>
       </div>
+
+      {/* 신규 주문 알림 배너 */}
+      {newAlert && tab !== "active" && (
+        <div
+          className="mx-4 mb-3 bg-red-500 text-white rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer active:scale-95 transition-transform"
+          onClick={() => handleTabChange("active")}
+        >
+          <span className="text-sm font-black">🔴 새 주문이 들어왔어요!</span>
+          <span className="text-xs font-bold underline">확인하기</span>
+        </div>
+      )}
 
       {/* 탭 */}
       <div className="flex gap-2 px-4 mb-4">
-        <button
-          onClick={() => setTab("active")}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm transition-all ${
-            tab === "active"
-              ? "bg-amber-500 text-white shadow-md"
-              : "bg-white text-pick-text-sub border-2 border-pick-border"
-          }`}
-        >
-          진행 중
-          {pendingCount > 0 && (
-            <span className={`text-xs font-black px-2 py-0.5 rounded-full ${
-              tab === "active" ? "bg-white/30 text-white" : "bg-red-500 text-white"
-            }`}>
-              {pendingCount}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setTab("done")}
-          className={`px-5 py-2.5 rounded-full font-bold text-sm transition-all ${
-            tab === "done"
-              ? "bg-amber-500 text-white shadow-md"
-              : "bg-white text-pick-text-sub border-2 border-pick-border"
-          }`}
-        >
-          완료 / 취소
-        </button>
+        {(["active", "done"] as Tab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => handleTabChange(t)}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm transition-all ${
+              tab === t
+                ? "bg-amber-500 text-white shadow-md"
+                : "bg-white text-pick-text-sub border-2 border-pick-border"
+            }`}
+          >
+            {t === "active" ? "진행 중" : "완료 / 취소"}
+            {t === "active" && pendingCount > 0 && (
+              <span className={`text-xs font-black px-2 py-0.5 rounded-full ${
+                tab === "active" ? "bg-white/30 text-white" : "bg-red-500 text-white"
+              }`}>
+                {pendingCount}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
       {/* 주문 목록 */}
       <div className="px-4 flex flex-col gap-3">
-        {tab === "active" ? (
-          activeOrders.length === 0 ? (
-            <div className="flex flex-col items-center py-16 text-pick-text-sub">
-              <span className="text-5xl mb-3">🎉</span>
-              <p className="text-sm font-medium">모든 주문이 처리됐어요!</p>
-            </div>
-          ) : (
-            activeOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onAccept={handleAccept}
-                onReject={handleReject}
-                onComplete={handleComplete}
-              />
-            ))
-          )
+        {loading ? (
+          <div className="flex justify-center py-16">
+            <div className="w-8 h-8 border-2 border-pick-purple border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : displayOrders.length === 0 ? (
+          <div className="flex flex-col items-center py-16 text-pick-text-sub">
+            <span className="text-5xl mb-3">{tab === "active" ? "🎉" : "📋"}</span>
+            <p className="text-sm font-medium">
+              {tab === "active" ? "모든 주문이 처리됐어요!" : "완료된 주문이 없어요"}
+            </p>
+          </div>
         ) : (
-          doneOrders.length === 0 ? (
-            <div className="flex flex-col items-center py-16 text-pick-text-sub">
-              <span className="text-5xl mb-3">📋</span>
-              <p className="text-sm font-medium">완료된 주문이 없어요</p>
-            </div>
-          ) : (
-            doneOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onAccept={handleAccept}
-                onReject={handleReject}
-                onComplete={handleComplete}
-              />
-            ))
-          )
+          displayOrders.map((order) => (
+            <OrderCard
+              key={order.id}
+              order={order}
+              onStatusChange={handleStatusChange}
+            />
+          ))
         )}
       </div>
     </div>

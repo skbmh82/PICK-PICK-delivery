@@ -424,10 +424,21 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- ============================================================
 -- Supabase Realtime — 구독 대상 테이블 등록
 -- ============================================================
--- orders 테이블 Realtime 활성화
-ALTER PUBLICATION supabase_realtime ADD TABLE orders;
-ALTER PUBLICATION supabase_realtime ADD TABLE rider_locations;
-ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+-- orders 테이블 Realtime 활성화 (이미 등록된 경우 무시)
+DO $$
+DECLARE
+  tbl TEXT;
+  tables TEXT[] := ARRAY['orders','rider_locations','notifications'];
+BEGIN
+  FOREACH tbl IN ARRAY tables LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_publication_tables
+      WHERE pubname = 'supabase_realtime' AND tablename = tbl
+    ) THEN
+      EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE %I', tbl);
+    END IF;
+  END LOOP;
+END $$;
 
 -- ============================================================
 -- 샘플 가맹점 데이터 (개발용 — 실서비스 시 삭제)

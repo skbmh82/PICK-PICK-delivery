@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -100,9 +100,11 @@ function MenuSection({
 /* ────────────── 메인 클라이언트 컴포넌트 ────────────── */
 export default function StoreDetailClient({ store }: { store: MockStore }) {
   const [cartOpen, setCartOpen] = useState(false);
-  const addItem = useCartStore((s) => s.addItem);
-  const totalCount = useCartStore((s) => s.totalCount);
+  const handleCartClose = useCallback(() => setCartOpen(false), []);
+  const addItem    = useCartStore((s) => s.addItem);
+  const cartItems  = useCartStore((s) => s.items);
   const cartStoreId = useCartStore((s) => s.storeId);
+  const cartCount  = cartItems.reduce((sum, i) => sum + i.quantity, 0);
 
   const categoryInfo = CATEGORY_LABELS[store.category];
 
@@ -131,7 +133,6 @@ export default function StoreDetailClient({ store }: { store: MockStore }) {
     });
   };
 
-  const cartCount = totalCount();
   // 다른 가게 담긴 경우 확인
   const isDifferentStore = cartStoreId && cartStoreId !== store.id && cartCount > 0;
 
@@ -228,7 +229,7 @@ export default function StoreDetailClient({ store }: { store: MockStore }) {
 
       {/* ── 장바구니 바텀시트 ── */}
       {cartOpen && cartStoreId === store.id && (
-        <CartBottomSheet onClose={() => setCartOpen(false)} />
+        <CartBottomSheet onClose={handleCartClose} />
       )}
     </div>
   );

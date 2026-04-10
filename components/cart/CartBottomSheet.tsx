@@ -28,6 +28,11 @@ export default function CartBottomSheet({ onClose }: Props) {
     fetchMyPickBalance(user.id).then(setPickBalance);
   }, [user]);
 
+  // 장바구니가 비면 자동 닫기
+  useEffect(() => {
+    if (cart.items.length === 0) onClose();
+  }, [cart.items.length, onClose]);
+
   const itemsAmount = cart.itemsAmount();
   const maxPickUsable = Math.min(pickBalance, Math.floor(itemsAmount * 0.5));
   const pickDiscount = usePick ? maxPickUsable : 0;
@@ -100,14 +105,14 @@ export default function CartBottomSheet({ onClose }: Props) {
 
   return (
     <>
-      {/* 딤드 배경 */}
+      {/* 딤드 배경 — BottomNav(z-50) 위에 올라와야 해서 z-[55] */}
       <div
-        className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]"
+        className="fixed inset-0 bg-black/40 z-[55] backdrop-blur-[1px]"
         onClick={onClose}
       />
 
-      {/* 바텀시트 */}
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50 bg-white rounded-t-3xl shadow-2xl max-h-[85dvh] flex flex-col">
+      {/* 바텀시트 — z-[60]으로 nav와 backdrop 위에 위치 */}
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white rounded-t-3xl shadow-2xl max-h-[85dvh] flex flex-col overflow-hidden">
         {/* 핸들 + 헤더 */}
         <div className="flex-shrink-0 px-5 pt-3 pb-4 border-b border-pick-border">
           <div className="w-10 h-1 bg-pick-border rounded-full mx-auto mb-4" />
@@ -132,7 +137,7 @@ export default function CartBottomSheet({ onClose }: Props) {
         </div>
 
         {/* 아이템 목록 */}
-        <div className="flex-1 overflow-y-auto px-4 py-3">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
           <div className="flex flex-col gap-3">
             {cart.items.map((item) => (
               <div
