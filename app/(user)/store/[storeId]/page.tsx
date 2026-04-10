@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { fetchStoreById, fetchMenusByStoreId } from "@/lib/supabase/stores";
 import { getCategoryEmoji, CATEGORY_META, getMenuEmoji } from "@/lib/utils/categoryEmoji";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 import StoreDetailClient from "./StoreDetailClient";
 import type { MockStore, MockMenu } from "@/lib/mock/stores";
 
@@ -15,6 +17,30 @@ export default async function StoreDetailPage({
     fetchStoreById(storeId),
     fetchMenusByStoreId(storeId),
   ]);
+
+  // 즐겨찾기 여부 서버에서 확인
+  let isFavorited = false;
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const admin = getAdminSupabaseClient() as any;
+      const { data: profile } = await admin
+        .from("users").select("id").eq("auth_id", user.id).single();
+      if (profile) {
+        const { data: fav } = await admin
+          .from("favorites")
+          .select("id")
+          .eq("user_id", profile.id)
+          .eq("store_id", storeId)
+          .single();
+        isFavorited = !!fav;
+      }
+    }
+  } catch {
+    // 비로그인 상태 등 무시
+  }
 
   if (!storeRow) notFound();
 
@@ -51,5 +77,5 @@ export default async function StoreDetailPage({
       : [];
   }
 
-  return <StoreDetailClient store={store} />;
+  return <StoreDetailClient store={store} isFavorited={isFavorited} />;
 }

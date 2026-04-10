@@ -6,6 +6,7 @@ const PUBLIC_ROUTES   = ["/login", "/register"];          // 누구나 접근 �
 const AUTH_ROUTES     = ["/home", "/wallet", "/orders", "/my-pick", "/store"]; // 로그인 필요
 const OWNER_ROUTES    = ["/owner"];                        // owner, admin만
 const RIDER_ROUTES    = ["/rider"];                        // rider, admin만
+const ADMIN_ROUTES    = ["/admin"];                        // admin만
 
 function matchesAny(pathname: string, routes: string[]) {
   return routes.some((r) => pathname === r || pathname.startsWith(r + "/"));
@@ -70,7 +71,8 @@ export async function middleware(request: NextRequest) {
   if (
     matchesAny(pathname, AUTH_ROUTES) ||
     matchesAny(pathname, OWNER_ROUTES) ||
-    matchesAny(pathname, RIDER_ROUTES)
+    matchesAny(pathname, RIDER_ROUTES) ||
+    matchesAny(pathname, ADMIN_ROUTES)
   ) {
     if (!isLoggedIn) {
       const loginUrl = new URL("/login", request.url);
@@ -82,7 +84,9 @@ export async function middleware(request: NextRequest) {
   // ── 4. 역할 기반 라우트 체크 ──
   if (
     isLoggedIn &&
-    (matchesAny(pathname, OWNER_ROUTES) || matchesAny(pathname, RIDER_ROUTES))
+    (matchesAny(pathname, OWNER_ROUTES) ||
+     matchesAny(pathname, RIDER_ROUTES) ||
+     matchesAny(pathname, ADMIN_ROUTES))
   ) {
     // 역할은 pick-role 쿠키에서 읽음 (로그인 시 API에서 설정)
     const roleCookie = request.cookies.get("pick-role")?.value;
@@ -90,11 +94,15 @@ export async function middleware(request: NextRequest) {
     if (roleCookie) {
       const isOwnerRoute = matchesAny(pathname, OWNER_ROUTES);
       const isRiderRoute = matchesAny(pathname, RIDER_ROUTES);
+      const isAdminRoute = matchesAny(pathname, ADMIN_ROUTES);
 
       if (isOwnerRoute && !["owner", "admin"].includes(roleCookie)) {
         return NextResponse.redirect(new URL("/home", request.url));
       }
       if (isRiderRoute && !["rider", "admin"].includes(roleCookie)) {
+        return NextResponse.redirect(new URL("/home", request.url));
+      }
+      if (isAdminRoute && roleCookie !== "admin") {
         return NextResponse.redirect(new URL("/home", request.url));
       }
     } else {
@@ -117,11 +125,15 @@ export async function middleware(request: NextRequest) {
 
         const isOwnerRoute = matchesAny(pathname, OWNER_ROUTES);
         const isRiderRoute = matchesAny(pathname, RIDER_ROUTES);
+        const isAdminRoute = matchesAny(pathname, ADMIN_ROUTES);
 
         if (isOwnerRoute && !["owner", "admin"].includes(role)) {
           return NextResponse.redirect(new URL("/home", request.url));
         }
         if (isRiderRoute && !["rider", "admin"].includes(role)) {
+          return NextResponse.redirect(new URL("/home", request.url));
+        }
+        if (isAdminRoute && role !== "admin") {
           return NextResponse.redirect(new URL("/home", request.url));
         }
       }

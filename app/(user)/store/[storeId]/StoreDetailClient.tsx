@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ShoppingBag,
   Flame,
+  Heart,
 } from "lucide-react";
 import { CATEGORY_LABELS, type MockMenu, type MockStore } from "@/lib/mock/stores";
 import { useCartStore } from "@/stores/cartStore";
@@ -98,13 +99,21 @@ function MenuSection({
 }
 
 /* ────────────── 메인 클라이언트 컴포넌트 ────────────── */
-export default function StoreDetailClient({ store }: { store: MockStore }) {
-  const [cartOpen, setCartOpen] = useState(false);
+export default function StoreDetailClient({
+  store,
+  isFavorited: initialFavorited = false,
+}: {
+  store: MockStore;
+  isFavorited?: boolean;
+}) {
+  const [cartOpen,    setCartOpen]    = useState(false);
+  const [favorited,   setFavorited]   = useState(initialFavorited);
+  const [favLoading,  setFavLoading]  = useState(false);
   const handleCartClose = useCallback(() => setCartOpen(false), []);
-  const addItem    = useCartStore((s) => s.addItem);
-  const cartItems  = useCartStore((s) => s.items);
+  const addItem     = useCartStore((s) => s.addItem);
+  const cartItems   = useCartStore((s) => s.items);
   const cartStoreId = useCartStore((s) => s.storeId);
-  const cartCount  = cartItems.reduce((sum, i) => sum + i.quantity, 0);
+  const cartCount   = cartItems.reduce((sum, i) => sum + i.quantity, 0);
 
   const categoryInfo = CATEGORY_LABELS[store.category];
 
@@ -133,6 +142,23 @@ export default function StoreDetailClient({ store }: { store: MockStore }) {
     });
   };
 
+  const handleFavoriteToggle = async () => {
+    if (favLoading) return;
+    setFavLoading(true);
+    try {
+      const res = await fetch(`/api/favorites/${store.id}`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json() as { isFavorited: boolean };
+        setFavorited(data.isFavorited);
+      } else if (res.status === 401) {
+        // 비로그인 → 로그인 유도 (조용히 처리)
+        alert("로그인 후 즐겨찾기를 이용할 수 있어요 💜");
+      }
+    } finally {
+      setFavLoading(false);
+    }
+  };
+
   // 다른 가게 담긴 경우 확인
   const isDifferentStore = cartStoreId && cartStoreId !== store.id && cartCount > 0;
 
@@ -152,12 +178,25 @@ export default function StoreDetailClient({ store }: { store: MockStore }) {
         <div className="h-52 bg-gradient-to-br from-pick-purple-dark via-pick-purple to-pick-purple-light flex items-center justify-center">
           <span className="text-9xl drop-shadow-lg">{store.emoji}</span>
         </div>
+        {/* 뒤로가기 */}
         <Link
           href={`/home?category=${store.category}`}
           className="absolute top-4 left-4 w-10 h-10 flex items-center justify-center rounded-full bg-white/90 shadow-md backdrop-blur-sm active:scale-90 transition-transform"
         >
           <ArrowLeft size={20} className="text-pick-purple-dark" />
         </Link>
+        {/* 즐겨찾기 버튼 */}
+        <button
+          onClick={() => void handleFavoriteToggle()}
+          disabled={favLoading}
+          className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-white/90 shadow-md backdrop-blur-sm active:scale-90 transition-transform disabled:opacity-60"
+          aria-label="즐겨찾기"
+        >
+          <Heart
+            size={20}
+            className={favorited ? "text-red-500 fill-red-500" : "text-pick-text-sub"}
+          />
+        </button>
       </div>
 
       {/* ── 가게 정보 카드 ── */}

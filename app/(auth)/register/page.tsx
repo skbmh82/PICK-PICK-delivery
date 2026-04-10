@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
-import { Eye, EyeOff, Mail } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 
 const schema = z.object({
   name:     z.string().min(2, "이름은 2자 이상이어야 해요"),
@@ -48,47 +48,32 @@ export default function RegisterPage() {
     setServerError("");
     setNeedsEmailConfirm(false);
 
-    // 1. Supabase Auth 계정 생성
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    // 1. 서버 API로 회원가입 + 지갑 자동 생성
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      setServerError((err.error as string) ?? "회원가입에 실패했어요. 다시 시도해주세요.");
+      return;
+    }
+
+    // 2. 방금 생성된 계정으로 로그인 (클라이언트 세션 수립)
+    const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,
     });
 
-    if (authError) {
-      setServerError(authError.message);
-      return;
-    }
-
-    if (!authData.user) {
-      setServerError("회원가입에 실패했어요. 다시 시도해주세요.");
-      return;
-    }
-
-    // 2. users 테이블에 프로필 저장
-    const { error: profileError } = await supabase.from("users").insert({
-      auth_id: authData.user.id,
-      name: data.name,
-      email: data.email,
-      role: data.role,
-    });
-
-    if (profileError) {
-      // 중복 이메일인 경우
-      if (profileError.code === "23505") {
-        setServerError("이미 가입된 이메일이에요.");
-      } else {
-        setServerError(`프로필 저장 실패: ${profileError.message}`);
-      }
-      return;
-    }
-
-    // 3. 이메일 인증 필요 여부 확인
-    // session이 null이면 이메일 인증 대기 상태
-    if (!authData.session) {
+    if (signInError || !authData.session) {
+      // 이메일 인증이 필요한 경우
       setNeedsEmailConfirm(true);
       return;
     }
 
+    // 3. pick-role 쿠키 설정
     await fetch("/api/auth/session", { method: "POST" });
     router.replace("/home");
   };
