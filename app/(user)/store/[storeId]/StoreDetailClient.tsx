@@ -12,12 +12,39 @@ import {
   Flame,
   Heart,
 } from "lucide-react";
-import { CATEGORY_LABELS, type MockMenu, type MockStore } from "@/lib/mock/stores";
+import { CATEGORY_META } from "@/lib/utils/categoryEmoji";
 import { useCartStore } from "@/stores/cartStore";
 import CartBottomSheet from "@/components/cart/CartBottomSheet";
 
+// ── 가게 상세용 타입 ───────────────────────────────────
+export interface MenuItem {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  image: string;       // 이모지
+  isPopular?: boolean;
+  isAvailable?: boolean;
+  category: string;
+}
+
+export interface StoreDetail {
+  id: string;
+  name: string;
+  category: string;
+  emoji: string;
+  rating: number;
+  reviewCount: number;
+  deliveryTime: number;
+  deliveryFee: number;
+  minOrderAmount: number;
+  pickRewardRate: number;
+  tags: string[];
+  menus: MenuItem[];
+}
+
 /* ────────────── 메뉴 아이템 카드 ────────────── */
-function MenuItemCard({ menu, onAdd }: { menu: MockMenu; onAdd: () => void }) {
+function MenuItemCard({ menu, onAdd }: { menu: MenuItem; onAdd: () => void }) {
   const cartItems = useCartStore((s) => s.items);
   const count = cartItems.find((i) => i.menuId === menu.id)?.quantity ?? 0;
 
@@ -80,8 +107,8 @@ function MenuSection({
   onAdd,
 }: {
   category: string;
-  menus: MockMenu[];
-  onAdd: (menu: MockMenu) => void;
+  menus: MenuItem[];
+  onAdd: (menu: MenuItem) => void;
 }) {
   return (
     <div className="mb-6">
@@ -103,42 +130,42 @@ export default function StoreDetailClient({
   store,
   isFavorited: initialFavorited = false,
 }: {
-  store: MockStore;
+  store: StoreDetail;
   isFavorited?: boolean;
 }) {
-  const [cartOpen,    setCartOpen]    = useState(false);
-  const [favorited,   setFavorited]   = useState(initialFavorited);
-  const [favLoading,  setFavLoading]  = useState(false);
+  const [cartOpen,   setCartOpen]   = useState(false);
+  const [favorited,  setFavorited]  = useState(initialFavorited);
+  const [favLoading, setFavLoading] = useState(false);
   const handleCartClose = useCallback(() => setCartOpen(false), []);
   const addItem     = useCartStore((s) => s.addItem);
   const cartItems   = useCartStore((s) => s.items);
   const cartStoreId = useCartStore((s) => s.storeId);
   const cartCount   = cartItems.reduce((sum, i) => sum + i.quantity, 0);
 
-  const categoryInfo = CATEGORY_LABELS[store.category];
+  const categoryInfo = CATEGORY_META[store.category];
 
   // 메뉴를 카테고리별로 그룹화
-  const menuGroups = store.menus.reduce<Record<string, MockMenu[]>>((acc, menu) => {
+  const menuGroups = store.menus.reduce<Record<string, MenuItem[]>>((acc, menu) => {
     if (!acc[menu.category]) acc[menu.category] = [];
     acc[menu.category].push(menu);
     return acc;
   }, {});
 
   const storeInfo = {
-    storeId: store.id,
-    storeName: store.name,
-    storeEmoji: store.emoji,
-    deliveryFee: store.deliveryFee,
+    storeId:        store.id,
+    storeName:      store.name,
+    storeEmoji:     store.emoji,
+    deliveryFee:    store.deliveryFee,
     minOrderAmount: store.minOrderAmount,
     pickRewardRate: store.pickRewardRate,
   };
 
-  const handleAddMenu = (menu: MockMenu) => {
+  const handleAddMenu = (menu: MenuItem) => {
     addItem(storeInfo, {
-      menuId: menu.id,
+      menuId:   menu.id,
       menuName: menu.name,
-      price: menu.price,
-      image: menu.image,
+      price:    menu.price,
+      image:    menu.image,
     });
   };
 
@@ -151,7 +178,6 @@ export default function StoreDetailClient({
         const data = await res.json() as { isFavorited: boolean };
         setFavorited(data.isFavorited);
       } else if (res.status === 401) {
-        // 비로그인 → 로그인 유도 (조용히 처리)
         alert("로그인 후 즐겨찾기를 이용할 수 있어요 💜");
       }
     } finally {
@@ -159,7 +185,6 @@ export default function StoreDetailClient({
     }
   };
 
-  // 다른 가게 담긴 경우 확인
   const isDifferentStore = cartStoreId && cartStoreId !== store.id && cartCount > 0;
 
   return (
@@ -185,7 +210,7 @@ export default function StoreDetailClient({
         >
           <ArrowLeft size={20} className="text-pick-purple-dark" />
         </Link>
-        {/* 즐겨찾기 버튼 */}
+        {/* 즐겨찾기 */}
         <button
           onClick={() => void handleFavoriteToggle()}
           disabled={favLoading}
