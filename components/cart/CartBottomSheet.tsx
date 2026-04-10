@@ -7,7 +7,6 @@ import { useCartStore } from "@/stores/cartStore";
 import { useOrderStore } from "@/stores/orderStore";
 import { useAuthStore } from "@/stores/authStore";
 import { fetchMyPickBalance } from "@/lib/supabase/wallet";
-import { createOrder } from "@/lib/supabase/orders";
 
 interface Props {
   onClose: () => void;
@@ -46,24 +45,34 @@ export default function CartBottomSheet({ onClose }: Props) {
 
     let orderId = `ORD-${Date.now()}`;
 
-    // 로그인된 경우 Supabase에 실주문 저장
+    // 서버 API로 주문 생성 (PICK 차감 포함)
     if (user) {
-      const realOrderId = await createOrder({
-        userId: user.id,
-        storeId: cart.storeId,
-        items: cart.items.map((i) => ({
-          menuId: i.menuId,
-          menuName: i.menuName,
-          price: i.price,
-          quantity: i.quantity,
-        })),
-        totalAmount: itemsAmount,
-        deliveryFee: cart.deliveryFee,
-        pickUsed: pickDiscount,
-        pickReward,
-        deliveryAddress: "서울 강남구 역삼동 123-45",
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storeId:         cart.storeId,
+          items:           cart.items.map((i) => ({
+            menuId:   i.menuId,
+            menuName: i.menuName,
+            price:    i.price,
+            quantity: i.quantity,
+          })),
+          totalAmount:     itemsAmount,
+          deliveryFee:     cart.deliveryFee,
+          pickUsed:        pickDiscount,
+          deliveryAddress: "서울 강남구 역삼동 123-45",
+        }),
       });
-      if (realOrderId) orderId = realOrderId;
+      if (res.ok) {
+        const data = await res.json();
+        if (data.orderId) orderId = data.orderId;
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error ?? "주문 생성에 실패했습니다");
+        setIsOrdering(false);
+        return;
+      }
     }
 
     setLastOrder({
