@@ -1,7 +1,98 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Wallet, ArrowDownLeft, ArrowUpRight, History, Coins, TrendingUp } from "lucide-react";
+import { Wallet, ArrowDownLeft, ArrowUpRight, History, Coins, TrendingUp, X, Check } from "lucide-react";
+
+// ── 충전 모달 ──────────────────────────────────────────
+const CHARGE_PRESETS = [1000, 3000, 5000, 10000, 30000, 50000];
+
+function ChargeModal({ onClose, onCharged }: { onClose: () => void; onCharged: (amount: number) => void }) {
+  const [amount,  setAmount]  = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState("");
+
+  const handleCharge = async () => {
+    const num = parseInt(amount, 10);
+    if (isNaN(num) || num < 100) return setError("100 PICK 이상 입력해주세요");
+    if (num > 1000000)           return setError("최대 1,000,000 PICK까지 충전 가능합니다");
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/wallet/charge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: num, description: "PICK 직접 충전" }),
+      });
+      if (res.ok) {
+        onCharged(num);
+        onClose();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setError(err.error ?? "충전에 실패했습니다");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-[55]" onClick={onClose} />
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white rounded-t-3xl shadow-2xl">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-pick-border">
+          <h2 className="font-black text-pick-text text-lg">PICK 충전 💜</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-pick-bg">
+            <X size={16} className="text-pick-text-sub" />
+          </button>
+        </div>
+        <div className="px-5 py-4 flex flex-col gap-4">
+          {/* 금액 입력 */}
+          <div>
+            <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">충전 금액 (PICK)</label>
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="충전할 PICK 수량 입력"
+              min="100"
+              className="w-full border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text focus:outline-none focus:border-pick-purple"
+            />
+          </div>
+          {/* 프리셋 버튼 */}
+          <div className="grid grid-cols-3 gap-2">
+            {CHARGE_PRESETS.map((p) => (
+              <button
+                key={p}
+                onClick={() => setAmount(String(p))}
+                className={`py-2.5 rounded-2xl text-sm font-bold transition-all ${
+                  amount === String(p)
+                    ? "bg-pick-purple text-white"
+                    : "bg-pick-bg border border-pick-border text-pick-text"
+                }`}
+              >
+                {p.toLocaleString()}P
+              </button>
+            ))}
+          </div>
+          {error && <p className="text-xs text-red-500 font-bold text-center">{error}</p>}
+        </div>
+        <div className="px-5 pb-8 pt-1 border-t border-pick-border">
+          <button
+            onClick={() => void handleCharge()}
+            disabled={loading || !amount}
+            className="w-full bg-gradient-to-r from-pick-purple to-pick-purple-light text-white font-black py-4 rounded-full shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+          >
+            {loading
+              ? <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              : <Check size={18} />
+            }
+            {amount ? `${parseInt(amount || "0").toLocaleString()} PICK 충전` : "충전하기"}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
 
 // ── 타입 ──────────────────────────────────────────────
 interface Transaction {
@@ -49,9 +140,10 @@ function WalletSkeleton() {
 
 // ── 메인 페이지 ───────────────────────────────────────
 export default function WalletPage() {
-  const [data,    setData]    = useState<WalletData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [data,        setData]        = useState<WalletData | null>(null);
+  const [loading,     setLoading]     = useState(true);
+  const [isLoggedIn,  setIsLoggedIn]  = useState(true);
+  const [chargeOpen,  setChargeOpen]  = useState(false);
 
   const fetchWallet = useCallback(async () => {
     setLoading(true);
@@ -107,7 +199,10 @@ export default function WalletPage() {
 
       {/* 빠른 액션 */}
       <div className="grid grid-cols-2 gap-3">
-        <button className="flex items-center justify-center gap-2 bg-white rounded-full py-4 border-2 border-pick-border shadow-sm font-bold text-pick-purple active:scale-95 transition-all">
+        <button
+          onClick={() => setChargeOpen(true)}
+          className="flex items-center justify-center gap-2 bg-white rounded-full py-4 border-2 border-pick-border shadow-sm font-bold text-pick-purple active:scale-95 transition-all"
+        >
           <ArrowDownLeft size={18} />
           충전하기
         </button>
@@ -116,6 +211,13 @@ export default function WalletPage() {
           보내기
         </button>
       </div>
+
+      {chargeOpen && (
+        <ChargeModal
+          onClose={() => setChargeOpen(false)}
+          onCharged={() => { fetchWallet(); }}
+        />
+      )}
 
       {/* 로그인 안내 */}
       {!isLoggedIn && (
