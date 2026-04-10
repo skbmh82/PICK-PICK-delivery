@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ClipboardList, Clock, Bike, CheckCircle, XCircle, RefreshCw } from "lucide-react";
+import {
+  ClipboardList, Clock, Bike, CheckCircle, XCircle,
+  RefreshCw, Star, X, Check, RotateCcw,
+} from "lucide-react";
 import Link from "next/link";
 import { useOrderStore } from "@/stores/orderStore";
+import { useCartStore } from "@/stores/cartStore";
 import { useOrderRealtime, type OrderStatus } from "@/hooks/useRealtime";
 import { getCategoryEmoji } from "@/lib/utils/categoryEmoji";
 
@@ -32,21 +36,22 @@ interface Order {
   delivery_address: string;
   estimated_time: number;
   created_at: string;
+  hasReview: boolean;
   stores: OrderStore | null;
   order_items: OrderItem[];
 }
 
 // ── 상태 레이블 / 색상 ────────────────────────────────
 const STATUS_CONFIG: Record<OrderStatus, { label: string; emoji: string; color: string; bg: string }> = {
-  pending:    { label: "결제 확인 중",    emoji: "⏳", color: "text-yellow-600",  bg: "bg-yellow-50 border-yellow-200" },
-  confirmed:  { label: "주문 수락됨",     emoji: "✅", color: "text-blue-600",    bg: "bg-blue-50 border-blue-200" },
-  preparing:  { label: "조리 중",         emoji: "🍳", color: "text-orange-600",  bg: "bg-orange-50 border-orange-200" },
-  ready:      { label: "픽업 대기 중",    emoji: "📦", color: "text-purple-600",  bg: "bg-purple-50 border-purple-200" },
+  pending:    { label: "결제 확인 중",     emoji: "⏳", color: "text-yellow-600",  bg: "bg-yellow-50 border-yellow-200" },
+  confirmed:  { label: "주문 수락됨",      emoji: "✅", color: "text-blue-600",    bg: "bg-blue-50 border-blue-200" },
+  preparing:  { label: "조리 중",          emoji: "🍳", color: "text-orange-600",  bg: "bg-orange-50 border-orange-200" },
+  ready:      { label: "픽업 대기 중",     emoji: "📦", color: "text-purple-600",  bg: "bg-purple-50 border-purple-200" },
   picked_up:  { label: "라이더 픽업 완료", emoji: "🛵", color: "text-indigo-600",  bg: "bg-indigo-50 border-indigo-200" },
-  delivering: { label: "배달 중",         emoji: "🚀", color: "text-pick-purple", bg: "bg-pick-bg border-pick-border" },
-  delivered:  { label: "배달 완료",       emoji: "🎉", color: "text-green-600",   bg: "bg-green-50 border-green-200" },
-  cancelled:  { label: "취소됨",          emoji: "❌", color: "text-red-500",     bg: "bg-red-50 border-red-200" },
-  refunded:   { label: "환불 완료",       emoji: "💸", color: "text-gray-500",    bg: "bg-gray-50 border-gray-200" },
+  delivering: { label: "배달 중",          emoji: "🚀", color: "text-pick-purple", bg: "bg-pick-bg border-pick-border" },
+  delivered:  { label: "배달 완료",        emoji: "🎉", color: "text-green-600",   bg: "bg-green-50 border-green-200" },
+  cancelled:  { label: "취소됨",           emoji: "❌", color: "text-red-500",     bg: "bg-red-50 border-red-200" },
+  refunded:   { label: "환불 완료",        emoji: "💸", color: "text-gray-500",    bg: "bg-gray-50 border-gray-200" },
 };
 
 const ACTIVE_STATUSES: OrderStatus[] = [
@@ -66,17 +71,155 @@ function getStepIndex(status: OrderStatus): number {
   for (let i = 0; i < STEP_STATUSES.length; i++) {
     if (STEP_STATUSES[i].includes(status)) return i;
   }
-  return status === "pending" ? -1 : -1;
+  return -1;
+}
+
+// ── 리뷰 모달 ──────────────────────────────────────────
+function ReviewModal({
+  order,
+  onClose,
+  onReviewed,
+}: {
+  order: Order;
+  onClose: () => void;
+  onReviewed: () => void;
+}) {
+  const [rating,  setRating]  = useState(5);
+  const [content, setContent] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id, rating, content: content || undefined }),
+      });
+      if (res.ok) {
+        setSuccess(true);
+        setTimeout(() => { onReviewed(); onClose(); }, 900);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setError((err.error as string) ?? "리뷰 저장에 실패했습니다");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const storeEmoji = order.stores ? getCategoryEmoji(order.stores.category) : "🍽️";
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-[55]" onClick={onClose} />
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white rounded-t-3xl shadow-2xl">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-pick-border">
+          <div className="flex items-center gap-2">
+            <span className="text-3xl">{storeEmoji}</span>
+            <div>
+              <h2 className="font-black text-pick-text text-base">리뷰 작성 ⭐</h2>
+              <p className="text-xs text-pick-text-sub">{order.stores?.name}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-pick-bg">
+            <X size={16} className="text-pick-text-sub" />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 flex flex-col gap-4">
+          {/* 별점 */}
+          <div>
+            <label className="text-xs font-bold text-pick-text-sub mb-2 block">별점</label>
+            <div className="flex gap-2 justify-center">
+              {[1,2,3,4,5].map((s) => (
+                <button key={s} onClick={() => setRating(s)} className="active:scale-90 transition-transform">
+                  <Star
+                    size={36}
+                    className={s <= rating ? "text-pick-yellow fill-pick-yellow" : "text-gray-200 fill-gray-200"}
+                  />
+                </button>
+              ))}
+            </div>
+            <p className="text-center text-xs text-pick-text-sub mt-2">
+              {["", "별로였어요", "조금 아쉬워요", "괜찮았어요", "맛있었어요", "정말 최고예요!"][rating]}
+            </p>
+          </div>
+          {/* 내용 */}
+          <div>
+            <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">후기 (선택)</label>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="음식과 배달 서비스는 어땠나요?"
+              maxLength={500}
+              rows={3}
+              className="w-full border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text focus:outline-none focus:border-pick-purple resize-none"
+            />
+            <p className="text-right text-[10px] text-pick-text-sub">{content.length}/500</p>
+          </div>
+          {/* PICK 보상 안내 */}
+          <div className="bg-pick-bg rounded-2xl px-4 py-2.5 flex items-center gap-2">
+            <span className="text-base">✨</span>
+            <span className="text-xs text-pick-text-sub">리뷰 작성 시 <strong className="text-pick-purple">+10 PICK</strong> 보상!</span>
+          </div>
+          {error && <p className="text-xs text-red-500 font-bold text-center">{error}</p>}
+        </div>
+
+        <div className="px-5 pb-8 pt-1 border-t border-pick-border">
+          <button
+            onClick={() => void handleSubmit()}
+            disabled={loading || success}
+            className="w-full bg-gradient-to-r from-pick-purple to-pick-purple-light text-white font-black py-4 rounded-full shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+          >
+            {success ? (
+              <><Check size={18} /> 리뷰 등록 완료!</>
+            ) : loading ? (
+              <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            ) : (
+              <><Star size={18} /> 리뷰 등록하기</>
+            )}
+          </button>
+        </div>
+      </div>
+    </>
+  );
 }
 
 // ── 진행 중 주문 카드 ──────────────────────────────────
-function ActiveOrderCard({ order }: { order: Order }) {
-  const [status, setStatus] = useState<OrderStatus>(order.status);
+function ActiveOrderCard({
+  order,
+  onCancelled,
+}: {
+  order: Order;
+  onCancelled: () => void;
+}) {
+  const [status,     setStatus]     = useState<OrderStatus>(order.status);
+  const [cancelling, setCancelling] = useState(false);
   useOrderRealtime(order.id, setStatus);
 
   const cfg      = STATUS_CONFIG[status];
   const stepIdx  = getStepIndex(status);
   const storeEmoji = order.stores ? getCategoryEmoji(order.stores.category) : "🍽️";
+  const canCancel  = status === "pending";
+
+  const handleCancel = async () => {
+    if (!confirm("주문을 취소하시겠어요?")) return;
+    setCancelling(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "cancelled" }),
+      });
+      if (res.ok) onCancelled();
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   return (
     <div className="bg-white rounded-3xl border-2 border-pick-purple/30 shadow-sm overflow-hidden">
@@ -93,12 +236,21 @@ function ActiveOrderCard({ order }: { order: Order }) {
         {/* 가게 정보 */}
         <div className="flex items-center gap-2 mb-3">
           <span className="text-3xl">{storeEmoji}</span>
-          <div>
+          <div className="flex-1">
             <p className="font-black text-pick-text">{order.stores?.name ?? "가맹점"}</p>
             <p className="text-xs text-pick-text-sub">
               {new Date(order.created_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} 주문
             </p>
           </div>
+          {canCancel && (
+            <button
+              onClick={() => void handleCancel()}
+              disabled={cancelling}
+              className="text-xs font-bold text-red-500 bg-red-50 border border-red-200 px-3 py-1.5 rounded-full active:scale-90 transition-transform disabled:opacity-50"
+            >
+              {cancelling ? "취소 중..." : "취소"}
+            </button>
+          )}
         </div>
 
         {/* 주문 아이템 */}
@@ -152,10 +304,19 @@ function ActiveOrderCard({ order }: { order: Order }) {
 }
 
 // ── 완료 주문 카드 ────────────────────────────────────
-function CompletedOrderCard({ order }: { order: Order }) {
+function CompletedOrderCard({
+  order,
+  onReorder,
+  onReviewOpen,
+}: {
+  order: Order;
+  onReorder: (order: Order) => void;
+  onReviewOpen: (order: Order) => void;
+}) {
   const cfg        = STATUS_CONFIG[order.status];
   const storeEmoji = order.stores ? getCategoryEmoji(order.stores.category) : "🍽️";
   const isCancel   = order.status === "cancelled" || order.status === "refunded";
+  const isDelivered = order.status === "delivered";
 
   return (
     <div className="bg-white rounded-3xl border-2 border-pick-border shadow-sm px-4 py-4">
@@ -173,12 +334,12 @@ function CompletedOrderCard({ order }: { order: Order }) {
         </div>
       </div>
 
-      <p className="text-xs text-pick-text-sub mb-2">
+      <p className="text-xs text-pick-text-sub mb-3">
         {order.order_items.map((i) => `${i.menu_name} x${i.quantity}`).join(", ")}
       </p>
 
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
           <span className="font-black text-pick-text">
             {Number(order.total_amount).toLocaleString()}원
           </span>
@@ -188,14 +349,34 @@ function CompletedOrderCard({ order }: { order: Order }) {
             </span>
           )}
         </div>
-        {!isCancel && (
-          <Link
-            href={`/home`}
-            className="text-xs font-bold text-pick-purple bg-pick-bg border border-pick-border px-3 py-1.5 rounded-full"
-          >
-            재주문
-          </Link>
-        )}
+        <div className="flex gap-2 flex-shrink-0">
+          {/* 재주문 */}
+          {!isCancel && (
+            <button
+              onClick={() => onReorder(order)}
+              className="flex items-center gap-1 text-xs font-bold text-pick-purple bg-pick-bg border border-pick-border px-3 py-1.5 rounded-full active:scale-90 transition-transform"
+            >
+              <RotateCcw size={11} />
+              재주문
+            </button>
+          )}
+          {/* 리뷰 */}
+          {isDelivered && !order.hasReview && (
+            <button
+              onClick={() => onReviewOpen(order)}
+              className="flex items-center gap-1 text-xs font-bold text-white bg-pick-purple px-3 py-1.5 rounded-full active:scale-90 transition-transform"
+            >
+              <Star size={11} />
+              리뷰
+            </button>
+          )}
+          {isDelivered && order.hasReview && (
+            <span className="flex items-center gap-1 text-xs font-bold text-green-600 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full">
+              <Check size={11} />
+              리뷰완료
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -203,16 +384,18 @@ function CompletedOrderCard({ order }: { order: Order }) {
 
 // ── 메인 페이지 ────────────────────────────────────────
 export default function OrdersPage() {
-  const lastOrder        = useOrderStore((s) => s.lastOrder);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const lastOrder  = useOrderStore((s) => s.lastOrder);
+  const cartStore  = useCartStore();
+  const [orders,   setOrders]   = useState<Order[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [reviewTarget, setReviewTarget] = useState<Order | null>(null);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/orders/my");
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json() as { orders: Order[] };
         setOrders(data.orders ?? []);
       }
     } catch (e) {
@@ -224,11 +407,41 @@ export default function OrdersPage() {
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
-  // lastOrder(Zustand)가 있으면 방금 주문한 것 — 목록에 없으면 prepend
+  const handleReorder = (order: Order) => {
+    if (!order.stores) return;
+    // 장바구니에 이전 주문 아이템 담기
+    const storeInfo = {
+      storeId:        order.stores.id,
+      storeName:      order.stores.name,
+      storeEmoji:     getCategoryEmoji(order.stores.category),
+      deliveryFee:    Number(order.delivery_fee),
+      minOrderAmount: 0,
+      pickRewardRate: 1,
+    };
+    cartStore.clearCart();
+    order.order_items.forEach((item) => {
+      cartStore.addItem(storeInfo, {
+        menuId:   item.id,
+        menuName: item.menu_name,
+        price:    Number(item.price),
+        image:    "🍽️",
+      });
+      // 2개 이상이면 추가
+      for (let i = 1; i < item.quantity; i++) {
+        cartStore.addItem(storeInfo, {
+          menuId:   item.id,
+          menuName: item.menu_name,
+          price:    Number(item.price),
+          image:    "🍽️",
+        });
+      }
+    });
+    window.location.href = `/store/${order.stores.id}`;
+  };
+
   const activeOrders = orders.filter((o) => ACTIVE_STATUSES.includes(o.status));
   const doneOrders   = orders.filter((o) => !ACTIVE_STATUSES.includes(o.status));
 
-  // lastOrder 가 activeOrders 에 없으면 표시 (방금 주문 직후)
   const showLastOrderFallback =
     lastOrder &&
     activeOrders.length === 0 &&
@@ -257,10 +470,11 @@ export default function OrdersPage() {
           </div>
         ) : activeOrders.length > 0 ? (
           <div className="space-y-3">
-            {activeOrders.map((o) => <ActiveOrderCard key={o.id} order={o} />)}
+            {activeOrders.map((o) => (
+              <ActiveOrderCard key={o.id} order={o} onCancelled={fetchOrders} />
+            ))}
           </div>
         ) : showLastOrderFallback ? (
-          /* Zustand fallback — DB 반영 전 */
           <div className="bg-white rounded-3xl border-2 border-pick-purple/30 shadow-sm p-4">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-2xl">{lastOrder!.storeEmoji}</span>
@@ -285,7 +499,14 @@ export default function OrdersPage() {
 
         {doneOrders.length > 0 ? (
           <div className="space-y-3">
-            {doneOrders.map((o) => <CompletedOrderCard key={o.id} order={o} />)}
+            {doneOrders.map((o) => (
+              <CompletedOrderCard
+                key={o.id}
+                order={o}
+                onReorder={handleReorder}
+                onReviewOpen={setReviewTarget}
+              />
+            ))}
           </div>
         ) : (
           <div className="bg-white rounded-3xl border-2 border-pick-border p-10 flex flex-col items-center text-pick-text-sub shadow-sm">
@@ -294,13 +515,22 @@ export default function OrdersPage() {
             <p className="text-xs mt-1 opacity-70">첫 주문을 시작해보세요!</p>
             <Link
               href="/home"
-              className="mt-4 bg-pick-purple text-white text-sm font-bold px-6 py-2.5 rounded-full hover:bg-pick-purple-dark active:scale-95 transition-all"
+              className="mt-4 bg-pick-purple text-white text-sm font-bold px-6 py-2.5 rounded-full active:scale-95 transition-all"
             >
               음식 주문하러 가기
             </Link>
           </div>
         )}
       </section>
+
+      {/* 리뷰 모달 */}
+      {reviewTarget && (
+        <ReviewModal
+          order={reviewTarget}
+          onClose={() => setReviewTarget(null)}
+          onReviewed={fetchOrders}
+        />
+      )}
     </div>
   );
 }

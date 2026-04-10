@@ -40,5 +40,26 @@ export async function GET() {
     return NextResponse.json({ error: "주문 조회에 실패했습니다" }, { status: 500 });
   }
 
-  return NextResponse.json({ orders: orders ?? [] });
+  // 배달 완료 주문 중 리뷰 작성 여부 확인
+  const deliveredIds = (orders ?? [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .filter((o: any) => o.status === "delivered")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((o: any) => o.id as string);
+
+  const reviewedSet = new Set<string>();
+  if (deliveredIds.length > 0) {
+    const { data: reviews } = await admin
+      .from("reviews").select("order_id").in("order_id", deliveredIds);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (reviews ?? []).forEach((r: any) => reviewedSet.add(r.order_id as string));
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = (orders ?? []).map((o: any) => ({
+    ...o,
+    hasReview: reviewedSet.has(o.id as string),
+  }));
+
+  return NextResponse.json({ orders: result });
 }
