@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 
@@ -87,4 +88,51 @@ export async function GET() {
       storeName: r.stores?.name ?? "",
     })),
   });
+}
+
+const UpdateProfileSchema = z.object({
+  name:        z.string().min(2).max(50).optional(),
+  phone:       z.string().max(20).optional(),
+  addressMain: z.string().max(200).optional(),
+});
+
+// PATCH /api/users/me — 프로필 수정
+export async function PATCH(request: NextRequest) {
+  const supabase = await createServerSupabaseClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
+  }
+
+  const body   = await request.json().catch(() => null);
+  const parsed = UpdateProfileSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "입력값이 올바르지 않습니다" }, { status: 400 });
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminSupabaseClient() as any;
+  const { data: profile } = await admin
+    .from("users").select("id").eq("auth_id", user.id).single();
+  if (!profile) return NextResponse.json({ error: "사용자를 찾을 수 없습니다" }, { status: 404 });
+
+  const updates: Record<string, string> = {};
+  if (parsed.data.name        !== undefined) updates.name         = parsed.data.name;
+  if (parsed.data.phone       !== undefined) updates.phone        = parsed.data.phone;
+  if (parsed.data.addressMain !== undefined) updates.address_main = parsed.data.addressMain;
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ ok: true });
+  }
+
+  updates.updated_at = new Date().toISOString();
+
+  const { error: updateError } = await admin
+    .from("users").update(updates).eq("id", profile.id);
+
+  if (updateError) {
+    return NextResponse.json({ error: "프로필 수정에 실패했습니다" }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
 }

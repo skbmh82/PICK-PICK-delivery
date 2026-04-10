@@ -7,7 +7,7 @@ import Link from "next/link";
 import {
   User, MapPin, Heart, Star, Gift, Bell, HelpCircle, LogOut,
   ChevronRight, Store, Bike, LayoutDashboard, ClipboardList,
-  TrendingUp, Navigation, Wallet, RefreshCw,
+  TrendingUp, Navigation, Wallet, RefreshCw, Pencil, X, Check,
 } from "lucide-react";
 import { getCategoryEmoji } from "@/lib/utils/categoryEmoji";
 
@@ -16,10 +16,11 @@ interface Grade    { label: string; earned: number; nextThreshold: number }
 interface Favorite { storeId: string; name: string; category: string; rating: number; deliveryFee: number; deliveryTime: number }
 interface Review   { id: string; rating: number; content: string; createdAt: string; storeName: string }
 interface MeData {
-  grade: Grade;
-  wallet: { pickBalance: number; totalEarned: number };
+  profile:   { name: string; email: string; phone: string | null; addressMain: string | null };
+  grade:     Grade;
+  wallet:    { pickBalance: number; totalEarned: number };
   favorites: Favorite[];
-  reviews: Review[];
+  reviews:   Review[];
 }
 
 // ── 역할별 바로가기 배너 ────────────────────────────────
@@ -199,6 +200,93 @@ function ReviewsSection({ reviews }: { reviews: Review[] }) {
   );
 }
 
+// ── 프로필 수정 모달 ───────────────────────────────────
+interface ProfileData { name: string; phone: string; addressMain: string }
+
+function EditProfileModal({
+  initial,
+  onClose,
+  onSaved,
+}: {
+  initial: ProfileData;
+  onClose: () => void;
+  onSaved: (data: ProfileData) => void;
+}) {
+  const [name,        setName]        = useState(initial.name);
+  const [phone,       setPhone]       = useState(initial.phone);
+  const [addressMain, setAddressMain] = useState(initial.addressMain);
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState("");
+
+  const handleSave = async () => {
+    if (name.trim().length < 2) return setError("이름은 2자 이상이어야 해요");
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/users/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), phone: phone.trim(), addressMain: addressMain.trim() }),
+      });
+      if (res.ok) {
+        onSaved({ name: name.trim(), phone: phone.trim(), addressMain: addressMain.trim() });
+        onClose();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setError((err.error as string) ?? "저장에 실패했습니다");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-[55]" onClick={onClose} />
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white rounded-t-3xl shadow-2xl">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-pick-border">
+          <h2 className="font-black text-pick-text text-lg">프로필 수정 ✏️</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-pick-bg">
+            <X size={16} className="text-pick-text-sub" />
+          </button>
+        </div>
+        <div className="px-5 py-4 flex flex-col gap-3">
+          <div>
+            <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">이름</label>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+              className="w-full border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text focus:outline-none focus:border-pick-purple" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">전화번호</label>
+            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+              placeholder="010-0000-0000"
+              className="w-full border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text focus:outline-none focus:border-pick-purple" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">기본 주소</label>
+            <input type="text" value={addressMain} onChange={(e) => setAddressMain(e.target.value)}
+              placeholder="서울시 강남구 역삼동..."
+              className="w-full border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text focus:outline-none focus:border-pick-purple" />
+          </div>
+          {error && <p className="text-xs text-red-500 font-bold text-center">{error}</p>}
+        </div>
+        <div className="px-5 pb-8 pt-1 border-t border-pick-border">
+          <button
+            onClick={() => void handleSave()}
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-pick-purple to-pick-purple-light text-white font-black py-4 rounded-full shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+          >
+            {loading
+              ? <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              : <><Check size={18} /> 저장하기</>
+            }
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── 메뉴 아이템 ────────────────────────────────────────
 function MenuItem({ icon, label, badge, onClick }: {
   icon: React.ReactNode; label: string; badge?: string; onClick?: () => void;
@@ -237,6 +325,7 @@ export default function MyPickPage() {
   const [meData,      setMeData]      = useState<MeData | null>(null);
   const [loadingMe,   setLoadingMe]   = useState(false);
   const [previewRole, setPreviewRole] = useState<PreviewRole>("user");
+  const [editOpen,    setEditOpen]    = useState(false);
 
   const displayRole = user ? user.role : previewRole;
 
@@ -297,6 +386,12 @@ export default function MyPickPage() {
               <div className="flex items-center gap-2">
                 <p className="font-black text-pick-text text-base truncate">{user.name}</p>
                 {loadingMe && <RefreshCw size={12} className="text-pick-text-sub animate-spin flex-shrink-0" />}
+                <button
+                  onClick={() => setEditOpen(true)}
+                  className="w-6 h-6 flex items-center justify-center rounded-full bg-pick-bg border border-pick-border flex-shrink-0"
+                >
+                  <Pencil size={11} className="text-pick-text-sub" />
+                </button>
               </div>
               <p className="text-xs text-pick-text-sub mt-0.5 truncate">{user.email}</p>
               {meData?.wallet && (
@@ -365,6 +460,21 @@ export default function MyPickPage() {
       <p className="text-center text-xs text-pick-text-sub mt-6 mb-2">
         PICK PICK v0.1.0
       </p>
+
+      {/* 프로필 수정 모달 */}
+      {editOpen && user && (
+        <EditProfileModal
+          initial={{
+            name:        meData?.profile.name        ?? user.name ?? "",
+            phone:       meData?.profile.phone        ?? "",
+            addressMain: meData?.profile.addressMain  ?? "",
+          }}
+          onClose={() => setEditOpen(false)}
+          onSaved={() => {
+            void fetchMe();
+          }}
+        />
+      )}
     </div>
   );
 }

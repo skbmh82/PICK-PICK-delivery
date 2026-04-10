@@ -11,6 +11,7 @@ import {
   ShoppingBag,
   Flame,
   Heart,
+  MessageSquare,
 } from "lucide-react";
 import { CATEGORY_META } from "@/lib/utils/categoryEmoji";
 import { useCartStore } from "@/stores/cartStore";
@@ -26,6 +27,14 @@ export interface MenuItem {
   isPopular?: boolean;
   isAvailable?: boolean;
   category: string;
+}
+
+export interface ReviewItem {
+  id: string;
+  rating: number;
+  content: string | null;
+  createdAt: string;
+  userName: string;
 }
 
 export interface StoreDetail {
@@ -126,12 +135,56 @@ function MenuSection({
 }
 
 /* ────────────── 메인 클라이언트 컴포넌트 ────────────── */
+/* ────────────── 리뷰 섹션 ────────────── */
+function ReviewSection({ reviews, rating, reviewCount }: { reviews: ReviewItem[]; rating: number; reviewCount: number }) {
+  if (reviews.length === 0) return null;
+
+  return (
+    <div className="mx-4 mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <MessageSquare size={16} className="text-pick-purple" />
+        <h2 className="font-black text-pick-text text-base">리뷰</h2>
+        <span className="flex items-center gap-1 ml-1">
+          <Star size={13} className="text-pick-yellow fill-pick-yellow" />
+          <span className="font-black text-pick-text text-sm">{rating}</span>
+          <span className="text-pick-text-sub text-xs">({reviewCount})</span>
+        </span>
+      </div>
+      <div className="bg-white rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
+        {reviews.map((r) => (
+          <div key={r.id} className="px-4 py-4">
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-pick-text text-sm">{r.userName}</span>
+                <div className="flex">
+                  {[1,2,3,4,5].map((s) => (
+                    <Star key={s} size={11}
+                      className={s <= r.rating ? "text-pick-yellow fill-pick-yellow" : "text-gray-200 fill-gray-200"} />
+                  ))}
+                </div>
+              </div>
+              <span className="text-[10px] text-pick-text-sub">
+                {new Date(r.createdAt).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}
+              </span>
+            </div>
+            {r.content && (
+              <p className="text-sm text-pick-text-sub leading-relaxed">{r.content}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function StoreDetailClient({
   store,
   isFavorited: initialFavorited = false,
+  reviews = [],
 }: {
   store: StoreDetail;
   isFavorited?: boolean;
+  reviews?: ReviewItem[];
 }) {
   const [cartOpen,   setCartOpen]   = useState(false);
   const [favorited,  setFavorited]  = useState(initialFavorited);
@@ -274,6 +327,9 @@ export default function StoreDetailClient({
           <MenuSection key={cat} category={cat} menus={menus} onAdd={handleAddMenu} />
         ))}
       </div>
+
+      {/* ── 리뷰 목록 ── */}
+      <ReviewSection reviews={reviews} rating={store.rating} reviewCount={store.reviewCount} />
 
       {/* ── 하단 장바구니 버튼 (고정) ── */}
       <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-4 z-30">

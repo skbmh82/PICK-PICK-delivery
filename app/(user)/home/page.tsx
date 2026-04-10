@@ -1,7 +1,54 @@
-import { Search, MapPin, ChevronRight, Star, Clock, Bike, ArrowLeft, Frown } from "lucide-react";
+import { MapPin, ChevronRight, Star, Clock, Bike, ArrowLeft, Frown, Search } from "lucide-react";
 import Link from "next/link";
-import { fetchStoresByCategory, type StoreRow } from "@/lib/supabase/stores";
+import { Suspense } from "react";
+import { fetchStoresByCategory, searchStores, type StoreRow } from "@/lib/supabase/stores";
 import { CATEGORY_META, getCategoryEmoji } from "@/lib/utils/categoryEmoji";
+import SearchBar from "./SearchBar";
+
+/* ────────────── 검색 결과 뷰 ────────────── */
+async function SearchResultsView({ query }: { query: string }) {
+  const stores = await searchStores(query);
+
+  return (
+    <section className="px-4 pt-3 pb-4">
+      <div className="flex items-center gap-2 mb-4">
+        <Link
+          href="/home"
+          className="w-9 h-9 flex items-center justify-center rounded-full bg-white border-2 border-pick-border shadow-sm active:scale-95 transition-transform"
+        >
+          <ArrowLeft size={18} className="text-pick-purple" />
+        </Link>
+        <div className="flex items-center gap-2">
+          <Search size={18} className="text-pick-purple" />
+          <h2 className="text-base font-black text-pick-text">
+            &ldquo;{query}&rdquo; 검색 결과
+          </h2>
+          <span className="text-sm text-pick-text-sub font-medium">{stores.length}개</span>
+        </div>
+      </div>
+
+      {stores.length === 0 ? (
+        <div className="flex flex-col items-center py-16 text-pick-text-sub">
+          <Frown size={48} className="mb-3 opacity-20" />
+          <p className="text-sm font-medium">검색 결과가 없어요</p>
+          <p className="text-xs mt-1 opacity-70">다른 검색어를 입력해보세요</p>
+          <Link
+            href="/home"
+            className="mt-5 bg-pick-purple text-white text-sm font-bold px-6 py-2.5 rounded-full active:scale-95 transition-all"
+          >
+            카테고리 보러가기
+          </Link>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {stores.map((store) => (
+            <StoreCard key={store.id} store={store} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 
 /* ────────────── 카테고리 데이터 ────────────── */
 const CATEGORIES = [
@@ -23,18 +70,7 @@ const CATEGORIES = [
   { id: "snacks",   label: "간식",     emoji: "🍿", bg: "bg-indigo-50",   border: "border-indigo-200",  text: "text-indigo-800" },
 ];
 
-/* ────────────── 서브 컴포넌트 ────────────── */
-function SearchBar() {
-  return (
-    <div className="px-4 pt-4 pb-3">
-      <div className="flex items-center gap-3 bg-white rounded-full px-5 py-3.5 border-2 border-pick-border shadow-sm">
-        <Search size={18} className="text-pick-purple flex-shrink-0" />
-        <span className="text-pick-text-sub text-sm">가게명, 메뉴를 검색해보세요</span>
-      </div>
-    </div>
-  );
-}
-
+/* ────────────── 위치 바 ────────────── */
 function LocationBar() {
   return (
     <div className="flex items-center gap-1.5 px-5 py-2">
@@ -162,15 +198,22 @@ async function StoreListView({ category }: { category: string }) {
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string }>;
+  searchParams: Promise<{ category?: string; search?: string }>;
 }) {
-  const { category } = await searchParams;
+  const { category, search } = await searchParams;
+
+  const showSearch   = !!search?.trim();
+  const showCategory = !showSearch && !!category;
 
   return (
     <div className="min-h-full">
       <LocationBar />
-      <SearchBar />
-      {category ? <StoreListView category={category} /> : <CategoryGrid />}
+      <Suspense fallback={null}>
+        <SearchBar />
+      </Suspense>
+      {showSearch   ? <SearchResultsView query={search!.trim()} /> :
+       showCategory ? <StoreListView category={category!} />       :
+                      <CategoryGrid />}
     </div>
   );
 }

@@ -48,6 +48,24 @@ export async function fetchStoresByCategory(category: string): Promise<StoreRow[
   return (data ?? []) as StoreRow[];
 }
 
+// 가게 검색 (이름 또는 메뉴명)
+export async function searchStores(query: string): Promise<StoreRow[]> {
+  const supabase = createServerClient();
+  const { data, error } = await supabase
+    .from("stores")
+    .select("id, name, category, description, address, lat, lng, rating, review_count, delivery_time, delivery_fee, min_order_amount, pick_reward_rate, is_open")
+    .eq("is_approved", true)
+    .ilike("name", `%${query}%`)
+    .order("rating", { ascending: false })
+    .limit(30);
+
+  if (error) {
+    console.error("searchStores error:", error.message);
+    return [];
+  }
+  return (data ?? []) as StoreRow[];
+}
+
 // 가게 상세
 export async function fetchStoreById(id: string): Promise<StoreRow | null> {
   const supabase = createServerClient();
