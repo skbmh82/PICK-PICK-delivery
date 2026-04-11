@@ -74,22 +74,54 @@ export async function GET() {
     weekly.push({ day: label, amount: dayAmt });
   }
 
-  // 정산 내역 (wallet_transactions 중 payment 타입, 최근 10건)
+  // 월별 매출 (최근 6개월)
+  const monthly: { month: string; amount: number; orders: number }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d          = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const start      = d.toISOString();
+    const end        = new Date(d.getFullYear(), d.getMonth() + 1, 1).toISOString();
+    const monthOrds  = orders.filter(
+      (o: { created_at: string }) => o.created_at >= start && o.created_at < end
+    );
+    const monthAmt   = monthOrds.reduce(
+      (s: number, o: { total_amount: number }) => s + Number(o.total_amount), 0
+    );
+    const label = `${d.getMonth() + 1}월`;
+    monthly.push({ month: label, amount: monthAmt, orders: monthOrds.length });
+  }
+
+  // 일별 매출 (최근 30일)
+  const daily: { day: string; amount: number; orders: number }[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d      = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    const start  = d.toISOString();
+    const end    = new Date(d.getTime() + 86400000).toISOString();
+    const dayOrds = orders.filter(
+      (o: { created_at: string }) => o.created_at >= start && o.created_at < end
+    );
+    const dayAmt = dayOrds.reduce(
+      (s: number, o: { total_amount: number }) => s + Number(o.total_amount), 0
+    );
+    const label = i === 0 ? "오늘" : `${d.getMonth() + 1}/${d.getDate()}`;
+    daily.push({ day: label, amount: dayAmt, orders: dayOrds.length });
+  }
+
+  // 정산 내역 (최근 주문 완료 10건)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: txs } = await (admin as any)
-    .from("wallet_transactions")
-    .select("amount, created_at")
-    .eq("wallet_id", (await (admin as any).from("wallets").select("id").eq("user_id", profile.id).single()).data?.id)
-    .eq("type", "payment")
+  const { data: recentOrders } = await (admin as any)
+    .from("orders")
+    .select("total_amount, created_at")
+    .eq("store_id", store.id)
+    .eq("status", "delivered")
     .order("created_at", { ascending: false })
     .limit(10);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const settlementHistory = (txs ?? []).map((t: any) => ({
-    date:   new Date(t.created_at).toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric" }),
-    amount: Math.abs(Number(t.amount)),
+  const settlementHistory = (recentOrders ?? []).map((o: any) => ({
+    date:   new Date(o.created_at).toLocaleDateString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
+    amount: Number(o.total_amount),
     status: "완료",
   }));
 
-  return NextResponse.json({ pickBalance, periodStats, weekly, settlementHistory });
+  return NextResponse.json({ pickBalance, periodStats, weekly, monthly, daily, settlementHistory });
 }
