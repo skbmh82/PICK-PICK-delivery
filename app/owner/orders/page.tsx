@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Check, X, ChefHat, Clock, Bike, CheckCircle,
-  XCircle, ChevronDown, ChevronUp, RefreshCw,
+  XCircle, ChevronDown, ChevronUp, RefreshCw, Bell,
 } from "lucide-react";
-import { useStoreOrderRealtime } from "@/hooks/useRealtime";
+import { useStoreOrderRealtime, useStoreOrderStatusRealtime } from "@/hooks/useRealtime";
 
 // ── 타입 ──────────────────────────────────────────────
 type OrderStatus =
@@ -33,7 +33,7 @@ interface Order {
   pick_used: number;
   delivery_address: string;
   delivery_note: string | null;
-  estimated_time: number;
+  estimated_time: number | null;
   created_at: string;
   users: OrderUser | null;
   order_items: OrderItem[];
@@ -64,22 +64,27 @@ const STATUS_CONFIG: Record<OrderStatus, { color: string; bg: string; border: st
   refunded:   { color: "text-gray-400",   bg: "bg-gray-50",   border: "border-gray-100" },
 };
 
+const ETA_OPTIONS = [10, 15, 20, 25, 30, 40, 50, 60];
+
 // ── 주문 카드 ─────────────────────────────────────────
 function OrderCard({
   order,
   onStatusChange,
 }: {
   order: Order;
-  onStatusChange: (id: string, status: OrderStatus) => Promise<void>;
+  onStatusChange: (id: string, status: OrderStatus, estimatedTime?: number) => Promise<void>;
 }) {
-  const [expanded, setExpanded]   = useState(order.status === "pending");
-  const [loading, setLoading]     = useState(false);
+  const [expanded,    setExpanded]    = useState(order.status === "pending");
+  const [loading,     setLoading]     = useState(false);
+  const [eta,         setEta]         = useState(30);
+  const [showReject,  setShowReject]  = useState(false);
   const cfg = STATUS_CONFIG[order.status];
 
-  const handleStatus = async (status: OrderStatus) => {
+  const handleStatus = async (status: OrderStatus, estimatedTime?: number) => {
     setLoading(true);
-    await onStatusChange(order.id, status);
+    await onStatusChange(order.id, status, estimatedTime);
     setLoading(false);
+    setShowReject(false);
   };
 
   const timeStr = new Date(order.created_at).toLocaleTimeString("ko-KR", {
@@ -108,8 +113,9 @@ function OrderCard({
           <span className="font-black text-pick-text text-sm">
             {Number(order.total_amount).toLocaleString()}원
           </span>
-          {expanded ? <ChevronUp size={16} className="text-pick-text-sub" />
-                    : <ChevronDown size={16} className="text-pick-text-sub" />}
+          {expanded
+            ? <ChevronUp size={16} className="text-pick-text-sub" />
+            : <ChevronDown size={16} className="text-pick-text-sub" />}
         </div>
       </button>
 
@@ -162,26 +168,83 @@ function OrderCard({
                 <p className="text-xs text-pick-text-sub">{order.users.phone}</p>
               </div>
             )}
+            {order.estimated_time && order.status !== "pending" && (
+              <div className="flex items-start gap-2">
+                <Clock size={13} className="text-amber-500 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-amber-600 font-bold">예상 {order.estimated_time}분</p>
+              </div>
+            )}
           </div>
 
-          {/* 액션 버튼 */}
-          {order.status === "pending" && (
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                disabled={loading}
-                onClick={() => handleStatus("cancelled")}
-                className="flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-red-200 bg-red-50 text-red-600 font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
-              >
-                <X size={16} /> 거절
-              </button>
-              <button
-                disabled={loading}
-                onClick={() => handleStatus("confirmed")}
-                className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-400 text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
-              >
-                {loading ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Check size={16} />}
-                수락
-              </button>
+          {/* ── 액션 버튼 ── */}
+
+          {/* pending: 거절 확인 or 수락+ETA */}
+          {order.status === "pending" && !showReject && (
+            <div className="flex flex-col gap-2">
+              {/* ETA 선택 */}
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-3 py-2.5">
+                <Clock size={14} className="text-amber-500 flex-shrink-0" />
+                <span className="text-xs font-bold text-amber-700 flex-shrink-0">예상 조리</span>
+                <div className="flex gap-1.5 overflow-x-auto flex-1 pb-0.5">
+                  {ETA_OPTIONS.map((min) => (
+                    <button
+                      key={min}
+                      onClick={() => setEta(min)}
+                      className={`flex-shrink-0 text-xs font-black px-2.5 py-1 rounded-full transition-all ${
+                        eta === min
+                          ? "bg-amber-500 text-white shadow-sm"
+                          : "bg-white text-amber-600 border border-amber-200"
+                      }`}
+                    >
+                      {min}분
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* 버튼 2개 */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  disabled={loading}
+                  onClick={() => setShowReject(true)}
+                  className="flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-red-200 bg-red-50 text-red-600 font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
+                >
+                  <X size={16} /> 거절
+                </button>
+                <button
+                  disabled={loading}
+                  onClick={() => handleStatus("confirmed", eta)}
+                  className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-400 text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
+                >
+                  {loading
+                    ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    : <Check size={16} />}
+                  수락
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* pending: 거절 확인 팝업 */}
+          {order.status === "pending" && showReject && (
+            <div className="bg-red-50 border-2 border-red-200 rounded-2xl px-4 py-3">
+              <p className="text-sm font-bold text-red-700 mb-3 text-center">정말 거절하시겠어요?</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setShowReject(false)}
+                  className="py-2.5 rounded-2xl border-2 border-pick-border text-pick-text-sub font-bold text-sm active:scale-95 transition-transform"
+                >
+                  취소
+                </button>
+                <button
+                  disabled={loading}
+                  onClick={() => handleStatus("cancelled")}
+                  className="py-2.5 rounded-2xl bg-red-500 text-white font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
+                >
+                  {loading
+                    ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin mx-auto block" />
+                    : "거절 확인"}
+                </button>
+              </div>
             </div>
           )}
 
@@ -191,7 +254,9 @@ function OrderCard({
               onClick={() => handleStatus("preparing")}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-blue-500 text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
             >
-              {loading ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <ChefHat size={16} />}
+              {loading
+                ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                : <ChefHat size={16} />}
               조리 시작
             </button>
           )}
@@ -207,7 +272,9 @@ function OrderCard({
                 onClick={() => handleStatus("ready")}
                 className="flex items-center gap-2 py-2.5 px-5 rounded-2xl bg-green-500 text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
               >
-                {loading ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <ChefHat size={14} />}
+                {loading
+                  ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  : <ChefHat size={14} />}
                 조리 완료
               </button>
             </div>
@@ -250,11 +317,11 @@ function OrderCard({
 type Tab = "active" | "done";
 
 export default function OwnerOrdersPage() {
-  const [orders, setOrders]   = useState<Order[]>([]);
-  const [storeId, setStoreId] = useState<string | null>(null);
-  const [tab, setTab]         = useState<Tab>("active");
-  const [loading, setLoading] = useState(true);
-  const [newAlert, setNewAlert] = useState(false);
+  const [orders,   setOrders]   = useState<Order[]>([]);
+  const [storeId,  setStoreId]  = useState<string | null>(null);
+  const [tab,      setTab]      = useState<Tab>("active");
+  const [loading,  setLoading]  = useState(true);
+  const [newAlert, setNewAlert] = useState(0);   // 신규 주문 건수
 
   const fetchOrders = useCallback(async (t: Tab = tab) => {
     setLoading(true);
@@ -273,36 +340,47 @@ export default function OwnerOrdersPage() {
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
-  // 신규 주문 Realtime 알림
+  // 신규 주문 INSERT 알림
   useStoreOrderRealtime(storeId, () => {
-    setNewAlert(true);
+    setNewAlert((n) => n + 1);
     if (tab === "active") fetchOrders("active");
   });
 
-  const handleStatusChange = async (id: string, status: OrderStatus) => {
+  // 주문 상태 UPDATE 실시간 반영 (라이더 픽업·배달 완료 등)
+  useStoreOrderStatusRealtime(storeId, (orderId, newStatus) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
+    );
+  });
+
+  const handleStatusChange = async (id: string, status: OrderStatus, estimatedTime?: number) => {
     const res = await fetch(`/api/orders/${id}/status`, {
-      method: "PATCH",
+      method:  "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body:    JSON.stringify({ status, ...(estimatedTime ? { estimatedTime } : {}) }),
     });
     if (res.ok) {
-      // 상태 변경 후 목록 새로고침
       setOrders((prev) =>
-        prev.map((o) => (o.id === id ? { ...o, status } : o))
+        prev.map((o) =>
+          o.id === id
+            ? { ...o, status, ...(estimatedTime ? { estimated_time: estimatedTime } : {}) }
+            : o
+        )
       );
     } else {
-      alert("상태 변경에 실패했습니다");
+      const err = await res.json().catch(() => ({}));
+      alert(err.error ?? "상태 변경에 실패했습니다");
     }
   };
 
   const handleTabChange = (t: Tab) => {
     setTab(t);
     fetchOrders(t);
-    if (t === "active") setNewAlert(false);
+    if (t === "active") setNewAlert(0);
   };
 
   const activeOrders  = orders.filter((o) => !["delivered","cancelled","refunded"].includes(o.status));
-  const doneOrders    = orders.filter((o) => ["delivered","cancelled","refunded"].includes(o.status));
+  const doneOrders    = orders.filter((o) =>  ["delivered","cancelled","refunded"].includes(o.status));
   const pendingCount  = orders.filter((o) => o.status === "pending").length;
   const displayOrders = tab === "active" ? activeOrders : doneOrders;
 
@@ -322,12 +400,15 @@ export default function OwnerOrdersPage() {
       </div>
 
       {/* 신규 주문 알림 배너 */}
-      {newAlert && tab !== "active" && (
+      {newAlert > 0 && tab !== "active" && (
         <div
           className="mx-4 mb-3 bg-red-500 text-white rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer active:scale-95 transition-transform"
           onClick={() => handleTabChange("active")}
         >
-          <span className="text-sm font-black">🔴 새 주문이 들어왔어요!</span>
+          <div className="flex items-center gap-2">
+            <Bell size={16} className="animate-bounce" />
+            <span className="text-sm font-black">새 주문 {newAlert}건이 들어왔어요!</span>
+          </div>
           <span className="text-xs font-bold underline">확인하기</span>
         </div>
       )}
@@ -345,11 +426,11 @@ export default function OwnerOrdersPage() {
             }`}
           >
             {t === "active" ? "진행 중" : "완료 / 취소"}
-            {t === "active" && pendingCount > 0 && (
+            {t === "active" && (pendingCount > 0 || newAlert > 0) && (
               <span className={`text-xs font-black px-2 py-0.5 rounded-full ${
                 tab === "active" ? "bg-white/30 text-white" : "bg-red-500 text-white"
               }`}>
-                {pendingCount}
+                {pendingCount || newAlert}
               </span>
             )}
           </button>

@@ -10,7 +10,8 @@ const VALID_STATUSES = [
 ] as const;
 
 const StatusSchema = z.object({
-  status: z.enum(VALID_STATUSES),
+  status:        z.enum(VALID_STATUSES),
+  estimatedTime: z.number().int().min(10).max(120).optional(),
 });
 
 // PATCH /api/orders/[orderId]/status — 주문 상태 변경 (사장님/라이더/서버)
@@ -33,12 +34,13 @@ export async function PATCH(
     return NextResponse.json({ error: "올바른 상태 값이 필요합니다" }, { status: 400 });
   }
 
-  const { status } = parsed.data;
+  const { status, estimatedTime } = parsed.data;
 
   // RPC로 상태 변경 (타임스탬프 자동 처리)
   const { error } = await admin.rpc("update_order_status", {
-    p_order_id: orderId,
-    p_status:   status,
+    p_order_id:    orderId,
+    p_status:      status,
+    p_est_minutes: estimatedTime ?? null,
   });
 
   if (error) {

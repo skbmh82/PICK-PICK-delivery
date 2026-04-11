@@ -90,6 +90,46 @@ export function useStoreOrderRealtime(
   }, [storeId]);
 }
 
+// ── 가맹점 주문 상태 변경 실시간 (라이더 픽업·배달 완료 등) ──
+export function useStoreOrderStatusRealtime(
+  storeId: string | null,
+  onStatusChange: (orderId: string, newStatus: OrderStatus) => void
+) {
+  const channelRef = useRef<RealtimeChannel | null>(null);
+
+  useEffect(() => {
+    if (!storeId) return;
+
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+    }
+
+    const channel = supabase
+      .channel(`store:${storeId}:status`)
+      .on(
+        "postgres_changes",
+        {
+          event:  "UPDATE",
+          schema: "public",
+          table:  "orders",
+          filter: `store_id=eq.${storeId}`,
+        },
+        (payload) => {
+          const { id, status } = payload.new as { id: string; status: OrderStatus };
+          if (id && status) onStatusChange(id, status);
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeId]);
+}
+
 // ── 라이더 위치 실시간 구독 (배달 중인 사용자용) ────────
 export function useRiderLocationRealtime(
   riderId: string | null,
