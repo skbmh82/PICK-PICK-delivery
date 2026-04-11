@@ -12,7 +12,7 @@ function matchesAny(pathname: string, routes: string[]) {
   return routes.some((r) => pathname === r || pathname.startsWith(r + "/"));
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 정적 파일, API, Next.js 내부 경로는 건너뜀
