@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Wallet, ArrowDownLeft, ArrowUpRight, History, Coins, TrendingUp, X, Check, Search, User } from "lucide-react";
+import { Wallet, ArrowDownLeft, ArrowUpRight, History, Coins, TrendingUp, X, Check, Search, User, Ticket, ChevronDown, ChevronUp, Tag } from "lucide-react";
 
 // ── 충전 모달 ──────────────────────────────────────────
 const CHARGE_PRESETS = [1000, 3000, 5000, 10000, 30000, 50000];
@@ -298,6 +298,208 @@ function TransferModal({
   );
 }
 
+// ── 쿠폰 섹션 ─────────────────────────────────────────
+interface CouponItem {
+  userCouponId: string;
+  isUsed: boolean;
+  usedAt: string | null;
+  receivedAt: string;
+  coupon: {
+    id: string;
+    code: string;
+    title: string;
+    description: string | null;
+    type: "fixed_pick" | "pick_rate" | "free_delivery";
+    value: number;
+    minOrder: number;
+    expiresAt: string | null;
+    storeId: string | null;
+    isExpired: boolean;
+  };
+}
+
+function couponTypeLabel(type: CouponItem["coupon"]["type"], value: number) {
+  if (type === "fixed_pick")    return `${value.toLocaleString()} PICK 지급`;
+  if (type === "pick_rate")     return `PICK ${value}% 추가 적립`;
+  if (type === "free_delivery") return "배달비 무료";
+  return "";
+}
+
+function CouponSection() {
+  const [coupons,    setCoupons]    = useState<CouponItem[]>([]);
+  const [available,  setAvailable]  = useState(0);
+  const [code,       setCode]       = useState("");
+  const [registering,setRegistering]= useState(false);
+  const [regError,   setRegError]   = useState("");
+  const [regSuccess, setRegSuccess] = useState("");
+  const [expanded,   setExpanded]   = useState(false);
+  const [loadingList,setLoadingList] = useState(false);
+
+  const fetchCoupons = useCallback(async () => {
+    setLoadingList(true);
+    try {
+      const res = await fetch("/api/coupons");
+      if (res.ok) {
+        const json = await res.json();
+        setCoupons(json.coupons ?? []);
+        setAvailable(json.available ?? 0);
+      }
+    } finally {
+      setLoadingList(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchCoupons(); }, [fetchCoupons]);
+
+  const handleRegister = async () => {
+    if (!code.trim()) return;
+    setRegistering(true);
+    setRegError("");
+    setRegSuccess("");
+    try {
+      const res = await fetch("/api/coupons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code.trim() }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setRegSuccess(json.message ?? "쿠폰이 등록됐습니다!");
+        setCode("");
+        fetchCoupons();
+      } else {
+        setRegError(json.error ?? "쿠폰 등록에 실패했습니다");
+      }
+    } finally {
+      setRegistering(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-3xl border-2 border-pick-border shadow-sm overflow-hidden">
+      {/* 헤더 */}
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center justify-between px-5 py-4 active:bg-pick-bg transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Ticket size={18} className="text-pick-purple" />
+          <span className="font-bold text-pick-text">내 쿠폰함</span>
+          {available > 0 && (
+            <span className="bg-pick-purple text-white text-xs font-black px-2 py-0.5 rounded-full">
+              {available}
+            </span>
+          )}
+        </div>
+        {expanded
+          ? <ChevronUp  size={16} className="text-pick-text-sub" />
+          : <ChevronDown size={16} className="text-pick-text-sub" />
+        }
+      </button>
+
+      {expanded && (
+        <div className="border-t border-pick-border">
+          {/* 쿠폰 코드 등록 */}
+          <div className="px-5 py-4 bg-pick-bg">
+            <p className="text-xs font-bold text-pick-text-sub mb-2">쿠폰 코드 등록</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={code}
+                onChange={(e) => { setCode(e.target.value.toUpperCase()); setRegError(""); setRegSuccess(""); }}
+                onKeyDown={(e) => e.key === "Enter" && handleRegister()}
+                placeholder="쿠폰 코드 입력 (예: WELCOME50)"
+                maxLength={30}
+                className="flex-1 border-2 border-pick-border rounded-2xl px-4 py-2.5 text-sm text-pick-text bg-white focus:outline-none focus:border-pick-purple uppercase placeholder:normal-case"
+              />
+              <button
+                onClick={() => void handleRegister()}
+                disabled={registering || !code.trim()}
+                className="px-4 py-2.5 bg-pick-purple text-white rounded-2xl text-sm font-bold disabled:opacity-40 active:scale-95 transition-all flex-shrink-0"
+              >
+                {registering
+                  ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin inline-block" />
+                  : "등록"
+                }
+              </button>
+            </div>
+            {regError   && <p className="text-xs text-red-500 font-bold mt-2 px-1">{regError}</p>}
+            {regSuccess  && <p className="text-xs text-green-600 font-bold mt-2 px-1">✓ {regSuccess}</p>}
+          </div>
+
+          {/* 쿠폰 목록 */}
+          {loadingList ? (
+            <div className="px-5 py-6 flex justify-center">
+              <span className="w-6 h-6 border-2 border-pick-purple/30 border-t-pick-purple rounded-full animate-spin" />
+            </div>
+          ) : coupons.length === 0 ? (
+            <div className="px-5 py-8 flex flex-col items-center gap-2 text-pick-text-sub">
+              <Tag size={32} className="opacity-20" />
+              <p className="text-sm font-medium">보유 중인 쿠폰이 없어요</p>
+              <p className="text-xs opacity-70">쿠폰 코드를 입력해 등록해보세요!</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-pick-border">
+              {coupons.map((item) => {
+                const disabled = item.isUsed || item.coupon.isExpired;
+                return (
+                  <div
+                    key={item.userCouponId}
+                    className={`px-5 py-4 flex gap-4 ${disabled ? "opacity-50" : ""}`}
+                  >
+                    {/* 아이콘 */}
+                    <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${
+                      disabled ? "bg-gray-100" : "bg-pick-purple/10"
+                    }`}>
+                      <Ticket size={20} className={disabled ? "text-gray-400" : "text-pick-purple"} />
+                    </div>
+                    {/* 내용 */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-bold text-sm text-pick-text leading-tight">{item.coupon.title}</p>
+                        {item.isUsed && (
+                          <span className="text-[10px] font-black bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">사용완료</span>
+                        )}
+                        {!item.isUsed && item.coupon.isExpired && (
+                          <span className="text-[10px] font-black bg-red-50 text-red-400 px-2 py-0.5 rounded-full">만료됨</span>
+                        )}
+                        {!item.isUsed && !item.coupon.isExpired && (
+                          <span className="text-[10px] font-black bg-pick-purple/10 text-pick-purple px-2 py-0.5 rounded-full">사용가능</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-pick-purple-light font-bold mt-0.5">
+                        {couponTypeLabel(item.coupon.type, item.coupon.value)}
+                      </p>
+                      {item.coupon.description && (
+                        <p className="text-xs text-pick-text-sub mt-0.5 leading-tight">{item.coupon.description}</p>
+                      )}
+                      <div className="flex items-center gap-3 mt-1 flex-wrap">
+                        {item.coupon.minOrder > 0 && (
+                          <span className="text-[10px] text-pick-text-sub">
+                            최소주문 {item.coupon.minOrder.toLocaleString()}원
+                          </span>
+                        )}
+                        {item.coupon.expiresAt && (
+                          <span className="text-[10px] text-pick-text-sub">
+                            ~{new Date(item.coupon.expiresAt).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })} 까지
+                          </span>
+                        )}
+                        <span className="text-[10px] text-pick-text-sub font-mono tracking-widest">
+                          {item.coupon.code}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── 타입 ──────────────────────────────────────────────
 interface Transaction {
   id: string;
@@ -433,6 +635,9 @@ export default function WalletPage() {
           onTransferred={() => { fetchWallet(); }}
         />
       )}
+
+      {/* 쿠폰함 */}
+      {isLoggedIn && <CouponSection />}
 
       {/* 로그인 안내 */}
       {!isLoggedIn && (

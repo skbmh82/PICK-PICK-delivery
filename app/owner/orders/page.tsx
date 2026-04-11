@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Check, X, ChefHat, Clock, Bike, CheckCircle,
-  XCircle, ChevronDown, ChevronUp, RefreshCw, Bell,
+  XCircle, ChevronDown, ChevronUp, RefreshCw, Bell, Volume2, VolumeX,
 } from "lucide-react";
 import { useStoreOrderRealtime, useStoreOrderStatusRealtime } from "@/hooks/useRealtime";
+import { useOrderSound } from "@/lib/useOrderSound";
 
 // ── 타입 ──────────────────────────────────────────────
 type OrderStatus =
@@ -322,6 +323,9 @@ export default function OwnerOrdersPage() {
   const [tab,      setTab]      = useState<Tab>("active");
   const [loading,  setLoading]  = useState(true);
   const [newAlert, setNewAlert] = useState(0);   // 신규 주문 건수
+  const [soundOn,  setSoundOn]  = useState(true);
+  const playOrderSound = useOrderSound();
+  const alertRef = useRef(newAlert);
 
   const fetchOrders = useCallback(async (t: Tab = tab) => {
     setLoading(true);
@@ -340,9 +344,13 @@ export default function OwnerOrdersPage() {
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
-  // 신규 주문 INSERT 알림
+  // newAlert ref 동기화 (클로저 stale 방지)
+  useEffect(() => { alertRef.current = newAlert; }, [newAlert]);
+
+  // 신규 주문 INSERT 알림 + 소리
   useStoreOrderRealtime(storeId, () => {
     setNewAlert((n) => n + 1);
+    if (soundOn) playOrderSound();
     if (tab === "active") fetchOrders("active");
   });
 
@@ -391,12 +399,26 @@ export default function OwnerOrdersPage() {
           <h1 className="font-black text-pick-text text-xl">주문 관리 📋</h1>
           <p className="text-sm text-pick-text-sub mt-0.5">실시간으로 주문을 확인하고 처리하세요</p>
         </div>
-        <button
-          onClick={() => fetchOrders()}
-          className="p-2 rounded-full bg-pick-bg border border-pick-border text-pick-text-sub"
-        >
-          <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* 소리 알림 토글 */}
+          <button
+            onClick={() => setSoundOn((v) => !v)}
+            className={`p-2 rounded-full border transition-colors ${
+              soundOn
+                ? "bg-pick-purple text-white border-pick-purple"
+                : "bg-pick-bg border-pick-border text-pick-text-sub"
+            }`}
+            title={soundOn ? "알림 소리 켜짐" : "알림 소리 꺼짐"}
+          >
+            {soundOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
+          </button>
+          <button
+            onClick={() => fetchOrders()}
+            className="p-2 rounded-full bg-pick-bg border border-pick-border text-pick-text-sub"
+          >
+            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+          </button>
+        </div>
       </div>
 
       {/* 신규 주문 알림 배너 */}

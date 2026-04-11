@@ -11,6 +11,38 @@ const ReviewSchema = z.object({
   content: z.string().max(500).optional(),
 });
 
+// GET /api/reviews?orderId= — 해당 주문 리뷰 존재 여부 확인
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const orderId = searchParams.get("orderId");
+
+  if (!orderId) {
+    return NextResponse.json({ error: "orderId가 필요합니다" }, { status: 400 });
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminSupabaseClient() as any;
+
+  const { data: profile } = await admin
+    .from("users").select("id").eq("auth_id", user.id).single();
+  if (!profile) return NextResponse.json({ exists: false });
+
+  const { data: review } = await admin
+    .from("reviews")
+    .select("id, rating, content, created_at")
+    .eq("order_id", orderId)
+    .eq("user_id", profile.id)
+    .single();
+
+  return NextResponse.json({ exists: !!review, review: review ?? null });
+}
+
 // POST /api/reviews — 리뷰 작성 + PICK 보상
 export async function POST(request: NextRequest) {
   const supabase = await createServerSupabaseClient();

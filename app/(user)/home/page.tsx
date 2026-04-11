@@ -1,7 +1,7 @@
-import { MapPin, ChevronRight, Star, Clock, Bike, ArrowLeft, Frown, Search } from "lucide-react";
+import { MapPin, ChevronRight, Star, Clock, Bike, ArrowLeft, Frown, Search, Zap, Gift, Flame } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
-import { fetchStoresByCategory, searchStores, type StoreRow } from "@/lib/supabase/stores";
+import { fetchStoresByCategory, searchStores, fetchTopStores, type StoreRow } from "@/lib/supabase/stores";
 import { CATEGORY_META, getCategoryEmoji } from "@/lib/utils/categoryEmoji";
 import SearchBar from "./SearchBar";
 
@@ -69,6 +69,113 @@ const CATEGORIES = [
   { id: "dessert",  label: "디저트",   emoji: "🍰", bg: "bg-fuchsia-50",  border: "border-fuchsia-200", text: "text-fuchsia-800" },
   { id: "snacks",   label: "간식",     emoji: "🍿", bg: "bg-indigo-50",   border: "border-indigo-200",  text: "text-indigo-800" },
 ];
+
+/* ────────────── 프로모션 배너 ────────────── */
+const BANNERS = [
+  {
+    id: "welcome",
+    gradient: "from-pick-purple-dark via-pick-purple to-pick-purple-light",
+    icon: <Gift size={28} className="text-pick-yellow-light" />,
+    title: "첫 주문 혜택! 🎉",
+    sub: "WELCOME50 코드 입력하고\n50 PICK 즉시 지급",
+    badge: "쿠폰",
+    badgeBg: "bg-pick-yellow text-white",
+    href: "/wallet",
+  },
+  {
+    id: "pick",
+    gradient: "from-amber-500 via-orange-400 to-yellow-400",
+    icon: <Zap size={28} className="text-white" />,
+    title: "PICK 등급 혜택 ⚡",
+    sub: "FOREST 등급 달성 시\n주문금액 3배 적립!",
+    badge: "등급",
+    badgeBg: "bg-white/30 text-white",
+    href: "/my-pick",
+  },
+  {
+    id: "free",
+    gradient: "from-emerald-500 via-teal-500 to-cyan-500",
+    icon: <Bike size={28} className="text-white" />,
+    title: "배달비 무료 쿠폰 🛵",
+    sub: "FREESHIP 코드로\n배달비 0원에 주문",
+    badge: "무료배달",
+    badgeBg: "bg-white/30 text-white",
+    href: "/wallet",
+  },
+];
+
+function PromoBanner() {
+  return (
+    <div className="px-4 pt-2 pb-1">
+      <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide snap-x snap-mandatory">
+        {BANNERS.map((b) => (
+          <Link
+            key={b.id}
+            href={b.href}
+            className={`flex-shrink-0 w-[76vw] max-w-[310px] snap-start bg-gradient-to-r ${b.gradient} rounded-3xl p-5 text-white shadow-lg active:scale-95 transition-transform`}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div className={`text-[10px] font-black px-2.5 py-1 rounded-full ${b.badgeBg}`}>
+                {b.badge}
+              </div>
+              {b.icon}
+            </div>
+            <p className="font-black text-base leading-snug mb-1">{b.title}</p>
+            <p className="text-xs text-white/80 leading-relaxed whitespace-pre-line">{b.sub}</p>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ────────────── 인기 가게 가로 스크롤 ────────────── */
+function HotStoreCard({ store }: { store: StoreRow }) {
+  const emoji = getCategoryEmoji(store.category);
+  return (
+    <Link
+      href={`/store/${store.id}`}
+      className="flex-shrink-0 w-40 bg-white rounded-3xl border-2 border-pick-border shadow-sm active:scale-95 transition-transform overflow-hidden"
+    >
+      <div className="h-24 bg-gradient-to-br from-pick-bg to-pick-border flex items-center justify-center">
+        <span className="text-5xl">{emoji}</span>
+      </div>
+      <div className="px-3 pt-2 pb-3">
+        <p className="font-black text-pick-text text-xs leading-snug truncate mb-1">{store.name}</p>
+        <div className="flex items-center gap-1 text-[10px] text-pick-text-sub">
+          <Star size={9} className="text-pick-yellow fill-pick-yellow flex-shrink-0" />
+          <span className="font-bold text-pick-text">{store.rating}</span>
+          <span className="mx-0.5">·</span>
+          <Bike size={9} className="flex-shrink-0" />
+          <span>
+            {store.delivery_fee === 0
+              ? <span className="text-green-600 font-bold">무료</span>
+              : `${store.delivery_fee.toLocaleString()}원`}
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+async function HotStoresSection() {
+  const stores = await fetchTopStores(8);
+  if (stores.length === 0) return null;
+
+  return (
+    <section className="px-4 py-3">
+      <div className="flex items-center gap-2 mb-3">
+        <Flame size={16} className="text-orange-500 fill-orange-500" />
+        <h2 className="font-black text-pick-text text-base">지금 인기 가게 🔥</h2>
+      </div>
+      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+        {stores.map((store) => (
+          <HotStoreCard key={store.id} store={store} />
+        ))}
+      </div>
+    </section>
+  );
+}
 
 /* ────────────── 위치 바 ────────────── */
 function LocationBar() {
@@ -206,14 +313,39 @@ export default async function HomePage({
   const showCategory = !showSearch && !!category;
 
   return (
-    <div className="min-h-full">
+    <div className="min-h-full pb-4">
       <LocationBar />
       <Suspense fallback={null}>
         <SearchBar />
       </Suspense>
-      {showSearch   ? <SearchResultsView query={search!.trim()} /> :
-       showCategory ? <StoreListView category={category!} />       :
-                      <CategoryGrid />}
+
+      {showSearch ? (
+        <SearchResultsView query={search!.trim()} />
+      ) : showCategory ? (
+        <StoreListView category={category!} />
+      ) : (
+        <>
+          {/* 프로모션 배너 */}
+          <PromoBanner />
+
+          {/* 인기 가게 */}
+          <Suspense fallback={
+            <div className="px-4 py-3">
+              <div className="h-5 w-32 bg-gray-100 rounded-full mb-3 animate-pulse" />
+              <div className="flex gap-3">
+                {[0,1,2,3].map((i) => (
+                  <div key={i} className="flex-shrink-0 w-40 h-40 bg-gray-100 rounded-3xl animate-pulse" />
+                ))}
+              </div>
+            </div>
+          }>
+            <HotStoresSection />
+          </Suspense>
+
+          {/* 카테고리 그리드 */}
+          <CategoryGrid />
+        </>
+      )}
     </div>
   );
 }

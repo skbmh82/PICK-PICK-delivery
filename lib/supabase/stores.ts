@@ -82,6 +82,25 @@ export async function fetchStoreById(id: string): Promise<StoreRow | null> {
   return data as StoreRow;
 }
 
+// 인기 가게 목록 (평점 높은 순, 최대 N개)
+export async function fetchTopStores(limit = 8): Promise<StoreRow[]> {
+  const supabase = createServerClient();
+  const { data, error } = await supabase
+    .from("stores")
+    .select("id, name, category, description, address, lat, lng, rating, review_count, delivery_time, delivery_fee, min_order_amount, pick_reward_rate, is_open")
+    .eq("is_approved", true)
+    .eq("is_open", true)
+    .order("rating", { ascending: false })
+    .order("review_count", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("fetchTopStores error:", error.message);
+    return [];
+  }
+  return (data ?? []) as StoreRow[];
+}
+
 // 가게 메뉴 목록
 export async function fetchMenusByStoreId(storeId: string): Promise<MenuRow[]> {
   const supabase = createServerClient();

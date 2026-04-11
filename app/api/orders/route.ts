@@ -19,6 +19,7 @@ const CreateOrderSchema = z.object({
   totalAmount:     z.number().positive(),
   deliveryFee:     z.number().min(0),
   pickUsed:        z.number().min(0),
+  userCouponId:    z.string().uuid().optional(),
   deliveryAddress: z.string().min(1),
   deliveryNote:    z.string().optional(),
 });
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { storeId, items, totalAmount, deliveryFee, pickUsed, deliveryAddress, deliveryNote } = parsed.data;
+  const { storeId, items, totalAmount, deliveryFee, pickUsed, userCouponId, deliveryAddress, deliveryNote } = parsed.data;
 
   // 4. 가맹점 존재/영업 여부 확인
   const { data: store } = await admin
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "현재 영업 중이 아닌 가맹점입니다" }, { status: 400 });
   }
 
-  // 5. PICK 잔액 확인 + 누적 적립량 조회 (등급 계산용)
+  // 5. PICK 잔액 확인 + 누적 적립량 조회 (등급 계산용, 쿠폰 검증용)
   const { data: wallet } = await admin
     .from("wallets")
     .select("pick_balance, total_earned")
@@ -84,15 +85,46 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // 6. 등급 반영 적립 PICK 계산
+  // 6. 쿠폰 검증
+  let couponExtraPickRate = 0;
+  let couponFixedPick     = 0;
+  if (userCouponId) {
+    const { data: uc } = await admin
+      .from("user_coupons")
+      .select("id, is_used, coupon_id, coupons(type, value, min_order, is_active, expires_at, store_id)")
+      .eq("id", userCouponId)
+      .eq("user_id", profile.id)
+      .single();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const coupon = (uc as any)?.coupons;
+    if (!uc || uc.is_used || !coupon?.is_active) {
+      return NextResponse.json({ error: "유효하지 않은 쿠폰입니다" }, { status: 400 });
+    }
+    if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
+      return NextResponse.json({ error: "만료된 쿠폰입니다" }, { status: 400 });
+    }
+    if (coupon.store_id && coupon.store_id !== storeId) {
+      return NextResponse.json({ error: "이 가맹점에서 사용할 수 없는 쿠폰입니다" }, { status: 400 });
+    }
+    if (totalAmount < Number(coupon.min_order ?? 0)) {
+      return NextResponse.json({ error: "쿠폰 최소 주문금액을 충족하지 않습니다" }, { status: 400 });
+    }
+    if (coupon.type === "pick_rate")  couponExtraPickRate = Number(coupon.value);
+    if (coupon.type === "fixed_pick") couponFixedPick     = Number(coupon.value);
+    // free_delivery: client already sent deliveryFee=0
+  }
+
+  // 7. 등급 반영 적립 PICK 계산
   const totalEarned = Number(wallet?.total_earned ?? 0);
-  const pickReward  = calcPickReward(
+  const baseReward  = calcPickReward(
     totalAmount + deliveryFee,
     Number(store.pick_reward_rate),
     totalEarned
   );
+  const pickReward  = baseReward + Math.floor(baseReward * couponExtraPickRate / 100) + couponFixedPick;
 
-  // 7. 주문 생성 (admin 클라이언트로 RLS 우회)
+  // 8. 주문 생성 (admin 클라이언트로 RLS 우회)
   const { data: orderData, error: orderError } = await admin
     .from("orders")
     .insert({
@@ -118,7 +150,7 @@ export async function POST(request: NextRequest) {
 
   const orderId = orderData.id as string;
 
-  // 8. 주문 아이템 일괄 insert
+  // 9. 주문 아이템 일괄 insert
   const orderItems = items.map((item) => ({
     order_id:  orderId,
     menu_id:   item.menuId,
@@ -133,7 +165,15 @@ export async function POST(request: NextRequest) {
     console.error("주문 아이템 저장 오류:", itemsError.message);
   }
 
-  // 9. PICK 차감 (RPC 호출)
+  // 10. 쿠폰 사용 처리
+  if (userCouponId) {
+    await admin
+      .from("user_coupons")
+      .update({ is_used: true, used_at: new Date().toISOString(), order_id: orderId })
+      .eq("id", userCouponId);
+  }
+
+  // 11. PICK 차감 (RPC 호출)
   if (pickUsed > 0) {
     const { error: deductError } = await admin.rpc("deduct_pick", {
       p_user_id:  profile.id,
@@ -145,7 +185,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // 10. 사장님에게 신규 주문 알림
+  // 12. 사장님에게 신규 주문 알림
   const { data: storeOwner } = await admin
     .from("stores")
     .select("owner_id, name")

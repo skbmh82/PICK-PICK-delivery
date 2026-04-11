@@ -136,11 +136,23 @@ END;
 $$;
 
 -- ── 5. Supabase Realtime — 변경 감지 대상 테이블 등록 ──────────
--- orders, notifications 테이블에 Realtime 활성화
-ALTER PUBLICATION supabase_realtime ADD TABLE orders;
-ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+-- 이미 등록된 경우 에러를 무시하고 계속 진행
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE orders;
+EXCEPTION WHEN others THEN
+  -- 이미 등록된 경우 무시
+  NULL;
+END $$;
 
--- ── 5. (선택) 기존 order_items 옵션 컬럼 타입 확인 ────────────
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+EXCEPTION WHEN others THEN
+  NULL;
+END $$;
+
+-- ── 6. (선택) 기존 order_items 옵션 컬럼 타입 확인 ────────────
 -- order_items.options 컬럼이 없으면 추가
 ALTER TABLE order_items ADD COLUMN IF NOT EXISTS options JSONB DEFAULT '[]';
 

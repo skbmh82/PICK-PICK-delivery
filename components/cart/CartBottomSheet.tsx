@@ -2,13 +2,26 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { X, Trash2, Minus, Plus, ShoppingBag, Bike, Coins, MapPin, ChevronRight, Home, Briefcase, Check } from "lucide-react";
+import { X, Trash2, Minus, Plus, ShoppingBag, Bike, Coins, MapPin, ChevronRight, Home, Briefcase, Check, Ticket, ChevronDown } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 import { useOrderStore } from "@/stores/orderStore";
 import { useAuthStore } from "@/stores/authStore";
 import { fetchMyPickBalance } from "@/lib/supabase/wallet";
 
 interface Props { onClose: () => void }
+
+interface AvailableCoupon {
+  userCouponId: string;
+  coupon: {
+    id: string;
+    title: string;
+    type: "fixed_pick" | "pick_rate" | "free_delivery";
+    value: number;
+    minOrder: number;
+    storeId: string | null;
+    expiresAt: string | null;
+  };
+}
 
 interface UserAddress {
   id:        string;
@@ -104,6 +117,11 @@ export default function CartBottomSheet({ onClose }: Props) {
   // 배달 메모
   const [note, setNote] = useState("");
 
+  // 쿠폰
+  const [availableCoupons, setAvailableCoupons] = useState<AvailableCoupon[]>([]);
+  const [selectedCoupon,   setSelectedCoupon]   = useState<AvailableCoupon | null>(null);
+  const [showCouponPicker, setShowCouponPicker] = useState(false);
+
   // PICK 잔액
   useEffect(() => {
     if (!user) return;
@@ -126,6 +144,22 @@ export default function CartBottomSheet({ onClose }: Props) {
 
   useEffect(() => { fetchAddresses(); }, [fetchAddresses]);
 
+  // 쿠폰 fetch
+  useEffect(() => {
+    if (!user) return;
+    fetch("/api/coupons").then(async (res) => {
+      if (!res.ok) return;
+      const json = await res.json();
+      // 사용가능 쿠폰만, 현재 가게에 적용 가능한 것만 필터
+      const filtered = (json.coupons ?? []).filter((c: { isUsed: boolean; coupon: { isExpired: boolean; storeId: string | null; minOrder: number } }) =>
+        !c.isUsed &&
+        !c.coupon.isExpired &&
+        (c.coupon.storeId === null || c.coupon.storeId === cart.storeId)
+      );
+      setAvailableCoupons(filtered);
+    });
+  }, [user, cart.storeId]);
+
   // 장바구니가 비면 자동 닫기
   useEffect(() => {
     if (cart.items.length === 0) onClose();
@@ -134,8 +168,18 @@ export default function CartBottomSheet({ onClose }: Props) {
   const itemsAmount   = cart.itemsAmount();
   const maxPickUsable = Math.min(pickBalance, Math.floor(itemsAmount * 0.5));
   const pickDiscount  = usePick ? maxPickUsable : 0;
-  const totalPaid     = itemsAmount + cart.deliveryFee - pickDiscount;
-  const pickReward    = Math.floor(totalPaid * (cart.pickRewardRate / 100));
+
+  // 쿠폰 적용
+  const couponFreeDelivery = selectedCoupon?.coupon.type === "free_delivery";
+  const couponPickRate     = selectedCoupon?.coupon.type === "pick_rate"     ? selectedCoupon.coupon.value : 0;
+  const couponFixedPick    = selectedCoupon?.coupon.type === "fixed_pick"    ? selectedCoupon.coupon.value : 0;
+  const effectiveDeliveryFee = couponFreeDelivery ? 0 : cart.deliveryFee;
+  const isCouponApplicable = !selectedCoupon || itemsAmount >= selectedCoupon.coupon.minOrder;
+
+  const totalPaid     = itemsAmount + effectiveDeliveryFee - pickDiscount;
+  const baseReward    = Math.floor(totalPaid * (cart.pickRewardRate / 100));
+  const extraReward   = Math.floor(baseReward * couponPickRate / 100);
+  const pickReward    = baseReward + extraReward + couponFixedPick;
   const isBelowMin    = itemsAmount < cart.minOrderAmount;
 
   const deliveryAddressText = selectedAddr
@@ -168,8 +212,9 @@ export default function CartBottomSheet({ onClose }: Props) {
             options:  i.options ?? [],
           })),
           totalAmount:     itemsAmount,
-          deliveryFee:     cart.deliveryFee,
+          deliveryFee:     effectiveDeliveryFee,
           pickUsed:        pickDiscount,
+          userCouponId:    selectedCoupon?.userCouponId ?? undefined,
           deliveryAddress: deliveryAddressText,
           deliveryNote:    note.trim() || undefined,
         }),
@@ -195,7 +240,7 @@ export default function CartBottomSheet({ onClose }: Props) {
         price:    i.price,
       })),
       itemsAmount,
-      deliveryFee:      cart.deliveryFee,
+      deliveryFee:      effectiveDeliveryFee,
       pickUsed:         pickDiscount,
       pickReward,
       totalPaid,
@@ -319,6 +364,83 @@ export default function CartBottomSheet({ onClose }: Props) {
             />
           </div>
 
+          {/* 쿠폰 선택 */}
+          {user && (
+            <div className="mx-4 mb-3">
+              <button
+                onClick={() => setShowCouponPicker((v) => !v)}
+                className="w-full flex items-center justify-between bg-pick-bg rounded-2xl border-2 border-pick-border px-4 py-3 active:scale-[0.99] transition-transform"
+              >
+                <div className="flex items-center gap-2">
+                  <Ticket size={16} className="text-pick-purple" />
+                  <div className="text-left">
+                    <p className="text-sm font-bold text-pick-text">쿠폰 적용</p>
+                    {selectedCoupon ? (
+                      <p className="text-xs text-pick-purple font-bold mt-0.5">{selectedCoupon.coupon.title} 적용 중 ✓</p>
+                    ) : (
+                      <p className="text-xs text-pick-text-sub mt-0.5">
+                        {availableCoupons.length > 0
+                          ? `사용 가능 ${availableCoupons.length}장`
+                          : "사용 가능한 쿠폰 없음"}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <ChevronDown size={15} className={`text-pick-text-sub transition-transform ${showCouponPicker ? "rotate-180" : ""}`} />
+              </button>
+
+              {showCouponPicker && (
+                <div className="mt-1 bg-white border-2 border-pick-border rounded-2xl overflow-hidden">
+                  {/* 쿠폰 없음 옵션 */}
+                  <button
+                    onClick={() => { setSelectedCoupon(null); setShowCouponPicker(false); }}
+                    className={`w-full flex items-center justify-between px-4 py-3 border-b border-pick-border text-sm transition-colors ${
+                      !selectedCoupon ? "bg-pick-bg" : "hover:bg-pick-bg"
+                    }`}
+                  >
+                    <span className="text-pick-text-sub font-medium">쿠폰 사용 안 함</span>
+                    {!selectedCoupon && <Check size={14} className="text-pick-purple" />}
+                  </button>
+                  {availableCoupons.length === 0 && (
+                    <p className="px-4 py-4 text-xs text-pick-text-sub text-center">사용 가능한 쿠폰이 없어요</p>
+                  )}
+                  {availableCoupons.map((c) => {
+                    const tooLow = itemsAmount < c.coupon.minOrder;
+                    return (
+                      <button
+                        key={c.userCouponId}
+                        disabled={tooLow}
+                        onClick={() => { setSelectedCoupon(c); setShowCouponPicker(false); }}
+                        className={`w-full flex items-center justify-between px-4 py-3 border-b border-pick-border last:border-0 transition-colors disabled:opacity-40 ${
+                          selectedCoupon?.userCouponId === c.userCouponId
+                            ? "bg-pick-purple/5"
+                            : "hover:bg-pick-bg"
+                        }`}
+                      >
+                        <div className="text-left">
+                          <p className="text-sm font-bold text-pick-text">{c.coupon.title}</p>
+                          <p className="text-xs text-pick-purple-light font-bold mt-0.5">
+                            {c.coupon.type === "fixed_pick"    && `${c.coupon.value.toLocaleString()} PICK 지급`}
+                            {c.coupon.type === "pick_rate"     && `PICK ${c.coupon.value}% 추가 적립`}
+                            {c.coupon.type === "free_delivery" && "배달비 무료"}
+                          </p>
+                          {tooLow && (
+                            <p className="text-[10px] text-red-400 mt-0.5">
+                              최소주문 {c.coupon.minOrder.toLocaleString()}원 이상 필요
+                            </p>
+                          )}
+                        </div>
+                        {selectedCoupon?.userCouponId === c.userCouponId && (
+                          <Check size={14} className="text-pick-purple flex-shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* PICK 토큰 사용 */}
           <div className="mx-4 mb-4 bg-pick-bg rounded-2xl border-2 border-pick-border px-4 py-3">
             <div className="flex items-center justify-between">
@@ -357,11 +479,23 @@ export default function CartBottomSheet({ onClose }: Props) {
             <div className="flex items-center justify-between text-sm">
               <span className="text-pick-text-sub flex items-center gap-1"><Bike size={13} />배달비</span>
               <span className="font-bold text-pick-text">
-                {cart.deliveryFee === 0
-                  ? <span className="text-green-600">무료</span>
-                  : `+${cart.deliveryFee.toLocaleString()}원`}
+                {effectiveDeliveryFee === 0
+                  ? <span className="text-green-600">{couponFreeDelivery ? "무료 (쿠폰)" : "무료"}</span>
+                  : `+${effectiveDeliveryFee.toLocaleString()}원`}
               </span>
             </div>
+            {selectedCoupon && isCouponApplicable && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-pick-purple font-medium flex items-center gap-1">
+                  <Ticket size={12} />쿠폰 혜택
+                </span>
+                <span className="font-bold text-pick-purple text-xs">
+                  {selectedCoupon.coupon.type === "free_delivery" && "배달비 무료"}
+                  {selectedCoupon.coupon.type === "fixed_pick"    && `+${selectedCoupon.coupon.value.toLocaleString()} PICK`}
+                  {selectedCoupon.coupon.type === "pick_rate"     && `적립 +${selectedCoupon.coupon.value}%`}
+                </span>
+              </div>
+            )}
             {usePick && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-pick-purple font-medium">PICK 할인</span>
@@ -373,7 +507,10 @@ export default function CartBottomSheet({ onClose }: Props) {
               <span className="font-black text-pick-text text-lg">{totalPaid.toLocaleString()}원</span>
             </div>
             <p className="text-xs text-pick-text-sub text-right">
-              주문 후 {pickReward} PICK 적립 예정 ✨
+              주문 후 {pickReward.toLocaleString()} PICK 적립 예정 ✨
+              {(extraReward > 0 || couponFixedPick > 0) && (
+                <span className="text-pick-purple font-bold"> (쿠폰 포함)</span>
+              )}
             </p>
           </div>
 
@@ -381,6 +518,11 @@ export default function CartBottomSheet({ onClose }: Props) {
             <p className="text-xs text-red-500 font-bold text-center mb-2">
               최소 주문금액 {cart.minOrderAmount.toLocaleString()}원까지{" "}
               {(cart.minOrderAmount - itemsAmount).toLocaleString()}원 더 담아야 해요
+            </p>
+          )}
+          {selectedCoupon && !isCouponApplicable && (
+            <p className="text-xs text-amber-600 font-bold text-center mb-2">
+              ⚠️ 쿠폰 최소주문금액({selectedCoupon.coupon.minOrder.toLocaleString()}원) 미달 — 쿠폰이 적용되지 않아요
             </p>
           )}
           {!user && (

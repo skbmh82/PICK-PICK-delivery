@@ -116,8 +116,8 @@ BEGIN
   ) VALUES (
     'a5000000-0000-0000-0000-000000000005', owner_uuid,
     '스시사부로 역삼', '신선한 재료로 만드는 초밥 전문점', 'japanese',
-    '02-567-8901', '서울 강남구 역삼동 654', 30000, 3000, 45,
-    true, true, 4.9, 78, 3.0
+    '02-567-8901', '서울 강남구 역삼동 654', 37.4988, 127.0285,
+    30000, 3000, 45, true, true, 4.9, 78, 3.0
   ) ON CONFLICT (id) DO NOTHING;
 
   INSERT INTO menus (store_id, name, description, price, category, is_available, is_popular, sort_order) VALUES

@@ -64,7 +64,7 @@ export async function GET() {
       email:        profile.email,
       phone:        profile.phone,
       role:         profile.role,
-      profileImage: profile.profile_image,
+      profileImage: profile.profile_image ?? null,
       addressMain:  profile.address_main,
     },
     wallet: { pickBalance, totalEarned },
@@ -90,9 +90,10 @@ export async function GET() {
 }
 
 const UpdateProfileSchema = z.object({
-  name:        z.string().min(2).max(50).optional(),
-  phone:       z.string().max(20).optional(),
-  addressMain: z.string().max(200).optional(),
+  name:         z.string().min(2).max(50).optional(),
+  phone:        z.string().max(20).optional(),
+  addressMain:  z.string().max(200).optional(),
+  profileImage: z.string().url().nullable().optional(),
 });
 
 // PATCH /api/users/me — 프로필 수정
@@ -115,10 +116,11 @@ export async function PATCH(request: NextRequest) {
     .from("users").select("id").eq("auth_id", user.id).single();
   if (!profile) return NextResponse.json({ error: "사용자를 찾을 수 없습니다" }, { status: 404 });
 
-  const updates: Record<string, string> = {};
-  if (parsed.data.name        !== undefined) updates.name         = parsed.data.name;
-  if (parsed.data.phone       !== undefined) updates.phone        = parsed.data.phone;
-  if (parsed.data.addressMain !== undefined) updates.address_main = parsed.data.addressMain;
+  const updates: Record<string, string | null> = {};
+  if (parsed.data.name         !== undefined) updates.name          = parsed.data.name ?? null;
+  if (parsed.data.phone        !== undefined) updates.phone         = parsed.data.phone ?? null;
+  if (parsed.data.addressMain  !== undefined) updates.address_main  = parsed.data.addressMain ?? null;
+  if (parsed.data.profileImage !== undefined) updates.profile_image = parsed.data.profileImage ?? null;
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ ok: true });

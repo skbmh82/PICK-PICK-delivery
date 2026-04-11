@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Store, MapPin, Phone, Clock, Wallet, ToggleLeft, ToggleRight,
   ChevronLeft, Check, Loader2, Star, FileText, AlertCircle,
+  ImagePlus, Camera, Ticket, Plus, X, Tag,
 } from "lucide-react";
 
 // ── 타입 ──────────────────────────────────────────────
@@ -23,6 +24,8 @@ interface StoreData {
   isApproved:     boolean;
   rating:         number;
   reviewCount:    number;
+  imageUrl:       string | null;
+  bannerUrl:      string | null;
 }
 
 // ── 입력 필드 래퍼 ─────────────────────────────────────
@@ -43,6 +46,227 @@ function Field({
 const inputCls = "w-full bg-pick-bg border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text font-medium focus:outline-none focus:border-pick-purple transition-colors";
 const numInputCls = `${inputCls} text-right`;
 
+// ── 사장님 쿠폰 관리 섹션 ─────────────────────────────
+interface OwnerCoupon {
+  id: string; code: string; title: string;
+  type: "fixed_pick" | "pick_rate" | "free_delivery";
+  value: number; minOrder: number; maxUses: number | null;
+  usedCount: number; isActive: boolean; expiresAt: string | null;
+}
+
+function OwnerCouponSection() {
+  const [coupons,    setCoupons]    = useState<OwnerCoupon[]>([]);
+  const [expanded,   setExpanded]   = useState(false);
+  const [loading,    setLoading]    = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [toggling,   setToggling]   = useState<string | null>(null);
+
+  // 폼
+  const [fCode,     setFCode]     = useState("");
+  const [fTitle,    setFTitle]    = useState("");
+  const [fType,     setFType]     = useState<"fixed_pick" | "pick_rate" | "free_delivery">("fixed_pick");
+  const [fValue,    setFValue]    = useState("");
+  const [fMinOrder, setFMinOrder] = useState("0");
+  const [fMaxUses,  setFMaxUses]  = useState("");
+  const [fExpires,  setFExpires]  = useState("");
+  const [saving,    setSaving]    = useState(false);
+  const [formErr,   setFormErr]   = useState("");
+
+  const fetchCoupons = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/owner/coupons");
+      if (res.ok) setCoupons(await res.json().then((d: { coupons: OwnerCoupon[] }) => d.coupons));
+    } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { if (expanded) fetchCoupons(); }, [expanded, fetchCoupons]);
+
+  const handleCreate = async () => {
+    if (!fCode.trim() || !fTitle.trim()) return setFormErr("코드와 제목은 필수입니다");
+    const val = fType === "free_delivery" ? 0 : parseFloat(fValue);
+    if (fType !== "free_delivery" && (isNaN(val) || val <= 0)) return setFormErr("올바른 값을 입력해주세요");
+    setSaving(true); setFormErr("");
+    try {
+      const res = await fetch("/api/owner/coupons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: fCode.trim().toUpperCase(), title: fTitle.trim(),
+          type: fType, value: val,
+          minOrder: parseFloat(fMinOrder) || 0,
+          maxUses:  fMaxUses ? parseInt(fMaxUses) : null,
+          expiresAt: fExpires ? new Date(fExpires).toISOString() : null,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setCreateOpen(false);
+        setFCode(""); setFTitle(""); setFValue(""); setFMinOrder("0"); setFMaxUses(""); setFExpires("");
+        await fetchCoupons();
+      } else {
+        setFormErr(json.error ?? "쿠폰 생성에 실패했습니다");
+      }
+    } finally { setSaving(false); }
+  };
+
+  const handleToggle = async (c: OwnerCoupon) => {
+    setToggling(c.id);
+    try {
+      await fetch("/api/owner/coupons", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ couponId: c.id, isActive: !c.isActive }),
+      });
+      setCoupons((prev) => prev.map((x) => x.id === c.id ? { ...x, isActive: !c.isActive } : x));
+    } finally { setToggling(null); }
+  };
+
+  return (
+    <div className="bg-white rounded-3xl shadow-sm border border-pick-border overflow-hidden">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center justify-between px-5 py-4 active:bg-pick-bg transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Ticket size={16} className="text-pick-purple" />
+          <span className="font-black text-pick-text text-sm">쿠폰 발행 관리</span>
+          {coupons.filter((c) => c.isActive).length > 0 && (
+            <span className="bg-pick-purple text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+              활성 {coupons.filter((c) => c.isActive).length}개
+            </span>
+          )}
+        </div>
+        <span className="text-xs text-pick-purple font-bold">{expanded ? "접기 ▲" : "열기 ▼"}</span>
+      </button>
+
+      {expanded && (
+        <div className="border-t border-pick-border">
+          <div className="px-5 py-4 flex items-center justify-between">
+            <p className="text-xs text-pick-text-sub">가게 전용 쿠폰을 발행해 고객을 유치하세요</p>
+            <button
+              onClick={() => setCreateOpen(true)}
+              className="flex items-center gap-1 bg-pick-purple text-white text-xs font-bold px-3 py-2 rounded-full"
+            >
+              <Plus size={12} /> 새 쿠폰
+            </button>
+          </div>
+
+          {/* 생성 폼 인라인 */}
+          {createOpen && (
+            <div className="mx-4 mb-4 bg-pick-bg rounded-2xl p-4 border border-pick-border">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-black text-pick-text">새 쿠폰 만들기</p>
+                <button onClick={() => setCreateOpen(false)} className="w-6 h-6 rounded-full bg-white border border-pick-border flex items-center justify-center">
+                  <X size={11} className="text-pick-text-sub" />
+                </button>
+              </div>
+              <div className="flex flex-col gap-2.5">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-pick-text-sub block mb-1">쿠폰 코드</label>
+                    <input value={fCode} onChange={(e) => setFCode(e.target.value.toUpperCase())} placeholder="STORE10"
+                      className="w-full border-2 border-pick-border rounded-xl px-3 py-2 text-sm uppercase font-bold tracking-wider focus:outline-none focus:border-pick-purple bg-white" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-pick-text-sub block mb-1">유형</label>
+                    <select value={fType} onChange={(e) => setFType(e.target.value as typeof fType)}
+                      className="w-full border-2 border-pick-border rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:border-pick-purple">
+                      <option value="fixed_pick">PICK 지급</option>
+                      <option value="pick_rate">적립% 추가</option>
+                      <option value="free_delivery">배달비 무료</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-pick-text-sub block mb-1">쿠폰명</label>
+                  <input value={fTitle} onChange={(e) => setFTitle(e.target.value)} placeholder="우리 가게 첫 방문 쿠폰"
+                    className="w-full border-2 border-pick-border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-pick-purple" />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-pick-text-sub block mb-1">
+                      {fType === "pick_rate" ? "추가율 (%)" : fType === "fixed_pick" ? "PICK 수량" : "값 (0)"}
+                    </label>
+                    <input type="number" value={fValue} onChange={(e) => setFValue(e.target.value)} min="0"
+                      disabled={fType === "free_delivery"}
+                      className="w-full border-2 border-pick-border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-pick-purple disabled:bg-gray-50" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-pick-text-sub block mb-1">최소주문(원)</label>
+                    <input type="number" value={fMinOrder} onChange={(e) => setFMinOrder(e.target.value)} min="0"
+                      className="w-full border-2 border-pick-border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-pick-purple" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-pick-text-sub block mb-1">최대발급</label>
+                    <input type="number" value={fMaxUses} onChange={(e) => setFMaxUses(e.target.value)} min="1" placeholder="∞"
+                      className="w-full border-2 border-pick-border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-pick-purple" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-pick-text-sub block mb-1">만료일 (선택)</label>
+                  <input type="datetime-local" value={fExpires} onChange={(e) => setFExpires(e.target.value)}
+                    className="w-full border-2 border-pick-border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-pick-purple" />
+                </div>
+                {formErr && <p className="text-xs text-red-500 font-bold">{formErr}</p>}
+                <button onClick={() => void handleCreate()} disabled={saving}
+                  className="w-full py-3 rounded-2xl bg-pick-purple text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50">
+                  {saving ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Ticket size={14} />}
+                  쿠폰 발행
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 기존 쿠폰 목록 */}
+          {loading ? (
+            <div className="px-4 pb-4 animate-pulse flex flex-col gap-2">
+              {[0,1].map((i) => <div key={i} className="h-14 bg-gray-100 rounded-2xl" />)}
+            </div>
+          ) : coupons.length === 0 ? (
+            <div className="px-4 pb-6 flex flex-col items-center gap-2 text-pick-text-sub">
+              <Tag size={28} className="opacity-20" />
+              <p className="text-xs">발행된 쿠폰이 없어요</p>
+            </div>
+          ) : (
+            <div className="px-4 pb-4 flex flex-col gap-2">
+              {coupons.map((c) => (
+                <div key={c.id} className={`flex items-center gap-3 bg-pick-bg rounded-2xl px-4 py-3 border ${c.isActive ? "border-pick-border" : "border-gray-100 opacity-60"}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-black tracking-widest text-pick-purple">{c.code}</span>
+                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${c.isActive ? "bg-pick-purple/10 text-pick-purple" : "bg-gray-100 text-gray-400"}`}>
+                        {c.isActive ? "활성" : "비활성"}
+                      </span>
+                    </div>
+                    <p className="text-xs font-bold text-pick-text mt-0.5 truncate">{c.title}</p>
+                    <p className="text-[10px] text-pick-text-sub">
+                      {c.type === "fixed_pick"    && `${c.value} PICK 지급`}
+                      {c.type === "pick_rate"     && `${c.value}% 추가 적립`}
+                      {c.type === "free_delivery" && "배달비 무료"}
+                      {" · "}사용 {c.usedCount}{c.maxUses != null ? `/${c.maxUses}` : ""}건
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => void handleToggle(c)}
+                    disabled={toggling === c.id}
+                    className="flex-shrink-0 disabled:opacity-40"
+                  >
+                    {c.isActive
+                      ? <ToggleRight size={22} className="text-pick-purple" />
+                      : <ToggleLeft  size={22} className="text-gray-300" />
+                    }
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function StoreSettingsPage() {
   const router = useRouter();
 
@@ -62,6 +286,11 @@ export default function StoreSettingsPage() {
   const [minOrderAmount, setMinOrderAmount] = useState("");
   const [deliveryTime,   setDeliveryTime]   = useState("");
   const [pickRewardRate, setPickRewardRate] = useState("");
+  const [imageUrl,       setImageUrl]       = useState<string | null>(null);
+  const [bannerUrl,      setBannerUrl]      = useState<string | null>(null);
+  const [uploadingImg,   setUploadingImg]   = useState<"image" | "banner" | null>(null);
+  const imageInputRef  = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   const fetchStore = useCallback(async () => {
     setLoading(true);
@@ -86,6 +315,8 @@ export default function StoreSettingsPage() {
         isApproved:     s.is_approved,
         rating:         Number(s.rating),
         reviewCount:    Number(s.review_count),
+        imageUrl:       s.image_url  ?? null,
+        bannerUrl:      s.banner_url ?? null,
       };
       setStore(data);
 
@@ -99,12 +330,31 @@ export default function StoreSettingsPage() {
       setMinOrderAmount(String(data.minOrderAmount));
       setDeliveryTime(String(data.deliveryTime));
       setPickRewardRate(String(data.pickRewardRate));
+      setImageUrl(data.imageUrl);
+      setBannerUrl(data.bannerUrl);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => { fetchStore(); }, [fetchStore]);
+
+  const handleUpload = async (file: File, type: "image" | "banner") => {
+    const form = new FormData();
+    form.append("file",   file);
+    form.append("folder", "store");
+    setUploadingImg(type);
+    setError("");
+    try {
+      const res  = await fetch("/api/upload", { method: "POST", body: form });
+      const json = await res.json();
+      if (!res.ok) { setError(json.error ?? "이미지 업로드 실패"); return; }
+      if (type === "image")  setImageUrl(json.url);
+      if (type === "banner") setBannerUrl(json.url);
+    } finally {
+      setUploadingImg(null);
+    }
+  };
 
   const handleSave = async () => {
     if (!name.trim())    return setError("가게 이름을 입력해주세요");
@@ -136,6 +386,8 @@ export default function StoreSettingsPage() {
           minOrderAmount: min,
           deliveryTime:   time,
           pickRewardRate: rate,
+          imageUrl,
+          bannerUrl,
         }),
       });
 
@@ -260,6 +512,69 @@ export default function StoreSettingsPage() {
                 : <ToggleLeft  size={36} className="text-gray-300" />
               }
             </button>
+          </div>
+        </div>
+
+        {/* 가게 이미지 */}
+        <div className="bg-white rounded-3xl p-5 shadow-sm border border-pick-border">
+          <h2 className="text-sm font-black text-pick-text mb-4 flex items-center gap-2">
+            <Camera size={15} className="text-pick-purple" />
+            가게 이미지
+          </h2>
+
+          {/* 배너 이미지 */}
+          <p className="text-xs text-pick-text-sub font-semibold mb-2">배너 이미지 (가게 상단 대형 이미지)</p>
+          <input ref={bannerInputRef} type="file" accept="image/*" className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f, "banner"); e.target.value = ""; }} />
+          <button onClick={() => bannerInputRef.current?.click()} disabled={!!uploadingImg}
+            className="w-full relative border-2 border-dashed border-pick-border rounded-2xl overflow-hidden bg-pick-bg active:scale-[0.98] transition-transform disabled:opacity-60 mb-4"
+            style={{ minHeight: 96 }}>
+            {uploadingImg === "banner" ? (
+              <div className="flex flex-col items-center justify-center py-8 gap-2">
+                <Loader2 size={22} className="text-pick-purple animate-spin" />
+                <p className="text-xs text-pick-text-sub">업로드 중...</p>
+              </div>
+            ) : bannerUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={bannerUrl} alt="배너" className="w-full h-28 object-cover" />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 gap-2">
+                <ImagePlus size={24} className="text-gray-300" />
+                <p className="text-xs text-pick-text-sub">배너 이미지 선택 (권장: 1200×400)</p>
+              </div>
+            )}
+          </button>
+          {bannerUrl && (
+            <button onClick={() => setBannerUrl(null)} className="text-xs text-red-400 font-semibold underline mb-4 block">
+              배너 제거
+            </button>
+          )}
+
+          {/* 프로필(썸네일) 이미지 */}
+          <p className="text-xs text-pick-text-sub font-semibold mb-2">프로필 이미지 (목록에서 보이는 대표 이미지)</p>
+          <input ref={imageInputRef} type="file" accept="image/*" className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f, "image"); e.target.value = ""; }} />
+          <div className="flex items-center gap-4">
+            <button onClick={() => imageInputRef.current?.click()} disabled={!!uploadingImg}
+              className="w-20 h-20 rounded-3xl border-2 border-dashed border-pick-border bg-pick-bg flex items-center justify-center overflow-hidden active:scale-95 transition-transform disabled:opacity-60 flex-shrink-0">
+              {uploadingImg === "image" ? (
+                <Loader2 size={20} className="text-pick-purple animate-spin" />
+              ) : imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={imageUrl} alt="프로필" className="w-full h-full object-cover" />
+              ) : (
+                <ImagePlus size={22} className="text-gray-300" />
+              )}
+            </button>
+            <div>
+              <p className="text-xs font-bold text-pick-text mb-1">프로필 사진</p>
+              <p className="text-[11px] text-pick-text-sub">권장 크기: 400×400</p>
+              {imageUrl && (
+                <button onClick={() => setImageUrl(null)} className="text-xs text-red-400 font-semibold underline mt-1 block">
+                  제거
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -397,6 +712,9 @@ export default function StoreSettingsPage() {
             inputMode="decimal"
           />
         </div>
+
+        {/* 쿠폰 관리 */}
+        <OwnerCouponSection />
 
         {/* 에러 */}
         {error && (

@@ -49,6 +49,24 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* 로딩 도트 바운스 애니메이션 */
+@keyframes pick-bounce {
+  0%, 80%, 100% { transform: translateY(0);    opacity: 0.4; }
+  40%           { transform: translateY(-8px); opacity: 1;   }
+}
+.pick-bounce-dot {
+  animation: pick-bounce 1.2s ease-in-out infinite;
+}
+
+/* 스크롤바 숨김 유틸리티 */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* 모바일 최대 너비 중앙 정렬 */
 #app-shell {
   max-width: 430px;

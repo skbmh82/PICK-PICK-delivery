@@ -15,6 +15,8 @@ const UpdateStoreSchema = z.object({
   deliveryTime:    z.number().int().min(5).max(120).optional(),
   isOpen:          z.boolean().optional(),
   pickRewardRate:  z.number().min(0.1).max(10).optional(),
+  imageUrl:        z.string().url().nullable().optional(),
+  bannerUrl:       z.string().url().nullable().optional(),
 });
 
 const RegisterStoreSchema = z.object({
@@ -115,7 +117,7 @@ export async function GET() {
 
   const { data: store } = await admin
     .from("stores")
-    .select("id, name, category, description, phone, address, is_open, delivery_fee, min_order_amount, delivery_time, pick_reward_rate, is_approved, rating, review_count")
+    .select("id, name, category, description, phone, address, is_open, delivery_fee, min_order_amount, delivery_time, pick_reward_rate, is_approved, rating, review_count, image_url, banner_url")
     .eq("owner_id", profile.id)
     .single();
 
@@ -170,6 +172,8 @@ export async function PATCH(request: NextRequest) {
   if (d.deliveryTime   !== undefined) updates.delivery_time    = d.deliveryTime;
   if (d.isOpen         !== undefined) updates.is_open          = d.isOpen;
   if (d.pickRewardRate !== undefined) updates.pick_reward_rate = d.pickRewardRate;
+  if (d.imageUrl       !== undefined) updates.image_url        = d.imageUrl;
+  if (d.bannerUrl      !== undefined) updates.banner_url       = d.bannerUrl;
 
   const { error: updateError } = await admin
     .from("stores").update(updates).eq("id", store.id);

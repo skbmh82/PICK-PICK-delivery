@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
 import Link from "next/link";
@@ -785,6 +785,9 @@ export default function MyPickPage() {
   const [previewRole,  setPreviewRole]  = useState<PreviewRole>("user");
   const [editOpen,     setEditOpen]     = useState(false);
   const [addressOpen,  setAddressOpen]  = useState(false);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [uploadingPfp, setUploadingPfp] = useState(false);
+  const pfpInputRef = useRef<HTMLInputElement>(null);
 
   const displayRole = user ? user.role : previewRole;
 
@@ -793,7 +796,11 @@ export default function MyPickPage() {
     setLoadingMe(true);
     try {
       const res = await fetch("/api/users/me");
-      if (res.ok) setMeData(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setMeData(data);
+        if (data.profile?.profileImage) setProfileImage(data.profile.profileImage);
+      }
     } finally {
       setLoadingMe(false);
     }
@@ -804,6 +811,30 @@ export default function MyPickPage() {
   const handleSignOut = async () => {
     await signOut();
     router.replace("/login");
+  };
+
+  const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const form = new FormData();
+    form.append("file",   file);
+    form.append("folder", "profile");
+    setUploadingPfp(true);
+    try {
+      const res  = await fetch("/api/upload", { method: "POST", body: form });
+      const json = await res.json();
+      if (!res.ok) { alert(json.error ?? "이미지 업로드 실패"); return; }
+      setProfileImage(json.url);
+      // 서버에 프로필 이미지 URL 저장
+      await fetch("/api/users/me", {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ profileImage: json.url }),
+      });
+    } finally {
+      setUploadingPfp(false);
+      if (pfpInputRef.current) pfpInputRef.current.value = "";
+    }
   };
 
   // 기본 등급 (로딩 전 또는 비로그인)
@@ -837,8 +868,29 @@ export default function MyPickPage() {
       {/* 프로필 카드 */}
       <div className="px-4 pt-4 pb-4">
         <div className="bg-white rounded-3xl border-2 border-pick-border p-5 flex items-center gap-4 shadow-sm">
-          <div className="w-16 h-16 rounded-full bg-pick-bg border-2 border-pick-border flex items-center justify-center flex-shrink-0">
-            <User size={32} className="text-pick-purple-light" />
+          {/* 프로필 이미지 */}
+          <div className="relative flex-shrink-0">
+            <input ref={pfpInputRef} type="file" accept="image/*" className="hidden"
+              onChange={handleProfileImageUpload} />
+            <button
+              onClick={() => user && pfpInputRef.current?.click()}
+              disabled={uploadingPfp}
+              className="w-16 h-16 rounded-full bg-pick-bg border-2 border-pick-border flex items-center justify-center overflow-hidden active:scale-95 transition-transform disabled:opacity-60"
+            >
+              {uploadingPfp ? (
+                <RefreshCw size={20} className="text-pick-purple animate-spin" />
+              ) : profileImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={profileImage} alt="프로필" className="w-full h-full object-cover" />
+              ) : (
+                <User size={32} className="text-pick-purple-light" />
+              )}
+            </button>
+            {user && (
+              <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-pick-purple rounded-full flex items-center justify-center border-2 border-white">
+                <Pencil size={9} className="text-white" />
+              </span>
+            )}
           </div>
           {user ? (
             <div className="flex-1 min-w-0">

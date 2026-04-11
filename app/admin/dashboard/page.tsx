@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Users, Coins, RefreshCw, Search, X, Check, ChevronDown, Store, MapPin, Phone, Clock, XCircle, CheckCircle, BarChart2, ShoppingBag } from "lucide-react";
+import { Users, Coins, RefreshCw, Search, X, Check, ChevronDown, Store, MapPin, Phone, Clock, XCircle, CheckCircle, BarChart2, ShoppingBag, Ticket, Plus, Tag, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
 
 // ── 타입 ──────────────────────────────────────────────
 interface UserRow {
@@ -555,9 +555,310 @@ function StatsTab({ stats }: { stats: PlatformStats | null }) {
   );
 }
 
+// ── 쿠폰 관리 탭 ──────────────────────────────────────
+interface CouponRow {
+  id: string; code: string; title: string; description: string | null;
+  type: "fixed_pick" | "pick_rate" | "free_delivery";
+  value: number; minOrder: number; maxUses: number | null; usedCount: number;
+  storeId: string | null; storeName: string | null; isActive: boolean;
+  expiresAt: string | null; createdAt: string;
+  issuedCount: number; claimedUsed: number;
+}
+
+const COUPON_TYPE_LABEL: Record<string, string> = {
+  fixed_pick:    "PICK 지급",
+  pick_rate:     "PICK% 추가",
+  free_delivery: "배달비 무료",
+};
+
+function CouponsTab() {
+  const [coupons,     setCoupons]     = useState<CouponRow[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [createOpen,  setCreateOpen]  = useState(false);
+  const [toggling,    setToggling]    = useState<string | null>(null);
+  const [deleting,    setDeleting]    = useState<string | null>(null);
+
+  // 생성 폼
+  const [fCode,     setFCode]     = useState("");
+  const [fTitle,    setFTitle]    = useState("");
+  const [fDesc,     setFDesc]     = useState("");
+  const [fType,     setFType]     = useState<"fixed_pick" | "pick_rate" | "free_delivery">("fixed_pick");
+  const [fValue,    setFValue]    = useState("");
+  const [fMinOrder, setFMinOrder] = useState("0");
+  const [fMaxUses,  setFMaxUses]  = useState("");
+  const [fExpires,  setFExpires]  = useState("");
+  const [fStore,    setFStore]    = useState("");
+  const [saving,    setSaving]    = useState(false);
+  const [formErr,   setFormErr]   = useState("");
+
+  const fetch_ = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/coupons");
+      if (res.ok) setCoupons(await res.json().then((d: { coupons: CouponRow[] }) => d.coupons));
+    } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { fetch_(); }, [fetch_]);
+
+  const handleCreate = async () => {
+    if (!fCode.trim() || !fTitle.trim()) return setFormErr("코드와 제목은 필수입니다");
+    const val = parseFloat(fValue);
+    if (isNaN(val) || val < 0)           return setFormErr("올바른 할인값을 입력해주세요");
+    setSaving(true); setFormErr("");
+    try {
+      const body: Record<string, unknown> = {
+        code: fCode.trim().toUpperCase(), title: fTitle.trim(),
+        description: fDesc.trim() || undefined,
+        type: fType, value: val,
+        minOrder: parseFloat(fMinOrder) || 0,
+        maxUses:  fMaxUses ? parseInt(fMaxUses) : null,
+        expiresAt: fExpires ? new Date(fExpires).toISOString() : null,
+        storeId:  fStore.trim() || null,
+      };
+      const res = await fetch("/api/admin/coupons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setCreateOpen(false);
+        setFCode(""); setFTitle(""); setFDesc(""); setFValue(""); setFMinOrder("0"); setFMaxUses(""); setFExpires(""); setFStore("");
+        await fetch_();
+      } else {
+        setFormErr(json.error ?? "쿠폰 생성에 실패했습니다");
+      }
+    } finally { setSaving(false); }
+  };
+
+  const handleToggle = async (c: CouponRow) => {
+    setToggling(c.id);
+    try {
+      await fetch(`/api/admin/coupons/${c.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !c.isActive }),
+      });
+      setCoupons((prev) => prev.map((x) => x.id === c.id ? { ...x, isActive: !c.isActive } : x));
+    } finally { setToggling(null); }
+  };
+
+  const handleDelete = async (c: CouponRow) => {
+    if (!confirm(`"${c.title}" 쿠폰을 삭제할까요?`)) return;
+    setDeleting(c.id);
+    try {
+      const res = await fetch(`/api/admin/coupons/${c.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (res.ok) {
+        setCoupons((prev) => prev.filter((x) => x.id !== c.id));
+      } else {
+        alert(json.error ?? "삭제에 실패했습니다");
+      }
+    } finally { setDeleting(null); }
+  };
+
+  return (
+    <div className="px-4 py-4">
+      {/* 헤더 + 생성 버튼 */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="font-black text-pick-text">쿠폰 관리</p>
+          <p className="text-xs text-pick-text-sub mt-0.5">{coupons.length}개 쿠폰</p>
+        </div>
+        <button
+          onClick={() => setCreateOpen(true)}
+          className="flex items-center gap-1.5 bg-pick-purple text-white text-sm font-bold px-4 py-2.5 rounded-full active:scale-95 transition-all"
+        >
+          <Plus size={15} /> 쿠폰 생성
+        </button>
+      </div>
+
+      {/* 생성 모달 */}
+      {createOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-[55]" onClick={() => setCreateOpen(false)} />
+          <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white rounded-t-3xl shadow-2xl max-h-[85dvh] flex flex-col">
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-pick-border flex-shrink-0">
+              <h2 className="font-black text-pick-text text-lg">쿠폰 생성 🎟️</h2>
+              <button onClick={() => setCreateOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-pick-bg">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">쿠폰 코드 *</label>
+                  <input value={fCode} onChange={(e) => setFCode(e.target.value.toUpperCase())} placeholder="WELCOME50"
+                    className="w-full border-2 border-pick-border rounded-2xl px-3 py-2.5 text-sm uppercase font-bold tracking-widest focus:outline-none focus:border-pick-purple" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">유형 *</label>
+                  <select value={fType} onChange={(e) => setFType(e.target.value as typeof fType)}
+                    className="w-full border-2 border-pick-border rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:border-pick-purple bg-white">
+                    <option value="fixed_pick">PICK 고정 지급</option>
+                    <option value="pick_rate">PICK 추가 적립 (%)</option>
+                    <option value="free_delivery">배달비 무료</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">쿠폰명 *</label>
+                <input value={fTitle} onChange={(e) => setFTitle(e.target.value)} placeholder="신규가입 환영 쿠폰"
+                  className="w-full border-2 border-pick-border rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:border-pick-purple" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">설명 (선택)</label>
+                <input value={fDesc} onChange={(e) => setFDesc(e.target.value)} placeholder="쿠폰 설명..."
+                  className="w-full border-2 border-pick-border rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:border-pick-purple" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">
+                    {fType === "fixed_pick" ? "지급 PICK 수량" : fType === "pick_rate" ? "추가 적립률 (%)" : "할인값 (0 고정)"}
+                  </label>
+                  <input type="number" value={fValue} onChange={(e) => setFValue(e.target.value)}
+                    placeholder={fType === "pick_rate" ? "10" : "50"} min="0"
+                    disabled={fType === "free_delivery"}
+                    className="w-full border-2 border-pick-border rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:border-pick-purple disabled:bg-gray-50" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">최소주문금액 (원)</label>
+                  <input type="number" value={fMinOrder} onChange={(e) => setFMinOrder(e.target.value)} min="0"
+                    className="w-full border-2 border-pick-border rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:border-pick-purple" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">최대 발급 수 (빈칸=무제한)</label>
+                  <input type="number" value={fMaxUses} onChange={(e) => setFMaxUses(e.target.value)} min="1" placeholder="1000"
+                    className="w-full border-2 border-pick-border rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:border-pick-purple" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">만료일 (선택)</label>
+                  <input type="datetime-local" value={fExpires} onChange={(e) => setFExpires(e.target.value)}
+                    className="w-full border-2 border-pick-border rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:border-pick-purple" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">특정 가맹점 ID (선택, 빈칸=전체)</label>
+                <input value={fStore} onChange={(e) => setFStore(e.target.value)} placeholder="store UUID (선택)"
+                  className="w-full border-2 border-pick-border rounded-2xl px-3 py-2.5 text-xs font-mono focus:outline-none focus:border-pick-purple" />
+              </div>
+              {formErr && <p className="text-xs text-red-500 font-bold">{formErr}</p>}
+            </div>
+            <div className="flex-shrink-0 px-5 pb-8 pt-3 border-t border-pick-border">
+              <button onClick={() => void handleCreate()} disabled={saving}
+                className="w-full bg-gradient-to-r from-pick-purple to-pick-purple-light text-white font-black py-4 rounded-full flex items-center justify-center gap-2 disabled:opacity-50">
+                {saving ? <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Ticket size={18} />}
+                쿠폰 생성하기
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 쿠폰 목록 */}
+      {loading ? (
+        <div className="flex flex-col gap-3 animate-pulse">
+          {[0,1,2].map((i) => <div key={i} className="h-24 bg-gray-100 rounded-3xl" />)}
+        </div>
+      ) : coupons.length === 0 ? (
+        <div className="bg-white rounded-3xl border-2 border-pick-border p-10 flex flex-col items-center text-pick-text-sub">
+          <Tag size={36} className="mb-3 opacity-20" />
+          <p className="text-sm font-medium">등록된 쿠폰이 없어요</p>
+          <p className="text-xs mt-1 opacity-70">쿠폰 생성 버튼을 눌러 첫 쿠폰을 만들어보세요!</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {coupons.map((c) => (
+            <div key={c.id} className={`bg-white rounded-3xl border-2 shadow-sm overflow-hidden ${c.isActive ? "border-pick-border" : "border-gray-100 opacity-60"}`}>
+              <div className="px-4 pt-4 pb-3">
+                {/* 상단 */}
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <span className="font-black text-pick-text text-sm">{c.title}</span>
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                        c.isActive ? "bg-pick-purple/10 text-pick-purple" : "bg-gray-100 text-gray-400"
+                      }`}>{c.isActive ? "활성" : "비활성"}</span>
+                      <span className="text-[10px] font-bold bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">
+                        {COUPON_TYPE_LABEL[c.type]}
+                      </span>
+                      {c.storeName && (
+                        <span className="text-[10px] text-pick-text-sub bg-pick-bg px-2 py-0.5 rounded-full">
+                          {c.storeName}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs font-black tracking-[0.15em] text-pick-purple-light">{c.code}</p>
+                  </div>
+                  {/* 액션 버튼 */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => void handleToggle(c)}
+                      disabled={toggling === c.id}
+                      className="text-pick-text-sub active:scale-90 transition-transform disabled:opacity-40"
+                      title={c.isActive ? "비활성화" : "활성화"}
+                    >
+                      {c.isActive
+                        ? <ToggleRight size={22} className="text-pick-purple" />
+                        : <ToggleLeft  size={22} className="text-gray-400" />
+                      }
+                    </button>
+                    <button
+                      onClick={() => void handleDelete(c)}
+                      disabled={deleting === c.id}
+                      className="w-7 h-7 rounded-full bg-red-50 flex items-center justify-center active:scale-90 transition-transform disabled:opacity-40"
+                    >
+                      <Trash2 size={13} className="text-red-400" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* 할인 정보 */}
+                <p className="text-sm font-bold text-pick-purple mb-2">
+                  {c.type === "fixed_pick"    && `${c.value.toLocaleString()} PICK 지급`}
+                  {c.type === "pick_rate"     && `PICK ${c.value}% 추가 적립`}
+                  {c.type === "free_delivery" && "배달비 무료"}
+                  {c.minOrder > 0 && <span className="text-xs text-pick-text-sub font-normal ml-2">최소 {c.minOrder.toLocaleString()}원</span>}
+                </p>
+
+                {/* 통계 */}
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-pick-bg rounded-2xl py-2">
+                    <p className="text-xs font-black text-pick-text">{c.issuedCount}</p>
+                    <p className="text-[10px] text-pick-text-sub">발급</p>
+                  </div>
+                  <div className="bg-pick-bg rounded-2xl py-2">
+                    <p className="text-xs font-black text-pick-text">{c.claimedUsed}</p>
+                    <p className="text-[10px] text-pick-text-sub">사용</p>
+                  </div>
+                  <div className="bg-pick-bg rounded-2xl py-2">
+                    <p className="text-xs font-black text-pick-text">
+                      {c.maxUses != null ? `${c.maxUses - c.usedCount}` : "∞"}
+                    </p>
+                    <p className="text-[10px] text-pick-text-sub">잔여</p>
+                  </div>
+                </div>
+
+                {c.expiresAt && (
+                  <p className="text-[10px] text-pick-text-sub mt-2">
+                    만료: {new Date(c.expiresAt).toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric" })}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── 메인 페이지 ───────────────────────────────────────
 export default function AdminDashboardPage() {
-  const [activeTab,    setActiveTab]    = useState<"stats" | "users" | "stores">("stats");
+  const [activeTab,    setActiveTab]    = useState<"stats" | "users" | "stores" | "coupons">("stats");
   const [users,        setUsers]        = useState<UserRow[]>([]);
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
   const [loading,      setLoading]      = useState(true);
@@ -635,8 +936,9 @@ export default function AdminDashboardPage() {
           <div>
             <h1 className="font-black text-pick-text text-xl">관리자 대시보드 🛡️</h1>
             <p className="text-xs text-pick-text-sub mt-0.5">
-              {activeTab === "stats"  ? "플랫폼 통계" :
-               activeTab === "users"  ? `전체 ${users.length}명` : "가게 승인 관리"}
+              {activeTab === "stats"   ? "플랫폼 통계" :
+               activeTab === "users"   ? `전체 ${users.length}명` :
+               activeTab === "stores"  ? "가게 승인 관리" : "쿠폰 생성 및 관리"}
             </p>
           </div>
           <button
@@ -647,11 +949,12 @@ export default function AdminDashboardPage() {
           </button>
         </div>
         {/* 탭 */}
-        <div className="flex gap-1 -mx-0.5">
+        <div className="flex gap-1 -mx-0.5 overflow-x-auto">
           {([
-            { key: "stats"  as const, label: "통계",      icon: <BarChart2 size={13} />, badge: undefined as number | undefined },
-            { key: "users"  as const, label: "회원 관리", icon: <Users    size={13} />, badge: undefined as number | undefined },
-            { key: "stores" as const, label: "가게 승인", icon: <Store    size={13} />, badge: pendingCount as number | undefined },
+            { key: "stats"   as const, label: "통계",      icon: <BarChart2 size={13} />, badge: undefined as number | undefined },
+            { key: "users"   as const, label: "회원 관리", icon: <Users    size={13} />, badge: undefined as number | undefined },
+            { key: "stores"  as const, label: "가게 승인", icon: <Store    size={13} />, badge: pendingCount as number | undefined },
+            { key: "coupons" as const, label: "쿠폰 관리", icon: <Ticket   size={13} />, badge: undefined as number | undefined },
           ]).map(({ key, label, icon, badge }) => (
             <button
               key={key}
@@ -768,7 +1071,8 @@ export default function AdminDashboardPage() {
         </>
       )}
 
-      {activeTab === "stores" && <StoresTab />}
+      {activeTab === "stores"  && <StoresTab />}
+      {activeTab === "coupons" && <CouponsTab />}
     </div>
   );
 }
