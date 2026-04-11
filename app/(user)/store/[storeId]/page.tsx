@@ -3,7 +3,7 @@ import { fetchStoreById, fetchMenusByStoreId } from "@/lib/supabase/stores";
 import { getCategoryEmoji, getMenuEmoji } from "@/lib/utils/categoryEmoji";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
-import StoreDetailClient, { type StoreDetail, type MenuItem, type ReviewItem } from "./StoreDetailClient";
+import StoreDetailClient, { type StoreDetail, type MenuItem, type ReviewItem, type OptionGroup } from "./StoreDetailClient";
 
 export default async function StoreDetailPage({
   params,
@@ -43,6 +43,34 @@ export default async function StoreDetailPage({
 
   if (!storeRow) notFound();
 
+  // 메뉴 옵션 그룹 일괄 조회
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const adminForOptions = getAdminSupabaseClient() as any;
+  const menuIds = menuRows.map((m) => m.id);
+  const optionGroupsByMenuId: Record<string, OptionGroup[]> = {};
+  if (menuIds.length > 0) {
+    const { data: groupRows } = await adminForOptions
+      .from("menu_option_groups")
+      .select("id, name, is_required, max_select, menu_id, menu_options(id, name, extra_price)")
+      .in("menu_id", menuIds);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const g of (groupRows ?? []) as any[]) {
+      if (!optionGroupsByMenuId[g.menu_id]) optionGroupsByMenuId[g.menu_id] = [];
+      optionGroupsByMenuId[g.menu_id].push({
+        id:         g.id,
+        name:       g.name,
+        isRequired: g.is_required,
+        maxSelect:  g.max_select,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        options: (g.menu_options ?? []).map((o: any) => ({
+          id:         o.id,
+          name:       o.name,
+          extraPrice: Number(o.extra_price),
+        })),
+      });
+    }
+  }
+
   // 리뷰 목록 (최근 10개)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const adminForReviews = getAdminSupabaseClient() as any;
@@ -76,14 +104,15 @@ export default async function StoreDetailPage({
     pickRewardRate: storeRow.pick_reward_rate,
     tags:           storeRow.description ? [storeRow.description] : [],
     menus: menuRows.map((m): MenuItem => ({
-      id:          m.id,
-      name:        m.name,
-      description: m.description ?? "",
-      price:       m.price,
-      image:       getMenuEmoji(m.category, m.name),
-      isPopular:   m.is_popular,
-      isAvailable: m.is_available,
-      category:    m.category,
+      id:           m.id,
+      name:         m.name,
+      description:  m.description ?? "",
+      price:        m.price,
+      image:        getMenuEmoji(m.category, m.name),
+      isPopular:    m.is_popular,
+      isAvailable:  m.is_available,
+      category:     m.category,
+      optionGroups: optionGroupsByMenuId[m.id] ?? [],
     })),
   };
 

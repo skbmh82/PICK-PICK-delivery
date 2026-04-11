@@ -12,21 +12,38 @@ import {
   Flame,
   Heart,
   MessageSquare,
+  X,
+  Check,
 } from "lucide-react";
 import { CATEGORY_META } from "@/lib/utils/categoryEmoji";
-import { useCartStore } from "@/stores/cartStore";
+import { useCartStore, type SelectedOption } from "@/stores/cartStore";
 import CartBottomSheet from "@/components/cart/CartBottomSheet";
 
 // ── 가게 상세용 타입 ───────────────────────────────────
+export interface MenuOption {
+  id:         string;
+  name:       string;
+  extraPrice: number;
+}
+
+export interface OptionGroup {
+  id:         string;
+  name:       string;
+  isRequired: boolean;
+  maxSelect:  number;
+  options:    MenuOption[];
+}
+
 export interface MenuItem {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  image: string;       // 이모지
-  isPopular?: boolean;
+  id:           string;
+  name:         string;
+  description:  string;
+  price:        number;
+  image:        string;       // 이모지
+  isPopular?:   boolean;
   isAvailable?: boolean;
-  category: string;
+  category:     string;
+  optionGroups?: OptionGroup[];
 }
 
 export interface ReviewItem {
@@ -50,6 +67,158 @@ export interface StoreDetail {
   pickRewardRate: number;
   tags: string[];
   menus: MenuItem[];
+}
+
+/* ────────────── 옵션 선택 모달 ────────────── */
+function OptionSelectModal({
+  menu,
+  onConfirm,
+  onClose,
+}: {
+  menu:      MenuItem;
+  onConfirm: (options: SelectedOption[]) => void;
+  onClose:   () => void;
+}) {
+  // groupId → Set of selected optionIds
+  const [selected, setSelected] = useState<Record<string, Set<string>>>({});
+
+  const groups = menu.optionGroups ?? [];
+
+  const toggle = (group: OptionGroup, optionId: string) => {
+    setSelected((prev) => {
+      const cur = new Set(prev[group.id] ?? []);
+      if (cur.has(optionId)) {
+        cur.delete(optionId);
+      } else {
+        if (group.maxSelect === 1) {
+          cur.clear();
+        } else if (cur.size >= group.maxSelect) {
+          // maxSelect 초과 시 가장 오래된 항목 제거
+          const [first] = cur;
+          cur.delete(first);
+        }
+        cur.add(optionId);
+      }
+      return { ...prev, [group.id]: cur };
+    });
+  };
+
+  const allRequiredSelected = groups
+    .filter((g) => g.isRequired)
+    .every((g) => (selected[g.id]?.size ?? 0) > 0);
+
+  const extraTotal = groups.reduce((sum, g) => {
+    const opts = g.options.filter((o) => selected[g.id]?.has(o.id));
+    return sum + opts.reduce((s, o) => s + o.extraPrice, 0);
+  }, 0);
+
+  const handleConfirm = () => {
+    const flat: SelectedOption[] = [];
+    for (const g of groups) {
+      for (const o of g.options) {
+        if (selected[g.id]?.has(o.id)) {
+          flat.push({ groupId: g.id, groupName: g.name, optionId: o.id, optionName: o.name, extraPrice: o.extraPrice });
+        }
+      }
+    }
+    onConfirm(flat);
+    onClose();
+  };
+
+  const totalPrice = menu.price + extraTotal;
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-[65] backdrop-blur-[1px]" onClick={onClose} />
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[70] bg-white rounded-t-3xl shadow-2xl max-h-[85dvh] flex flex-col overflow-hidden">
+        {/* 핸들 + 헤더 */}
+        <div className="flex-shrink-0 px-5 pt-3 pb-4 border-b border-pick-border">
+          <div className="w-10 h-1 bg-pick-border rounded-full mx-auto mb-4" />
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="text-4xl flex-shrink-0">{menu.image}</span>
+              <div className="min-w-0">
+                <p className="font-black text-pick-text text-base leading-snug truncate">{menu.name}</p>
+                <p className="text-xs text-pick-text-sub mt-0.5">{menu.price.toLocaleString()}원~</p>
+              </div>
+            </div>
+            <button onClick={onClose}
+              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-pick-bg hover:bg-pick-border transition-colors">
+              <X size={16} className="text-pick-text-sub" />
+            </button>
+          </div>
+        </div>
+
+        {/* 스크롤 옵션 영역 */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 flex flex-col gap-5">
+          {groups.map((group) => (
+            <div key={group.id}>
+              <div className="flex items-center gap-2 mb-2">
+                <p className="font-black text-pick-text text-sm">{group.name}</p>
+                {group.isRequired ? (
+                  <span className="text-[10px] font-black text-white bg-pick-purple px-2 py-0.5 rounded-full">필수</span>
+                ) : (
+                  <span className="text-[10px] font-bold text-pick-text-sub bg-pick-bg border border-pick-border px-2 py-0.5 rounded-full">선택</span>
+                )}
+                {group.maxSelect > 1 && (
+                  <span className="text-[10px] text-pick-text-sub ml-auto">최대 {group.maxSelect}개</span>
+                )}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {group.options.map((opt) => {
+                  const isChosen = selected[group.id]?.has(opt.id) ?? false;
+                  return (
+                    <button
+                      key={opt.id}
+                      onClick={() => toggle(group, opt.id)}
+                      className={`flex items-center justify-between w-full px-4 py-3 rounded-2xl border-2 transition-all ${
+                        isChosen
+                          ? "border-pick-purple bg-pick-bg"
+                          : "border-pick-border bg-white"
+                      }`}
+                    >
+                      <span className={`text-sm font-bold ${isChosen ? "text-pick-purple" : "text-pick-text"}`}>
+                        {opt.name}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {opt.extraPrice > 0 && (
+                          <span className={`text-xs font-bold ${isChosen ? "text-pick-purple" : "text-pick-text-sub"}`}>
+                            +{opt.extraPrice.toLocaleString()}원
+                          </span>
+                        )}
+                        <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                          isChosen ? "border-pick-purple bg-pick-purple" : "border-pick-border bg-white"
+                        }`}>
+                          {isChosen && <Check size={11} className="text-white" strokeWidth={3} />}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* 담기 버튼 */}
+        <div className="flex-shrink-0 px-4 pt-3 pb-6 border-t border-pick-border bg-white">
+          <button
+            onClick={handleConfirm}
+            disabled={!allRequiredSelected}
+            className="w-full bg-gradient-to-r from-pick-purple to-pick-purple-light text-white font-black py-4 rounded-full shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ShoppingBag size={18} />
+            {totalPrice.toLocaleString()}원 담기
+          </button>
+          {!allRequiredSelected && (
+            <p className="text-xs text-red-500 font-bold text-center mt-2">
+              필수 옵션을 선택해주세요
+            </p>
+          )}
+        </div>
+      </div>
+    </>
+  );
 }
 
 /* ────────────── 메뉴 아이템 카드 ────────────── */
@@ -186,9 +355,10 @@ export default function StoreDetailClient({
   isFavorited?: boolean;
   reviews?: ReviewItem[];
 }) {
-  const [cartOpen,   setCartOpen]   = useState(false);
-  const [favorited,  setFavorited]  = useState(initialFavorited);
-  const [favLoading, setFavLoading] = useState(false);
+  const [cartOpen,      setCartOpen]      = useState(false);
+  const [favorited,     setFavorited]     = useState(initialFavorited);
+  const [favLoading,    setFavLoading]    = useState(false);
+  const [optionTarget,  setOptionTarget]  = useState<MenuItem | null>(null);
   const handleCartClose = useCallback(() => setCartOpen(false), []);
   const addItem     = useCartStore((s) => s.addItem);
   const cartItems   = useCartStore((s) => s.items);
@@ -214,11 +384,22 @@ export default function StoreDetailClient({
   };
 
   const handleAddMenu = (menu: MenuItem) => {
+    if (menu.optionGroups && menu.optionGroups.length > 0) {
+      setOptionTarget(menu);
+    } else {
+      addItem(storeInfo, { menuId: menu.id, menuName: menu.name, price: menu.price, image: menu.image });
+    }
+  };
+
+  const handleOptionConfirm = (options: SelectedOption[]) => {
+    if (!optionTarget) return;
+    const extraPrice = options.reduce((s, o) => s + o.extraPrice, 0);
     addItem(storeInfo, {
-      menuId:   menu.id,
-      menuName: menu.name,
-      price:    menu.price,
-      image:    menu.image,
+      menuId:   optionTarget.id,
+      menuName: optionTarget.name,
+      price:    optionTarget.price + extraPrice,
+      image:    optionTarget.image,
+      options,
     });
   };
 
@@ -350,6 +531,15 @@ export default function StoreDetailClient({
       {/* ── 장바구니 바텀시트 ── */}
       {cartOpen && cartStoreId === store.id && (
         <CartBottomSheet onClose={handleCartClose} />
+      )}
+
+      {/* ── 옵션 선택 모달 ── */}
+      {optionTarget && (
+        <OptionSelectModal
+          menu={optionTarget}
+          onConfirm={handleOptionConfirm}
+          onClose={() => setOptionTarget(null)}
+        />
       )}
     </div>
   );
