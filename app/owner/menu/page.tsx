@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, ToggleLeft, ToggleRight, Flame, Pencil, Trash2, X, Check } from "lucide-react";
+import {
+  Plus, ToggleLeft, ToggleRight, Flame, Pencil, Trash2, X, Check,
+  Settings2, ChevronDown, ChevronUp, ToggleLeft as Toggle,
+} from "lucide-react";
 import { getMenuEmoji } from "@/lib/utils/categoryEmoji";
 
 // ── 타입 ──────────────────────────────────────────────
@@ -177,6 +180,290 @@ function MenuFormModal({
   );
 }
 
+// ── 옵션 관리 모달 ─────────────────────────────────────
+interface MenuOption      { id: string; name: string; extraPrice: number }
+interface OptionGroup     { id: string; name: string; isRequired: boolean; maxSelect: number; options: MenuOption[] }
+
+function OptionsModal({ menu, onClose }: { menu: Menu; onClose: () => void }) {
+  const [groups,     setGroups]     = useState<OptionGroup[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [expanded,   setExpanded]   = useState<Set<string>>(new Set());
+
+  // 그룹 폼
+  const [newGroupName, setNewGroupName] = useState("");
+  const [addingGroup,  setAddingGroup]  = useState(false);
+  const [savingGroup,  setSavingGroup]  = useState(false);
+  const [groupErr,     setGroupErr]     = useState("");
+
+  // 옵션 폼 (그룹별)
+  const [newOptName,   setNewOptName]   = useState<Record<string, string>>({});
+  const [newOptPrice,  setNewOptPrice]  = useState<Record<string, string>>({});
+  const [savingOpt,    setSavingOpt]    = useState<string | null>(null);
+
+  const fetchGroups = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/menus/${menu.id}/option-groups`);
+      if (res.ok) {
+        const { groups: rows } = await res.json() as { groups: OptionGroup[] };
+        setGroups(rows ?? []);
+        setExpanded(new Set(rows.map((g) => g.id)));
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [menu.id]);
+
+  useEffect(() => { fetchGroups(); }, [fetchGroups]);
+
+  const toggleExpand = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  // 그룹 추가
+  const handleAddGroup = async () => {
+    if (!newGroupName.trim()) return setGroupErr("그룹 이름을 입력해주세요");
+    setSavingGroup(true); setGroupErr("");
+    try {
+      const res = await fetch(`/api/menus/${menu.id}/option-groups`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newGroupName.trim() }),
+      });
+      if (res.ok) {
+        const { group } = await res.json() as { group: OptionGroup };
+        setGroups((prev) => [...prev, group]);
+        setExpanded((prev) => new Set([...prev, group.id]));
+        setNewGroupName(""); setAddingGroup(false);
+      } else {
+        const j = await res.json().catch(() => ({}));
+        setGroupErr((j.error as string) ?? "추가에 실패했습니다");
+      }
+    } finally { setSavingGroup(false); }
+  };
+
+  // 그룹 필수 여부 토글
+  const handleToggleRequired = async (g: OptionGroup) => {
+    await fetch(`/api/menus/${menu.id}/option-groups/${g.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isRequired: !g.isRequired }),
+    });
+    setGroups((prev) => prev.map((x) => x.id === g.id ? { ...x, isRequired: !x.isRequired } : x));
+  };
+
+  // 그룹 삭제
+  const handleDeleteGroup = async (groupId: string) => {
+    const res = await fetch(`/api/menus/${menu.id}/option-groups/${groupId}`, { method: "DELETE" });
+    if (res.ok) setGroups((prev) => prev.filter((g) => g.id !== groupId));
+  };
+
+  // 옵션 추가
+  const handleAddOption = async (groupId: string) => {
+    const name  = (newOptName[groupId]  ?? "").trim();
+    const price = parseInt(newOptPrice[groupId] ?? "0", 10) || 0;
+    if (!name) return;
+    setSavingOpt(groupId);
+    try {
+      const res = await fetch(`/api/menus/${menu.id}/option-groups/${groupId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, extraPrice: price }),
+      });
+      if (res.ok) {
+        const { option } = await res.json() as { option: MenuOption };
+        setGroups((prev) =>
+          prev.map((g) => g.id === groupId ? { ...g, options: [...g.options, option] } : g)
+        );
+        setNewOptName((p)  => ({ ...p, [groupId]: "" }));
+        setNewOptPrice((p) => ({ ...p, [groupId]: "" }));
+      }
+    } finally { setSavingOpt(null); }
+  };
+
+  // 옵션 삭제
+  const handleDeleteOption = async (groupId: string, optionId: string) => {
+    const res = await fetch(`/api/menus/options/${optionId}`, { method: "DELETE" });
+    if (res.ok) {
+      setGroups((prev) =>
+        prev.map((g) => g.id === groupId ? { ...g, options: g.options.filter((o) => o.id !== optionId) } : g)
+      );
+    }
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-[55]" onClick={onClose} />
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white rounded-t-3xl shadow-2xl max-h-[88vh] flex flex-col">
+        {/* 헤더 */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-pick-border flex-shrink-0">
+          <div>
+            <h2 className="font-black text-pick-text text-lg">옵션 관리 ⚙️</h2>
+            <p className="text-xs text-pick-text-sub mt-0.5 truncate max-w-[240px]">{menu.name}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-pick-bg">
+            <X size={16} className="text-pick-text-sub" />
+          </button>
+        </div>
+
+        {/* 내용 */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
+          {loading ? (
+            <div className="flex justify-center py-10">
+              <div className="w-7 h-7 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : groups.length === 0 && !addingGroup ? (
+            <div className="flex flex-col items-center py-10 text-pick-text-sub">
+              <Settings2 size={40} className="mb-3 opacity-20" />
+              <p className="text-sm font-medium">등록된 옵션이 없어요</p>
+              <p className="text-xs mt-1">예) 맵기 선택, 사이즈, 추가 토핑</p>
+            </div>
+          ) : (
+            groups.map((g) => (
+              <div key={g.id} className="bg-white rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm">
+                {/* 그룹 헤더 */}
+                <div className="flex items-center px-4 py-3 bg-pick-bg">
+                  <button
+                    onClick={() => toggleExpand(g.id)}
+                    className="flex-1 flex items-center gap-2 text-left"
+                  >
+                    {expanded.has(g.id) ? <ChevronUp size={14} className="text-pick-text-sub" /> : <ChevronDown size={14} className="text-pick-text-sub" />}
+                    <span className="font-black text-pick-text text-sm">{g.name}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${g.isRequired ? "bg-red-100 text-red-600" : "bg-gray-100 text-gray-500"}`}>
+                      {g.isRequired ? "필수" : "선택"}
+                    </span>
+                    <span className="text-[10px] text-pick-text-sub">{g.options.length}개</span>
+                  </button>
+                  <div className="flex gap-1.5 ml-2">
+                    <button
+                      onClick={() => void handleToggleRequired(g)}
+                      className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-full transition-all ${
+                        g.isRequired ? "bg-red-500 text-white" : "bg-white border border-pick-border text-pick-text-sub"
+                      }`}
+                    >
+                      <Toggle size={10} />
+                      필수
+                    </button>
+                    <button
+                      onClick={() => void handleDeleteGroup(g.id)}
+                      className="w-7 h-7 flex items-center justify-center rounded-full bg-red-50 border border-red-200 text-red-400"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* 옵션 목록 */}
+                {expanded.has(g.id) && (
+                  <div className="divide-y divide-pick-border">
+                    {g.options.map((opt) => (
+                      <div key={opt.id} className="flex items-center justify-between px-4 py-2.5">
+                        <span className="text-sm text-pick-text font-medium">{opt.name}</span>
+                        <div className="flex items-center gap-3">
+                          {opt.extraPrice > 0 && (
+                            <span className="text-xs font-bold text-amber-600">
+                              +{opt.extraPrice.toLocaleString()}원
+                            </span>
+                          )}
+                          <button
+                            onClick={() => void handleDeleteOption(g.id, opt.id)}
+                            className="w-6 h-6 flex items-center justify-center rounded-full bg-red-50 text-red-400"
+                          >
+                            <X size={10} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* 옵션 추가 폼 */}
+                    <div className="flex gap-2 px-3 py-2.5 bg-gray-50">
+                      <input
+                        type="text"
+                        value={newOptName[g.id] ?? ""}
+                        onChange={(e) => setNewOptName((p) => ({ ...p, [g.id]: e.target.value }))}
+                        placeholder="옵션 이름"
+                        className="flex-1 border border-pick-border rounded-xl px-3 py-2 text-xs text-pick-text focus:outline-none focus:border-amber-400 bg-white"
+                        onKeyDown={(e) => e.key === "Enter" && void handleAddOption(g.id)}
+                      />
+                      <input
+                        type="number"
+                        value={newOptPrice[g.id] ?? ""}
+                        onChange={(e) => setNewOptPrice((p) => ({ ...p, [g.id]: e.target.value }))}
+                        placeholder="+원"
+                        min="0"
+                        className="w-20 border border-pick-border rounded-xl px-2 py-2 text-xs text-pick-text focus:outline-none focus:border-amber-400 bg-white text-center"
+                      />
+                      <button
+                        disabled={!newOptName[g.id]?.trim() || savingOpt === g.id}
+                        onClick={() => void handleAddOption(g.id)}
+                        className="w-8 h-8 flex items-center justify-center rounded-xl bg-amber-500 text-white disabled:opacity-40"
+                      >
+                        {savingOpt === g.id
+                          ? <span className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin" />
+                          : <Plus size={13} />
+                        }
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+
+          {/* 그룹 추가 폼 */}
+          {addingGroup && (
+            <div className="bg-amber-50 border-2 border-amber-200 rounded-3xl px-4 py-4">
+              <p className="text-xs font-black text-amber-700 mb-2">새 옵션 그룹 이름</p>
+              <p className="text-[10px] text-amber-600 mb-2">예: 맵기 선택, 사이즈, 추가 토핑</p>
+              <input
+                autoFocus
+                type="text"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="그룹 이름 입력"
+                className="w-full border-2 border-amber-200 rounded-2xl px-3 py-2.5 text-sm text-pick-text focus:outline-none focus:border-amber-400 bg-white mb-2"
+                onKeyDown={(e) => e.key === "Enter" && void handleAddGroup()}
+              />
+              {groupErr && <p className="text-xs text-red-500 mb-2">{groupErr}</p>}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setAddingGroup(false); setNewGroupName(""); setGroupErr(""); }}
+                  className="flex-1 py-2 rounded-2xl border border-amber-200 text-amber-600 text-xs font-bold"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={() => void handleAddGroup()}
+                  disabled={savingGroup}
+                  className="flex-1 py-2 rounded-2xl bg-amber-500 text-white text-xs font-black disabled:opacity-50"
+                >
+                  {savingGroup ? "추가 중..." : "그룹 추가"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 하단 버튼 */}
+        {!addingGroup && (
+          <div className="flex-shrink-0 px-5 pb-8 pt-3 border-t border-pick-border">
+            <button
+              onClick={() => { setAddingGroup(true); setGroupErr(""); }}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-full bg-amber-500 text-white font-black text-sm active:scale-95 transition-all shadow-md"
+            >
+              <Plus size={16} />
+              옵션 그룹 추가
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ── 삭제 확인 모달 ─────────────────────────────────────
 function DeleteConfirmModal({
   menu,
@@ -232,12 +519,13 @@ function DeleteConfirmModal({
 
 // ── 메인 페이지 ───────────────────────────────────────
 export default function OwnerMenuPage() {
-  const [menus,       setMenus]       = useState<Menu[]>([]);
-  const [loading,     setLoading]     = useState(true);
-  const [addOpen,     setAddOpen]     = useState(false);
-  const [editTarget,  setEditTarget]  = useState<Menu | null>(null);
-  const [deleteTarget,setDeleteTarget]= useState<Menu | null>(null);
-  const [togglingId,  setTogglingId]  = useState<string | null>(null);
+  const [menus,         setMenus]         = useState<Menu[]>([]);
+  const [loading,       setLoading]       = useState(true);
+  const [addOpen,       setAddOpen]       = useState(false);
+  const [editTarget,    setEditTarget]    = useState<Menu | null>(null);
+  const [deleteTarget,  setDeleteTarget]  = useState<Menu | null>(null);
+  const [optionsTarget, setOptionsTarget] = useState<Menu | null>(null);
+  const [togglingId,    setTogglingId]    = useState<string | null>(null);
 
   const fetchMenus = useCallback(async () => {
     setLoading(true);
@@ -417,8 +705,15 @@ export default function OwnerMenuPage() {
                         </span>
                       </button>
 
-                      {/* 수정/삭제 */}
+                      {/* 옵션/수정/삭제 */}
                       <div className="flex gap-1">
+                        <button
+                          onClick={() => setOptionsTarget(menu)}
+                          className="w-7 h-7 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center active:scale-90 transition-transform"
+                          title="옵션 관리"
+                        >
+                          <Settings2 size={12} className="text-amber-500" />
+                        </button>
                         <button
                           onClick={() => setEditTarget(menu)}
                           className="w-7 h-7 rounded-full bg-pick-bg border border-pick-border flex items-center justify-center active:scale-90 transition-transform"
@@ -465,6 +760,14 @@ export default function OwnerMenuPage() {
           menu={deleteTarget}
           onClose={() => setDeleteTarget(null)}
           onConfirm={handleDelete}
+        />
+      )}
+
+      {/* 옵션 관리 모달 */}
+      {optionsTarget && (
+        <OptionsModal
+          menu={optionsTarget}
+          onClose={() => setOptionsTarget(null)}
         />
       )}
     </div>

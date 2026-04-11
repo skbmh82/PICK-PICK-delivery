@@ -46,34 +46,53 @@ export async function PATCH(
     return NextResponse.json({ error: "주문 상태 변경에 실패했습니다" }, { status: 500 });
   }
 
+  // 주문 조회 (이후 로직에서 공유)
+  const { data: order } = await (admin as ReturnType<typeof getAdminSupabaseClient> & { from: (t: string) => any }) // eslint-disable-line @typescript-eslint/no-explicit-any
+    .from("orders")
+    .select("user_id, rider_id, pick_reward, delivery_address, stores(name)")
+    .eq("id", orderId)
+    .single();
+
   // 상태 변경 알림 (고객에게)
   const notifMsg = ORDER_STATUS_NOTIFICATION[status];
-  if (notifMsg) {
-    const { data: order } = await admin
-      .from("orders")
-      .select("user_id, rider_id, pick_reward")
-      .eq("id", orderId)
-      .single();
+  if (notifMsg && order?.user_id) {
+    await createNotification({
+      userId: order.user_id,
+      type:   "order_update",
+      title:  notifMsg.title,
+      body:   notifMsg.body,
+      data:   { orderId },
+    });
+  }
 
-    if (order?.user_id) {
-      await createNotification({
-        userId: order.user_id,
-        type:   "order_update",
-        title:  notifMsg.title,
-        body:   notifMsg.body,
-        data:   { orderId },
-      });
+  // 조리 완료(ready) → 활성 라이더 전체에게 배달 요청 알림
+  if (status === "ready") {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: activeRiders } = await (admin as any)
+      .from("rider_locations")
+      .select("rider_id")
+      .eq("is_active", true);
+
+    if (activeRiders && activeRiders.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const storeName = (order?.stores as any)?.name ?? "가게";
+      await Promise.all(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        activeRiders.map((r: { rider_id: string }) =>
+          createNotification({
+            userId: r.rider_id,
+            type:   "order_update",
+            title:  `새 배달 요청이 있어요 🛵`,
+            body:   `${storeName} → ${order?.delivery_address ?? "배달지"}`,
+            data:   { orderId, type: "rider_request" },
+          })
+        )
+      );
     }
   }
 
   // 배달 완료 시 고객 PICK 적립 + 라이더 PICK 지급
   if (status === "delivered") {
-    const { data: order } = await admin
-      .from("orders")
-      .select("user_id, rider_id, pick_reward")
-      .eq("id", orderId)
-      .single();
-
     // 고객 PICK 적립
     if (order && Number(order.pick_reward) > 0) {
       await admin.rpc("reward_pick", {
