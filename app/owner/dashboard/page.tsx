@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ClipboardList, TrendingUp, Bell, Star, CheckCircle, XCircle, Clock, RefreshCw, Store, ChevronDown, X, Check } from "lucide-react";
+import { ClipboardList, TrendingUp, Bell, Star, CheckCircle, XCircle, Clock, RefreshCw, Store, ChevronDown, X, Check, Settings } from "lucide-react";
 import { useStoreOrderRealtime } from "@/hooks/useRealtime";
 
 // ── 타입 ──────────────────────────────────────────────
@@ -565,18 +565,45 @@ export default function OwnerDashboardPage() {
       <TodayRevenue today={today} />
       {weekly.length > 0 && <WeeklyChart weekly={weekly} />}
 
-      {/* 최근 리뷰 — 추후 API 연동 예정 */}
+      {/* 빠른 메뉴 */}
       <div className="mx-4 mb-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Star size={16} className="text-amber-500" />
-          <h3 className="font-bold text-pick-text text-sm">최근 리뷰</h3>
-          <span className="text-xs text-pick-text-sub bg-pick-bg border border-pick-border px-2 py-0.5 rounded-full">
-            준비 중
-          </span>
-        </div>
-        <div className="bg-pick-bg border-2 border-pick-border rounded-3xl px-4 py-8 text-center">
-          <p className="text-3xl mb-2">⭐</p>
-          <p className="text-sm text-pick-text-sub font-medium">리뷰 기능이 곧 추가됩니다</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Link
+            href="/owner/menu"
+            className="flex items-center gap-3 bg-white border-2 border-pick-border rounded-3xl p-4 active:scale-95 transition-all shadow-sm"
+          >
+            <span className="w-9 h-9 rounded-2xl bg-green-50 flex items-center justify-center">
+              <ClipboardList size={18} className="text-green-600" />
+            </span>
+            <span className="text-sm font-bold text-pick-text">메뉴 관리</span>
+          </Link>
+          <Link
+            href="/owner/store-settings"
+            className="flex items-center gap-3 bg-white border-2 border-pick-border rounded-3xl p-4 active:scale-95 transition-all shadow-sm"
+          >
+            <span className="w-9 h-9 rounded-2xl bg-purple-50 flex items-center justify-center">
+              <Settings size={18} className="text-pick-purple" />
+            </span>
+            <span className="text-sm font-bold text-pick-text">가게 설정</span>
+          </Link>
+          <Link
+            href="/owner/orders"
+            className="flex items-center gap-3 bg-white border-2 border-pick-border rounded-3xl p-4 active:scale-95 transition-all shadow-sm"
+          >
+            <span className="w-9 h-9 rounded-2xl bg-amber-50 flex items-center justify-center">
+              <Bell size={18} className="text-amber-600" />
+            </span>
+            <span className="text-sm font-bold text-pick-text">주문 관리</span>
+          </Link>
+          <Link
+            href="/owner/settlement"
+            className="flex items-center gap-3 bg-white border-2 border-pick-border rounded-3xl p-4 active:scale-95 transition-all shadow-sm"
+          >
+            <span className="w-9 h-9 rounded-2xl bg-blue-50 flex items-center justify-center">
+              <TrendingUp size={18} className="text-blue-600" />
+            </span>
+            <span className="text-sm font-bold text-pick-text">매출/정산</span>
+          </Link>
         </div>
       </div>
     </div>
