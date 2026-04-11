@@ -4,7 +4,7 @@ import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 
 const ALLOWED_TYPES   = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_SIZE_BYTES  = 5 * 1024 * 1024; // 5 MB
-const BUCKET          = "pick-pick-images";
+const BUCKET          = "pick-pick-image";
 
 // POST /api/upload — 이미지 업로드 (Supabase Storage)
 // form-data: file (이미지), folder (menu | store | profile)
