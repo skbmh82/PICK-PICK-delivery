@@ -8,7 +8,7 @@ import {
   User, MapPin, Heart, Star, Gift, Bell, HelpCircle, LogOut,
   ChevronRight, Store, Bike, LayoutDashboard, ClipboardList,
   TrendingUp, Navigation, Wallet, RefreshCw, Pencil, X, Check,
-  Copy, Share2,
+  Copy, Share2, Plus, Trash2, Home, Briefcase,
 } from "lucide-react";
 import { getCategoryEmoji } from "@/lib/utils/categoryEmoji";
 
@@ -436,6 +436,294 @@ function ReferralCard() {
   );
 }
 
+// ── 배달 주소 관리 모달 ────────────────────────────────
+interface UserAddress {
+  id:        string;
+  label:     string;
+  address:   string;
+  detail:    string;
+  isDefault: boolean;
+}
+
+const ADDRESS_LABELS = ["집", "회사", "기타"] as const;
+type AddressLabel = typeof ADDRESS_LABELS[number];
+
+const LABEL_ICON: Record<string, React.ReactNode> = {
+  "집":   <Home size={14} />,
+  "회사": <Briefcase size={14} />,
+  "기타": <MapPin size={14} />,
+};
+
+function AddressManagerModal({ onClose }: { onClose: () => void }) {
+  const [addresses,   setAddresses]   = useState<UserAddress[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [addOpen,     setAddOpen]     = useState(false);
+  const [editTarget,  setEditTarget]  = useState<UserAddress | null>(null);
+  const [deleting,    setDeleting]    = useState<string | null>(null);
+
+  // 폼 state
+  const [label,     setLabel]     = useState<AddressLabel>("집");
+  const [address,   setAddress]   = useState("");
+  const [detail,    setDetail]    = useState("");
+  const [isDefault, setIsDefault] = useState(false);
+  const [saving,    setSaving]    = useState(false);
+  const [formErr,   setFormErr]   = useState("");
+
+  const fetchAddresses = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/users/addresses");
+      if (res.ok) {
+        const { addresses: rows } = await res.json() as { addresses: UserAddress[] };
+        setAddresses(rows ?? []);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchAddresses(); }, [fetchAddresses]);
+
+  const openAdd = () => {
+    setEditTarget(null);
+    setLabel("집"); setAddress(""); setDetail(""); setIsDefault(addresses.length === 0);
+    setFormErr("");
+    setAddOpen(true);
+  };
+
+  const openEdit = (addr: UserAddress) => {
+    setEditTarget(addr);
+    setLabel(addr.label as AddressLabel);
+    setAddress(addr.address);
+    setDetail(addr.detail);
+    setIsDefault(addr.isDefault);
+    setFormErr("");
+    setAddOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (address.trim().length < 2) return setFormErr("주소를 2자 이상 입력해주세요");
+    setSaving(true); setFormErr("");
+    try {
+      if (editTarget) {
+        const res = await fetch(`/api/users/addresses/${editTarget.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label, address: address.trim(), detail: detail.trim(), isDefault }),
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          return setFormErr((j.error as string) ?? "수정에 실패했습니다");
+        }
+      } else {
+        const res = await fetch("/api/users/addresses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label, address: address.trim(), detail: detail.trim() || undefined, isDefault }),
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          return setFormErr((j.error as string) ?? "추가에 실패했습니다");
+        }
+      }
+      setAddOpen(false);
+      await fetchAddresses();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeleting(id);
+    try {
+      await fetch(`/api/users/addresses/${id}`, { method: "DELETE" });
+      setAddresses((prev) => prev.filter((a) => a.id !== id));
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const handleSetDefault = async (id: string) => {
+    await fetch(`/api/users/addresses/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isDefault: true }),
+    });
+    setAddresses((prev) =>
+      prev.map((a) => ({ ...a, isDefault: a.id === id }))
+    );
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-[55]" onClick={onClose} />
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col">
+        {/* 헤더 */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-pick-border flex-shrink-0">
+          <div>
+            <h2 className="font-black text-pick-text text-lg">배달 주소 관리 📍</h2>
+            <p className="text-xs text-pick-text-sub mt-0.5">최대 5개까지 저장할 수 있어요</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-pick-bg">
+            <X size={16} className="text-pick-text-sub" />
+          </button>
+        </div>
+
+        {/* 내용 */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-3">
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="w-7 h-7 border-2 border-pick-purple border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : addresses.length === 0 ? (
+            <div className="flex flex-col items-center py-10 text-pick-text-sub">
+              <MapPin size={40} className="mb-3 opacity-20" />
+              <p className="text-sm font-medium">저장된 배달 주소가 없어요</p>
+              <p className="text-xs mt-1">아래 버튼으로 주소를 추가해보세요</p>
+            </div>
+          ) : (
+            addresses.map((addr) => (
+              <div
+                key={addr.id}
+                className={`bg-white rounded-3xl border-2 px-4 py-4 shadow-sm ${
+                  addr.isDefault ? "border-pick-purple" : "border-pick-border"
+                }`}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`flex items-center gap-1 text-xs font-black px-2.5 py-1 rounded-full ${
+                      addr.isDefault
+                        ? "bg-pick-purple text-white"
+                        : "bg-pick-bg text-pick-text-sub border border-pick-border"
+                    }`}>
+                      {LABEL_ICON[addr.label]}
+                      {addr.label}
+                    </span>
+                    {addr.isDefault && (
+                      <span className="text-[10px] font-bold text-pick-purple">기본</span>
+                    )}
+                  </div>
+                  <div className="flex gap-1.5">
+                    {!addr.isDefault && (
+                      <button
+                        onClick={() => void handleSetDefault(addr.id)}
+                        className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-pick-border text-pick-text-sub hover:border-pick-purple hover:text-pick-purple transition-colors"
+                      >
+                        기본 설정
+                      </button>
+                    )}
+                    <button
+                      onClick={() => openEdit(addr)}
+                      className="w-7 h-7 flex items-center justify-center rounded-full bg-pick-bg border border-pick-border text-pick-text-sub hover:text-pick-purple transition-colors"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      onClick={() => void handleDelete(addr.id)}
+                      disabled={deleting === addr.id}
+                      className="w-7 h-7 flex items-center justify-center rounded-full bg-red-50 border border-red-200 text-red-400 hover:text-red-600 transition-colors disabled:opacity-40"
+                    >
+                      {deleting === addr.id
+                        ? <span className="w-3 h-3 border border-red-300 border-t-red-500 rounded-full animate-spin" />
+                        : <Trash2 size={12} />
+                      }
+                    </button>
+                  </div>
+                </div>
+                <p className="text-sm font-bold text-pick-text">{addr.address}</p>
+                {addr.detail && (
+                  <p className="text-xs text-pick-text-sub mt-0.5">{addr.detail}</p>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* 폼 (추가/수정) */}
+        {addOpen && (
+          <div className="flex-shrink-0 border-t-2 border-pick-border px-5 pt-4 pb-2 bg-pick-bg">
+            <p className="text-xs font-black text-pick-text mb-3">
+              {editTarget ? "주소 수정" : "새 주소 추가"}
+            </p>
+            {/* 레이블 */}
+            <div className="flex gap-2 mb-3">
+              {ADDRESS_LABELS.map((l) => (
+                <button
+                  key={l}
+                  onClick={() => setLabel(l)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-bold transition-all ${
+                    label === l
+                      ? "bg-pick-purple text-white"
+                      : "bg-white border-2 border-pick-border text-pick-text-sub"
+                  }`}
+                >
+                  {LABEL_ICON[l]} {l}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text" value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="도로명 주소 또는 지번 주소"
+              className="w-full border-2 border-pick-border rounded-2xl px-3 py-2.5 text-sm text-pick-text focus:outline-none focus:border-pick-purple bg-white mb-2"
+            />
+            <input
+              type="text" value={detail}
+              onChange={(e) => setDetail(e.target.value)}
+              placeholder="상세 주소 (동/호수 등, 선택)"
+              className="w-full border-2 border-pick-border rounded-2xl px-3 py-2.5 text-sm text-pick-text focus:outline-none focus:border-pick-purple bg-white mb-2"
+            />
+            <label className="flex items-center gap-2 mb-3 cursor-pointer">
+              <div
+                onClick={() => setIsDefault(!isDefault)}
+                className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                  isDefault ? "bg-pick-purple border-pick-purple" : "border-pick-border bg-white"
+                }`}
+              >
+                {isDefault && <Check size={12} className="text-white" />}
+              </div>
+              <span className="text-xs font-bold text-pick-text">기본 배달 주소로 설정</span>
+            </label>
+            {formErr && <p className="text-xs text-red-500 font-bold mb-2">{formErr}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setAddOpen(false)}
+                className="flex-1 py-2.5 rounded-2xl border-2 border-pick-border text-pick-text-sub text-sm font-bold"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => void handleSave()}
+                disabled={saving}
+                className="flex-1 py-2.5 rounded-2xl bg-pick-purple text-white text-sm font-black flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                {saving
+                  ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  : <><Check size={14} /> {editTarget ? "수정" : "추가"}</>
+                }
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 하단 버튼 */}
+        {!addOpen && (
+          <div className="flex-shrink-0 px-5 pb-8 pt-3 border-t border-pick-border">
+            <button
+              onClick={openAdd}
+              disabled={addresses.length >= 5}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-full bg-pick-purple text-white font-black text-sm active:scale-95 transition-all disabled:opacity-40 shadow-md"
+            >
+              <Plus size={16} />
+              주소 추가하기 ({addresses.length}/5)
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ── 메뉴 아이템 ────────────────────────────────────────
 function MenuItem({ icon, label, badge, onClick }: {
   icon: React.ReactNode; label: string; badge?: string; onClick?: () => void;
@@ -471,10 +759,11 @@ export default function MyPickPage() {
   const signOut = useAuthStore((s) => s.signOut);
   const router  = useRouter();
 
-  const [meData,      setMeData]      = useState<MeData | null>(null);
-  const [loadingMe,   setLoadingMe]   = useState(false);
-  const [previewRole, setPreviewRole] = useState<PreviewRole>("user");
-  const [editOpen,    setEditOpen]    = useState(false);
+  const [meData,       setMeData]       = useState<MeData | null>(null);
+  const [loadingMe,    setLoadingMe]    = useState(false);
+  const [previewRole,  setPreviewRole]  = useState<PreviewRole>("user");
+  const [editOpen,     setEditOpen]     = useState(false);
+  const [addressOpen,  setAddressOpen]  = useState(false);
 
   const displayRole = user ? user.role : previewRole;
 
@@ -588,7 +877,7 @@ export default function MyPickPage() {
 
       {/* 메뉴 목록 */}
       <div className="mx-4 bg-white rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
-        <MenuItem icon={<MapPin  size={18} />} label="배달 주소 관리" />
+        <MenuItem icon={<MapPin  size={18} />} label="배달 주소 관리" onClick={() => setAddressOpen(true)} />
         <MenuItem icon={<Heart   size={18} />} label="즐겨찾기 가맹점" />
         <MenuItem icon={<Star    size={18} />} label="내 리뷰" />
         <MenuItem icon={<Bell    size={18} />} label="알림 설정" />
@@ -626,6 +915,9 @@ export default function MyPickPage() {
           }}
         />
       )}
+
+      {/* 배달 주소 관리 모달 */}
+      {addressOpen && <AddressManagerModal onClose={() => setAddressOpen(false)} />}
     </div>
   );
 }
