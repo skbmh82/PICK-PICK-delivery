@@ -27,7 +27,7 @@ export async function GET() {
     .select(`
       id, status, total_amount, delivery_fee,
       pick_used, pick_reward, delivery_address,
-      estimated_time, created_at,
+      estimated_time, created_at, rider_id,
       stores ( id, name, image_url, category ),
       order_items ( id, menu_name, price, quantity, options )
     `)

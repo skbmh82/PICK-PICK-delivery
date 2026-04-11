@@ -3,12 +3,12 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   ClipboardList, Clock, Bike, CheckCircle, XCircle,
-  RefreshCw, Star, X, Check, RotateCcw,
+  RefreshCw, Star, X, Check, RotateCcw, Navigation,
 } from "lucide-react";
 import Link from "next/link";
 import { useOrderStore } from "@/stores/orderStore";
 import { useCartStore } from "@/stores/cartStore";
-import { useOrderRealtime, type OrderStatus } from "@/hooks/useRealtime";
+import { useOrderRealtime, useRiderLocationRealtime, type OrderStatus } from "@/hooks/useRealtime";
 import { getCategoryEmoji } from "@/lib/utils/categoryEmoji";
 
 // ── 타입 ──────────────────────────────────────────────
@@ -37,6 +37,7 @@ interface Order {
   estimated_time: number;
   created_at: string;
   hasReview: boolean;
+  rider_id: string | null;
   stores: OrderStore | null;
   order_items: OrderItem[];
 }
@@ -189,6 +190,36 @@ function ReviewModal({
   );
 }
 
+// ── 라이더 위치 카드 ───────────────────────────────────
+function RiderLocationCard({ riderId }: { riderId: string }) {
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [hasLocation, setHasLocation] = useState(false);
+
+  useRiderLocationRealtime(riderId, (_lat, _lng) => {
+    setHasLocation(true);
+    setLastUpdated(new Date());
+  });
+
+  return (
+    <div className="flex items-center gap-3 bg-pick-bg border-2 border-pick-border rounded-2xl px-4 py-3 mb-3">
+      <div className="w-9 h-9 rounded-full bg-pick-purple/10 flex items-center justify-center flex-shrink-0">
+        <Navigation size={16} className="text-pick-purple animate-pulse" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold text-pick-text">라이더가 배달 중이에요 🛵</p>
+        <p className="text-xs text-pick-text-sub mt-0.5">
+          {hasLocation && lastUpdated
+            ? `위치 업데이트 ${lastUpdated.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`
+            : "라이더 위치 수신 대기 중..."}
+        </p>
+      </div>
+      {hasLocation && (
+        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse flex-shrink-0" />
+      )}
+    </div>
+  );
+}
+
 // ── 진행 중 주문 카드 ──────────────────────────────────
 function ActiveOrderCard({
   order,
@@ -298,6 +329,13 @@ function ActiveOrderCard({
             <span className="truncate">{order.delivery_address}</span>
           </span>
         </div>
+
+        {/* 라이더 실시간 위치 */}
+        {status === "delivering" && order.rider_id && (
+          <div className="mt-3">
+            <RiderLocationCard riderId={order.rider_id} />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { MapPin, Package, CheckCircle, X, Clock, Bike, RefreshCw } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { MapPin, Package, CheckCircle, X, Clock, Bike, RefreshCw, Navigation } from "lucide-react";
 
 // ── 타입 ──────────────────────────────────────────────
 type DBStatus = "ready" | "picked_up" | "delivering" | "delivered" | "cancelled";
@@ -127,6 +127,48 @@ function AvailableCard({
   );
 }
 
+// ── GPS 위치 전송 훅 ──────────────────────────────────
+function useGpsTracking(isTracking: boolean) {
+  const watchIdRef  = useRef<number | null>(null);
+  const [gpsActive, setGpsActive] = useState(false);
+
+  const sendLocation = useCallback(async (lat: number, lng: number) => {
+    await fetch("/api/rider/location", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lat, lng, isActive: true }),
+    }).catch(() => {/* 네트워크 오류 무시 */});
+  }, []);
+
+  useEffect(() => {
+    if (!isTracking || !navigator.geolocation) return;
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        setGpsActive(true);
+        void sendLocation(pos.coords.latitude, pos.coords.longitude);
+      },
+      () => setGpsActive(false),
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 },
+    );
+
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      // 배달 종료 시 비활성 처리
+      fetch("/api/rider/location", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat: 0, lng: 0, isActive: false }),
+      }).catch(() => {});
+    };
+  }, [isTracking, sendLocation]);
+
+  return gpsActive;
+}
+
 // ── 내 배달 카드 ───────────────────────────────────────
 function DeliveryCard({
   order,
@@ -137,8 +179,10 @@ function DeliveryCard({
   onStatusChange: (id: string, status: DBStatus) => Promise<void>;
   loadingId: string | null;
 }) {
-  const cfg     = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.delivered;
-  const loading = loadingId === order.id;
+  const cfg      = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.delivered;
+  const loading  = loadingId === order.id;
+  const isDelivering = order.status === "delivering";
+  const gpsActive    = useGpsTracking(isDelivering);
   const isDone  = order.status === "delivered" || order.status === "cancelled";
   const earn    = Array.isArray(order.rider_earnings)
     ? Number(order.rider_earnings[0]?.amount_pick ?? 0)
@@ -185,6 +229,18 @@ function DeliveryCard({
             주문 금액 {Number(order.total_amount).toLocaleString()}원
           </p>
         </div>
+
+        {/* 배달 중 GPS 상태 */}
+        {isDelivering && (
+          <div className={`flex items-center gap-2 rounded-2xl px-4 py-2.5 mb-3 ${
+            gpsActive ? "bg-green-50 border border-green-200" : "bg-amber-50 border border-amber-200"
+          }`}>
+            <Navigation size={14} className={gpsActive ? "text-green-600 animate-pulse" : "text-amber-600"} />
+            <span className={`text-xs font-bold ${gpsActive ? "text-green-600" : "text-amber-600"}`}>
+              {gpsActive ? "위치 공유 중 — 고객에게 실시간 전송되고 있어요" : "GPS 신호 확인 중..."}
+            </span>
+          </div>
+        )}
 
         {!isDone && (
           <>
