@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
+import { createNotification } from "@/lib/notifications";
 
 const OrderItemSchema = z.object({
   menuId:   z.string().uuid(),
@@ -137,6 +138,27 @@ export async function POST(request: NextRequest) {
     if (deductError) {
       console.error("deduct_pick 오류:", deductError.message);
     }
+  }
+
+  // 10. 사장님에게 신규 주문 알림
+  const { data: storeOwner } = await admin
+    .from("stores")
+    .select("owner_id, name")
+    .eq("id", storeId)
+    .single();
+
+  if (storeOwner?.owner_id) {
+    const itemSummary = items
+      .slice(0, 2)
+      .map((i) => `${i.menuName} x${i.quantity}`)
+      .join(", ");
+    await createNotification({
+      userId: storeOwner.owner_id,
+      type:   "order_update",
+      title:  "새 주문이 들어왔어요! 🔔",
+      body:   `${itemSummary}${items.length > 2 ? ` 외 ${items.length - 2}개` : ""}`,
+      data:   { orderId, storeId },
+    });
   }
 
   return NextResponse.json({ orderId }, { status: 201 });

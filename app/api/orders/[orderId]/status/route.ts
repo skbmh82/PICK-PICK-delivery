@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
+import { createNotification, ORDER_STATUS_NOTIFICATION } from "@/lib/notifications";
 
 const VALID_STATUSES = [
   "pending","confirmed","preparing","ready",
@@ -43,6 +44,26 @@ export async function PATCH(
   if (error) {
     console.error("update_order_status 오류:", error.message);
     return NextResponse.json({ error: "주문 상태 변경에 실패했습니다" }, { status: 500 });
+  }
+
+  // 상태 변경 알림 (고객에게)
+  const notifMsg = ORDER_STATUS_NOTIFICATION[status];
+  if (notifMsg) {
+    const { data: order } = await admin
+      .from("orders")
+      .select("user_id, rider_id, pick_reward")
+      .eq("id", orderId)
+      .single();
+
+    if (order?.user_id) {
+      await createNotification({
+        userId: order.user_id,
+        type:   "order_update",
+        title:  notifMsg.title,
+        body:   notifMsg.body,
+        data:   { orderId },
+      });
+    }
   }
 
   // 배달 완료 시 고객 PICK 적립 + 라이더 PICK 지급
