@@ -1,11 +1,20 @@
 import { create } from "zustand";
 
+export interface SelectedOption {
+  groupId:    string;
+  groupName:  string;
+  optionId:   string;
+  optionName: string;
+  extraPrice: number;
+}
+
 export interface CartItem {
-  menuId: string;
+  menuId:   string;
   menuName: string;
-  price: number;
+  price:    number;
   quantity: number;
-  image: string;
+  image:    string;
+  options?: SelectedOption[];
 }
 
 interface StoreInfo {
