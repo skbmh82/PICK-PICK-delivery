@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Wallet, ArrowDownLeft, ArrowUpRight, History, Coins, TrendingUp, X, Check } from "lucide-react";
+import { Wallet, ArrowDownLeft, ArrowUpRight, History, Coins, TrendingUp, X, Check, Search, User } from "lucide-react";
 
 // ── 충전 모달 ──────────────────────────────────────────
 const CHARGE_PRESETS = [1000, 3000, 5000, 10000, 30000, 50000];
@@ -94,6 +94,210 @@ function ChargeModal({ onClose, onCharged }: { onClose: () => void; onCharged: (
   );
 }
 
+// ── 보내기 모달 ───────────────────────────────────────
+const TRANSFER_PRESETS = [100, 500, 1000, 3000, 5000, 10000];
+
+interface FoundUser { id: string; name: string; email: string; profileImage: string | null }
+
+function TransferModal({
+  myBalance,
+  onClose,
+  onTransferred,
+}: {
+  myBalance: number;
+  onClose: () => void;
+  onTransferred: (amount: number) => void;
+}) {
+  const [email,     setEmail]     = useState("");
+  const [amount,    setAmount]    = useState("");
+  const [memo,      setMemo]      = useState("");
+  const [found,     setFound]     = useState<FoundUser | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [notFound,  setNotFound]  = useState(false);
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState("");
+  const [done,      setDone]      = useState(false);
+
+  // 이메일 검색
+  const searchUser = async () => {
+    if (!email.includes("@")) return;
+    setSearching(true);
+    setFound(null);
+    setNotFound(false);
+    setError("");
+    try {
+      const res = await fetch(`/api/users/search?email=${encodeURIComponent(email)}`);
+      const json = await res.json();
+      if (json.user) {
+        setFound(json.user);
+      } else {
+        setNotFound(true);
+      }
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleTransfer = async () => {
+    const num = parseInt(amount, 10);
+    if (!found)           return setError("수신자를 먼저 검색해주세요");
+    if (isNaN(num) || num < 1) return setError("1 PICK 이상 입력해주세요");
+    if (num > myBalance)  return setError(`잔액이 부족합니다 (보유: ${myBalance.toLocaleString()} PICK)`);
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/wallet/transfer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toEmail: found.email, amount: num, memo: memo || undefined }),
+      });
+      if (res.ok) {
+        setDone(true);
+        setTimeout(() => {
+          onTransferred(num);
+          onClose();
+        }, 1500);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setError(err.error ?? "전송에 실패했습니다");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-[55]" onClick={onClose} />
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white rounded-t-3xl shadow-2xl">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-pick-border">
+          <h2 className="font-black text-pick-text text-lg">PICK 보내기 🚀</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-pick-bg">
+            <X size={16} className="text-pick-text-sub" />
+          </button>
+        </div>
+
+        {done ? (
+          <div className="px-5 py-10 flex flex-col items-center gap-3">
+            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+              <Check size={32} className="text-green-600" />
+            </div>
+            <p className="font-black text-pick-text text-lg">전송 완료!</p>
+            <p className="text-sm text-pick-text-sub">{found?.name}님께 {parseInt(amount).toLocaleString()} PICK을 보냈어요</p>
+          </div>
+        ) : (
+          <div className="px-5 py-4 flex flex-col gap-4">
+            {/* 수신자 검색 */}
+            <div>
+              <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">받는 사람 이메일</label>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setFound(null); setNotFound(false); }}
+                  onKeyDown={(e) => e.key === "Enter" && searchUser()}
+                  placeholder="example@email.com"
+                  className="flex-1 border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text focus:outline-none focus:border-pick-purple"
+                />
+                <button
+                  onClick={() => void searchUser()}
+                  disabled={searching || !email.includes("@")}
+                  className="w-12 h-12 rounded-2xl bg-pick-purple text-white flex items-center justify-center disabled:opacity-40 flex-shrink-0"
+                >
+                  {searching
+                    ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    : <Search size={18} />
+                  }
+                </button>
+              </div>
+              {/* 검색 결과 */}
+              {found && (
+                <div className="mt-2 flex items-center gap-3 bg-green-50 border border-green-200 rounded-2xl px-4 py-3">
+                  <div className="w-9 h-9 rounded-full bg-pick-purple/10 flex items-center justify-center flex-shrink-0">
+                    <User size={16} className="text-pick-purple" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-pick-text">{found.name}</p>
+                    <p className="text-xs text-pick-text-sub">{found.email}</p>
+                  </div>
+                  <Check size={16} className="text-green-600 ml-auto" />
+                </div>
+              )}
+              {notFound && (
+                <p className="mt-2 text-xs text-red-500 font-bold px-1">해당 이메일의 사용자를 찾을 수 없어요</p>
+              )}
+            </div>
+
+            {/* 금액 */}
+            <div>
+              <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">
+                전송 금액 (PICK) · 보유 {myBalance.toLocaleString()}P
+              </label>
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="전송할 PICK 수량"
+                min="1"
+                className="w-full border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text focus:outline-none focus:border-pick-purple"
+              />
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                {TRANSFER_PRESETS.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setAmount(String(p))}
+                    className={`py-2 rounded-2xl text-xs font-bold transition-all ${
+                      amount === String(p)
+                        ? "bg-pick-purple text-white"
+                        : "bg-pick-bg border border-pick-border text-pick-text"
+                    }`}
+                  >
+                    {p.toLocaleString()}P
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 메모 */}
+            <div>
+              <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">메모 (선택)</label>
+              <input
+                type="text"
+                value={memo}
+                onChange={(e) => setMemo(e.target.value)}
+                placeholder="메모를 입력해주세요"
+                maxLength={100}
+                className="w-full border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text focus:outline-none focus:border-pick-purple"
+              />
+            </div>
+
+            {error && <p className="text-xs text-red-500 font-bold text-center">{error}</p>}
+          </div>
+        )}
+
+        {!done && (
+          <div className="px-5 pb-8 pt-1 border-t border-pick-border">
+            <button
+              onClick={() => void handleTransfer()}
+              disabled={loading || !found || !amount}
+              className="w-full bg-gradient-to-r from-pick-purple to-pick-purple-light text-white font-black py-4 rounded-full shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+            >
+              {loading
+                ? <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                : <ArrowUpRight size={18} />
+              }
+              {found && amount
+                ? `${found.name}님께 ${parseInt(amount || "0").toLocaleString()} PICK 보내기`
+                : "보내기"
+              }
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ── 타입 ──────────────────────────────────────────────
 interface Transaction {
   id: string;
@@ -140,10 +344,11 @@ function WalletSkeleton() {
 
 // ── 메인 페이지 ───────────────────────────────────────
 export default function WalletPage() {
-  const [data,        setData]        = useState<WalletData | null>(null);
-  const [loading,     setLoading]     = useState(true);
-  const [isLoggedIn,  setIsLoggedIn]  = useState(true);
-  const [chargeOpen,  setChargeOpen]  = useState(false);
+  const [data,         setData]         = useState<WalletData | null>(null);
+  const [loading,      setLoading]      = useState(true);
+  const [isLoggedIn,   setIsLoggedIn]   = useState(true);
+  const [chargeOpen,   setChargeOpen]   = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
 
   const fetchWallet = useCallback(async () => {
     setLoading(true);
@@ -206,7 +411,10 @@ export default function WalletPage() {
           <ArrowDownLeft size={18} />
           충전하기
         </button>
-        <button className="flex items-center justify-center gap-2 bg-white rounded-full py-4 border-2 border-pick-border shadow-sm font-bold text-pick-purple active:scale-95 transition-all">
+        <button
+          onClick={() => setTransferOpen(true)}
+          className="flex items-center justify-center gap-2 bg-white rounded-full py-4 border-2 border-pick-border shadow-sm font-bold text-pick-purple active:scale-95 transition-all"
+        >
           <ArrowUpRight size={18} />
           보내기
         </button>
@@ -216,6 +424,13 @@ export default function WalletPage() {
         <ChargeModal
           onClose={() => setChargeOpen(false)}
           onCharged={() => { fetchWallet(); }}
+        />
+      )}
+      {transferOpen && (
+        <TransferModal
+          myBalance={balance}
+          onClose={() => setTransferOpen(false)}
+          onTransferred={() => { fetchWallet(); }}
         />
       )}
 
