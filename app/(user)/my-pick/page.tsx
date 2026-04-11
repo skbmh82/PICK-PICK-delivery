@@ -8,6 +8,7 @@ import {
   User, MapPin, Heart, Star, Gift, Bell, HelpCircle, LogOut,
   ChevronRight, Store, Bike, LayoutDashboard, ClipboardList,
   TrendingUp, Navigation, Wallet, RefreshCw, Pencil, X, Check,
+  Copy, Share2,
 } from "lucide-react";
 import { getCategoryEmoji } from "@/lib/utils/categoryEmoji";
 
@@ -287,6 +288,154 @@ function EditProfileModal({
   );
 }
 
+// ── 레퍼럴 카드 ────────────────────────────────────────
+function ReferralCard() {
+  const [code,         setCode]         = useState<string | null>(null);
+  const [stats,        setStats]        = useState({ referralCount: 0, totalReward: 0 });
+  const [inputCode,    setInputCode]    = useState("");
+  const [loading,      setLoading]      = useState(true);
+  const [submitting,   setSubmitting]   = useState(false);
+  const [copied,       setCopied]       = useState(false);
+  const [msg,          setMsg]          = useState<{ text: string; ok: boolean } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/referral")
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.code) { setCode(j.code); setStats({ referralCount: j.referralCount, totalReward: j.totalReward }); }
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleCopy = () => {
+    if (!code) return;
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const handleShare = () => {
+    if (!code) return;
+    const text = `PICK PICK 배달앱에서 첫 주문 시 ${process.env.NEXT_PUBLIC_APP_NAME ?? "PICK PICK"}을 이용해보세요! 초대 코드: ${code}`;
+    if (navigator.share) {
+      navigator.share({ title: "PICK PICK 초대", text }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleUse = async () => {
+    const trimmed = inputCode.trim().toUpperCase();
+    if (trimmed.length !== 8) return setMsg({ text: "8자리 코드를 입력해주세요", ok: false });
+    setSubmitting(true);
+    setMsg(null);
+    try {
+      const res  = await fetch("/api/referral/use", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: trimmed }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setMsg({ text: json.message ?? "보상이 지급됐어요!", ok: true });
+        setInputCode("");
+      } else {
+        setMsg({ text: json.error ?? "오류가 발생했습니다", ok: false });
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="mx-4 mb-4">
+      {/* 내 초대 코드 */}
+      <div className="bg-gradient-to-br from-pick-purple-dark via-pick-purple to-pick-purple-light rounded-3xl p-5 text-white shadow-lg mb-3">
+        <div className="flex items-center gap-2 mb-1">
+          <Gift size={16} className="text-pick-yellow-light" />
+          <p className="text-xs font-bold text-white/80">내 초대 코드</p>
+        </div>
+
+        {loading ? (
+          <div className="h-10 bg-white/20 rounded-2xl animate-pulse my-2" />
+        ) : (
+          <div className="flex items-center gap-3 my-2">
+            <span className="text-3xl font-black tracking-[0.2em] text-pick-yellow-light">
+              {code ?? "------"}
+            </span>
+            <div className="flex gap-2 ml-auto">
+              <button
+                onClick={handleCopy}
+                className="w-9 h-9 rounded-2xl bg-white/20 flex items-center justify-center active:scale-90 transition-transform"
+              >
+                {copied ? <Check size={15} /> : <Copy size={15} />}
+              </button>
+              <button
+                onClick={handleShare}
+                className="w-9 h-9 rounded-2xl bg-white/20 flex items-center justify-center active:scale-90 transition-transform"
+              >
+                <Share2 size={15} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <p className="text-xs text-white/70 mb-4">
+          친구가 이 코드로 가입하면 둘 다 <span className="font-black text-pick-yellow-light">50 PICK</span> 지급!
+        </p>
+
+        {/* 초대 실적 */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-white/15 rounded-2xl px-3 py-2.5 text-center">
+            <p className="text-xl font-black">{stats.referralCount}명</p>
+            <p className="text-[10px] text-white/70">초대한 친구</p>
+          </div>
+          <div className="bg-white/15 rounded-2xl px-3 py-2.5 text-center">
+            <p className="text-xl font-black">{stats.totalReward.toLocaleString()} P</p>
+            <p className="text-[10px] text-white/70">총 획득 보상</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 코드 입력 (친구에게 받은 코드) */}
+      <div className="bg-white rounded-3xl border-2 border-pick-border p-4 shadow-sm">
+        <p className="text-xs font-bold text-pick-text mb-2">
+          친구에게 초대 코드를 받았나요?
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={inputCode}
+            onChange={(e) => setInputCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+            placeholder="8자리 코드 입력"
+            maxLength={8}
+            className="flex-1 border-2 border-pick-border rounded-2xl px-4 py-2.5 text-sm font-bold tracking-widest text-pick-text focus:outline-none focus:border-pick-purple uppercase"
+          />
+          <button
+            onClick={() => void handleUse()}
+            disabled={submitting || inputCode.length !== 8}
+            className="px-4 py-2.5 rounded-2xl bg-pick-purple text-white text-sm font-bold disabled:opacity-40 active:scale-95 transition-all flex items-center gap-1.5"
+          >
+            {submitting
+              ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              : <Gift size={14} />
+            }
+            적용
+          </button>
+        </div>
+        {msg && (
+          <p className={`text-xs font-bold mt-2 ${msg.ok ? "text-green-600" : "text-red-500"}`}>
+            {msg.ok ? "🎉 " : "⚠️ "}{msg.text}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── 메뉴 아이템 ────────────────────────────────────────
 function MenuItem({ icon, label, badge, onClick }: {
   icon: React.ReactNode; label: string; badge?: string; onClick?: () => void;
@@ -434,12 +583,14 @@ export default function MyPickPage() {
         <ReviewsSection reviews={meData.reviews} />
       )}
 
+      {/* 친구 초대 레퍼럴 카드 */}
+      <ReferralCard />
+
       {/* 메뉴 목록 */}
       <div className="mx-4 bg-white rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
         <MenuItem icon={<MapPin  size={18} />} label="배달 주소 관리" />
         <MenuItem icon={<Heart   size={18} />} label="즐겨찾기 가맹점" />
         <MenuItem icon={<Star    size={18} />} label="내 리뷰" />
-        <MenuItem icon={<Gift    size={18} />} label="친구 초대" badge="50 PICK" />
         <MenuItem icon={<Bell    size={18} />} label="알림 설정" />
         <MenuItem icon={<HelpCircle size={18} />} label="공지사항 / FAQ" />
       </div>
