@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
+import { getGradeInfo } from "@/lib/pick-grade";
 
 // GET /api/users/me — 내 프로필 + 지갑 통계 + 즐겨찾기
 export async function GET() {
@@ -33,12 +34,10 @@ export async function GET() {
   const totalEarned = Number(wallet?.total_earned ?? 0);
   const pickBalance = Number(wallet?.pick_balance  ?? 0);
 
-  // 등급 계산
-  let gradeLabel  = "🌱 SEED";
-  let nextThreshold = 1000;
-  if      (totalEarned >= 20000) { gradeLabel = "🌲 FOREST"; nextThreshold = 0; }
-  else if (totalEarned >=  5000) { gradeLabel = "🌳 TREE";   nextThreshold = 20000; }
-  else if (totalEarned >=  1000) { gradeLabel = "🌿 SPROUT"; nextThreshold = 5000; }
+  // 등급 계산 (lib/pick-grade.ts 공통 함수 사용)
+  const gradeInfo   = getGradeInfo(totalEarned);
+  const gradeLabel  = `${gradeInfo.emoji} ${gradeInfo.grade}`;
+  const nextThreshold = gradeInfo.nextMin ?? 0;
 
   // 즐겨찾기 가게 (최근 5개)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -69,7 +68,7 @@ export async function GET() {
       addressMain:  profile.address_main,
     },
     wallet: { pickBalance, totalEarned },
-    grade:  { label: gradeLabel, earned: totalEarned, nextThreshold },
+    grade:  { label: gradeLabel, earned: totalEarned, nextThreshold, multiplier: gradeInfo.multiplier },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     favorites: (favs ?? []).map((f: any) => ({
       storeId:      f.store_id,

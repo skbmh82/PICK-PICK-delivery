@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createNotification } from "@/lib/notifications";
+import { calcPickReward } from "@/lib/pick-grade";
 
 const OrderItemSchema = z.object({
   menuId:   z.string().uuid(),
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
   // 4. 가맹점 존재/영업 여부 확인
   const { data: store } = await admin
     .from("stores")
-    .select("id, is_open, min_order_amount, delivery_fee, pick_reward_rate")
+    .select("id, is_open, min_order_amount, delivery_fee, delivery_time, pick_reward_rate")
     .eq("id", storeId)
     .single();
 
@@ -70,22 +71,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "현재 영업 중이 아닌 가맹점입니다" }, { status: 400 });
   }
 
-  // 5. PICK 잔액 확인 (pickUsed > 0 인 경우)
-  if (pickUsed > 0) {
-    const { data: wallet } = await admin
-      .from("wallets")
-      .select("pick_balance")
-      .eq("user_id", profile.id)
-      .single();
+  // 5. PICK 잔액 확인 + 누적 적립량 조회 (등급 계산용)
+  const { data: wallet } = await admin
+    .from("wallets")
+    .select("pick_balance, total_earned")
+    .eq("user_id", profile.id)
+    .single();
 
+  if (pickUsed > 0) {
     if (!wallet || Number(wallet.pick_balance) < pickUsed) {
       return NextResponse.json({ error: "PICK 잔액이 부족합니다" }, { status: 400 });
     }
   }
 
-  // 6. 적립 PICK 계산
-  const rewardRate = Number(store.pick_reward_rate) / 100;
-  const pickReward = Math.floor((totalAmount + deliveryFee) * rewardRate * 10) / 10;
+  // 6. 등급 반영 적립 PICK 계산
+  const totalEarned = Number(wallet?.total_earned ?? 0);
+  const pickReward  = calcPickReward(
+    totalAmount + deliveryFee,
+    Number(store.pick_reward_rate),
+    totalEarned
+  );
 
   // 7. 주문 생성 (admin 클라이언트로 RLS 우회)
   const { data: orderData, error: orderError } = await admin
@@ -101,7 +106,7 @@ export async function POST(request: NextRequest) {
       pick_reward:     pickReward,
       delivery_address: deliveryAddress,
       delivery_note:   deliveryNote ?? null,
-      estimated_time:  store.delivery_fee ?? 30,
+      estimated_time:  store.delivery_time ?? 30,
     })
     .select("id")
     .single();

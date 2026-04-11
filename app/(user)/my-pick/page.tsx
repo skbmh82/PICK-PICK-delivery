@@ -13,7 +13,7 @@ import {
 import { getCategoryEmoji } from "@/lib/utils/categoryEmoji";
 
 // ── 타입 ──────────────────────────────────────────────
-interface Grade    { label: string; earned: number; nextThreshold: number }
+interface Grade    { label: string; earned: number; nextThreshold: number; multiplier?: number }
 interface Favorite { storeId: string; name: string; category: string; rating: number; deliveryFee: number; deliveryTime: number }
 interface Review   { id: string; rating: number; content: string; createdAt: string; storeName: string }
 interface MeData {
@@ -106,9 +106,16 @@ function GradeBanner({ grade }: { grade: Grade }) {
       <div className="bg-gradient-to-r from-pick-purple to-pick-purple-light rounded-3xl p-5 text-white shadow-lg">
         <div className="flex items-center justify-between mb-3">
           <span className="font-black text-lg">{grade.label}</span>
-          <span className="text-xs text-white/80 bg-white/15 px-3 py-1 rounded-full font-semibold">
-            {grade.earned.toLocaleString()} PICK 적립
-          </span>
+          <div className="flex items-center gap-2">
+            {grade.multiplier && grade.multiplier > 1 && (
+              <span className="text-xs bg-pick-yellow text-white px-2 py-0.5 rounded-full font-bold">
+                ×{grade.multiplier} 적립
+              </span>
+            )}
+            <span className="text-xs text-white/80 bg-white/15 px-3 py-1 rounded-full font-semibold">
+              {grade.earned.toLocaleString()} PICK 적립
+            </span>
+          </div>
         </div>
         <div className="w-full bg-white/20 rounded-full h-2.5">
           <div
@@ -725,14 +732,11 @@ function AddressManagerModal({ onClose }: { onClose: () => void }) {
 }
 
 // ── 메뉴 아이템 ────────────────────────────────────────
-function MenuItem({ icon, label, badge, onClick }: {
-  icon: React.ReactNode; label: string; badge?: string; onClick?: () => void;
+function MenuItem({ icon, label, badge, onClick, href }: {
+  icon: React.ReactNode; label: string; badge?: string; onClick?: () => void; href?: string;
 }) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex items-center justify-between w-full px-5 py-4 hover:bg-pick-bg transition-colors"
-    >
+  const inner = (
+    <>
       <div className="flex items-center gap-3.5">
         <span className="w-9 h-9 flex items-center justify-center rounded-2xl bg-pick-bg text-pick-purple">
           {icon}
@@ -747,6 +751,23 @@ function MenuItem({ icon, label, badge, onClick }: {
         )}
         <ChevronRight size={16} className="text-pick-text-sub" />
       </div>
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className="flex items-center justify-between w-full px-5 py-4 hover:bg-pick-bg transition-colors">
+        {inner}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center justify-between w-full px-5 py-4 hover:bg-pick-bg transition-colors"
+    >
+      {inner}
     </button>
   );
 }
@@ -880,7 +901,7 @@ export default function MyPickPage() {
         <MenuItem icon={<MapPin  size={18} />} label="배달 주소 관리" onClick={() => setAddressOpen(true)} />
         <MenuItem icon={<Heart   size={18} />} label="즐겨찾기 가맹점" />
         <MenuItem icon={<Star    size={18} />} label="내 리뷰" />
-        <MenuItem icon={<Bell    size={18} />} label="알림 설정" />
+        <MenuItem icon={<Bell    size={18} />} label="알림" href="/notifications" />
         <MenuItem icon={<HelpCircle size={18} />} label="공지사항 / FAQ" />
       </div>
 
