@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Bike, TrendingUp, MapPin, CheckCircle, Clock, Star, RefreshCw } from "lucide-react";
 
 // ── 타입 ──────────────────────────────────────────────
@@ -149,8 +149,38 @@ function WeeklyChart({ weekly }: { weekly: WeeklyDay[] }) {
 }
 
 // ── 배달 가능 주문 알림 ────────────────────────────────
-function AvailableOrderAlerts({ orders }: { orders: AvailableOrder[] }) {
-  if (orders.length === 0) return null;
+function AvailableOrderAlerts({
+  orders,
+  onAccepted,
+}: {
+  orders:     AvailableOrder[];
+  onAccepted: (orderId: string) => void;
+}) {
+  const router                   = useRouter();
+  const [accepting, setAccepting] = useState<string | null>(null);
+  const [accepted,  setAccepted]  = useState<Set<string>>(new Set());
+
+  const handleAccept = async (orderId: string) => {
+    if (accepting) return;
+    setAccepting(orderId);
+    try {
+      const res = await fetch(`/api/rider/accept/${orderId}`, { method: "POST" });
+      if (res.ok) {
+        setAccepted((prev) => new Set([...prev, orderId]));
+        onAccepted(orderId);
+        // 0.8초 뒤 배달 현황 페이지로 이동
+        setTimeout(() => router.push("/rider/delivery"), 800);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error ?? "수락에 실패했습니다");
+      }
+    } finally {
+      setAccepting(null);
+    }
+  };
+
+  const visible = orders.filter((o) => !accepted.has(o.id));
+  if (visible.length === 0) return null;
 
   return (
     <div className="mx-4 mb-5">
@@ -158,11 +188,11 @@ function AvailableOrderAlerts({ orders }: { orders: AvailableOrder[] }) {
         <Bike size={16} className="text-sky-500" />
         <h3 className="font-bold text-pick-text text-sm">배달 가능 주문</h3>
         <span className="text-xs bg-red-500 text-white font-black px-2 py-0.5 rounded-full">
-          {orders.length}
+          {visible.length}
         </span>
       </div>
       <div className="flex flex-col gap-3">
-        {orders.map((order) => {
+        {visible.map((order) => {
           const itemSummary = order.order_items
             .slice(0, 2)
             .map((i) => `${i.menu_name} x${i.quantity}`)
@@ -170,11 +200,11 @@ function AvailableOrderAlerts({ orders }: { orders: AvailableOrder[] }) {
           const timeStr = new Date(order.created_at).toLocaleTimeString("ko-KR", {
             hour: "2-digit", minute: "2-digit",
           });
+          const isAccepting = accepting === order.id;
           return (
-            <Link
+            <div
               key={order.id}
-              href="/rider/delivery"
-              className="flex items-center gap-4 bg-blue-50 border-2 border-blue-200 rounded-3xl px-4 py-4 active:scale-95 transition-transform"
+              className="flex items-center gap-4 bg-blue-50 border-2 border-blue-200 rounded-3xl px-4 py-4"
             >
               <span className="text-3xl">🛵</span>
               <div className="flex-1 min-w-0">
@@ -188,10 +218,19 @@ function AvailableOrderAlerts({ orders }: { orders: AvailableOrder[] }) {
                     : "3,000"} PICK
                 </p>
               </div>
-              <span className="text-xs font-bold text-sky-600 bg-sky-100 px-3 py-1.5 rounded-full flex-shrink-0">
+              <button
+                onClick={() => void handleAccept(order.id)}
+                disabled={!!accepting}
+                className="flex-shrink-0 text-xs font-bold text-white bg-sky-500 px-3 py-2 rounded-full flex items-center gap-1.5 active:scale-90 transition-all disabled:opacity-60"
+              >
+                {isAccepting ? (
+                  <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <CheckCircle size={13} />
+                )}
                 수락하기
-              </span>
-            </Link>
+              </button>
+            </div>
           );
         })}
       </div>
@@ -239,6 +278,14 @@ export default function RiderDashboardPage() {
     }
   }, []);
 
+  const handleOrderAccepted = useCallback((orderId: string) => {
+    setAvailableOrders((prev) => prev.filter((o) => o.id !== orderId));
+    // 통계 새로고침 (진행 중 카운트 반영)
+    fetch("/api/rider/stats").then(async (r) => {
+      if (r.ok) setStats(await r.json());
+    }).catch(() => {/* 무시 */});
+  }, []);
+
   useEffect(() => { fetchData(); }, [fetchData]);
 
   if (loading) return <DashboardSkeleton />;
@@ -262,7 +309,7 @@ export default function RiderDashboardPage() {
         </button>
       </div>
 
-      <AvailableOrderAlerts orders={availableOrders} />
+      <AvailableOrderAlerts orders={availableOrders} onAccepted={handleOrderAccepted} />
       <SummaryCards today={today} />
       <TodayEarning today={today} />
       {weekly.length > 0 && <WeeklyChart weekly={weekly} />}
