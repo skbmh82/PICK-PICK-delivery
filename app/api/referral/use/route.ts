@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
   // 이미 레퍼럴 보상을 받은 적이 있는지 확인
   const { data: myWallet } = await admin
-    .from("wallets").select("id, pick_balance").eq("user_id", me.id).single();
+    .from("wallets").select("id, pick_balance, total_earned").eq("user_id", me.id).single();
   if (!myWallet) return NextResponse.json({ error: "지갑을 찾을 수 없습니다" }, { status: 404 });
 
   const { data: alreadyUsed } = await admin
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
   // 초대자 지갑
   const { data: referrerWallet } = await admin
-    .from("wallets").select("id, pick_balance").eq("user_id", referrer.id).single();
+    .from("wallets").select("id, pick_balance, total_earned").eq("user_id", referrer.id).single();
   if (!referrerWallet) {
     return NextResponse.json({ error: "초대자의 지갑을 찾을 수 없습니다" }, { status: 404 });
   }
@@ -84,28 +84,36 @@ export async function POST(request: NextRequest) {
   const referrerNewBalance = Number(referrerWallet.pick_balance) + REFERRAL_REWARD;
 
   await Promise.all([
-    // 피초대자 지급
+    // 피초대자 지급 (pick_balance + total_earned 모두 증가)
     admin.from("wallets")
-      .update({ pick_balance: myNewBalance, total_earned: admin.rpc, updated_at: new Date().toISOString() })
+      .update({
+        pick_balance: myNewBalance,
+        total_earned: Number(myWallet.total_earned ?? 0) + REFERRAL_REWARD,
+        updated_at:   new Date().toISOString(),
+      })
       .eq("id", myWallet.id),
     admin.from("wallet_transactions").insert({
-      wallet_id:    myWallet.id,
-      type:         "reward",
-      amount:       REFERRAL_REWARD,
+      wallet_id:     myWallet.id,
+      type:          "reward",
+      amount:        REFERRAL_REWARD,
       balance_after: myNewBalance,
-      description:  `친구초대 가입 보상 (초대자: ${referrer.name})`,
+      description:   `친구초대 가입 보상 (초대자: ${referrer.name})`,
     }),
 
-    // 초대자 지급
+    // 초대자 지급 (pick_balance + total_earned 모두 증가)
     admin.from("wallets")
-      .update({ pick_balance: referrerNewBalance, updated_at: new Date().toISOString() })
+      .update({
+        pick_balance: referrerNewBalance,
+        total_earned: Number(referrerWallet.total_earned ?? 0) + REFERRAL_REWARD,
+        updated_at:   new Date().toISOString(),
+      })
       .eq("id", referrerWallet.id),
     admin.from("wallet_transactions").insert({
-      wallet_id:    referrerWallet.id,
-      type:         "reward",
-      amount:       REFERRAL_REWARD,
+      wallet_id:     referrerWallet.id,
+      type:          "reward",
+      amount:        REFERRAL_REWARD,
       balance_after: referrerNewBalance,
-      description:  `친구초대 보상 (초대: ${me.name})`,
+      description:   `친구초대 보상 (초대: ${me.name})`,
     }),
 
     // 초대자에게 알림

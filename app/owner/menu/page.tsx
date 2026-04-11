@@ -4,7 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Plus, ToggleLeft, ToggleRight, Flame, Pencil, Trash2, X, Check,
   Settings2, ChevronDown, ChevronUp, ToggleLeft as Toggle,
+  ImagePlus, Loader2,
 } from "lucide-react";
+import { useRef } from "react";
 import { getMenuEmoji } from "@/lib/utils/categoryEmoji";
 
 // ── 타입 ──────────────────────────────────────────────
@@ -41,8 +43,33 @@ function MenuFormModal({
   const [category,    setCategory]    = useState(menu?.category    ?? "메인");
   const [description, setDescription] = useState(menu?.description ?? "");
   const [isPopular,   setIsPopular]   = useState(menu?.is_popular  ?? false);
+  const [imageUrl,    setImageUrl]    = useState<string | null>(menu?.image_url ?? null);
+  const [uploading,   setUploading]   = useState(false);
   const [saving,      setSaving]      = useState(false);
   const [error,       setError]       = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const form = new FormData();
+    form.append("file",   file);
+    form.append("folder", "menu");
+
+    setUploading(true);
+    setError("");
+    try {
+      const res  = await fetch("/api/upload", { method: "POST", body: form });
+      const json = await res.json();
+      if (!res.ok) { setError(json.error ?? "이미지 업로드 실패"); return; }
+      setImageUrl(json.url);
+    } finally {
+      setUploading(false);
+      // input 초기화 (같은 파일 재선택 허용)
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const handleSubmit = async () => {
     const priceNum = parseInt(price, 10);
@@ -57,7 +84,8 @@ function MenuFormModal({
         price: priceNum,
         category,
         description: description.trim() || null,
-        is_popular: isPopular,
+        is_popular:  isPopular,
+        image_url:   imageUrl,
       });
       onClose();
     } catch (e) {
@@ -86,6 +114,49 @@ function MenuFormModal({
 
         {/* 폼 */}
         <div className="px-5 py-4 flex flex-col gap-4 max-h-[70dvh] overflow-y-auto">
+          {/* 메뉴 이미지 */}
+          <div>
+            <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">메뉴 이미지</label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageSelect}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="w-full relative border-2 border-dashed border-pick-border rounded-2xl overflow-hidden bg-pick-bg active:scale-[0.98] transition-transform disabled:opacity-60"
+              style={{ minHeight: 100 }}
+            >
+              {uploading ? (
+                <div className="flex flex-col items-center justify-center h-full py-8 gap-2">
+                  <Loader2 size={24} className="text-pick-purple animate-spin" />
+                  <p className="text-xs text-pick-text-sub">업로드 중...</p>
+                </div>
+              ) : imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={imageUrl} alt="메뉴 이미지" className="w-full h-32 object-cover" />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full py-8 gap-2">
+                  <ImagePlus size={28} className="text-gray-300" />
+                  <p className="text-xs text-pick-text-sub">탭하여 이미지 선택 (최대 5MB)</p>
+                </div>
+              )}
+            </button>
+            {imageUrl && (
+              <button
+                type="button"
+                onClick={() => setImageUrl(null)}
+                className="mt-1.5 text-xs text-red-400 font-semibold underline"
+              >
+                이미지 제거
+              </button>
+            )}
+          </div>
+
           {/* 메뉴명 */}
           <div>
             <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">메뉴 이름 *</label>

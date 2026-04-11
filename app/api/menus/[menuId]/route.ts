@@ -11,6 +11,7 @@ const UpdateMenuSchema = z.object({
   description:  z.string().max(200).nullable().optional(),
   is_available: z.boolean().optional(),
   is_popular:   z.boolean().optional(),
+  image_url:    z.string().url().nullable().optional(),
 });
 
 export async function PATCH(

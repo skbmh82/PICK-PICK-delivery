@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Users, Coins, RefreshCw, Search, X, Check, ChevronDown, Store, MapPin, Phone, Clock, XCircle, CheckCircle } from "lucide-react";
+import { Users, Coins, RefreshCw, Search, X, Check, ChevronDown, Store, MapPin, Phone, Clock, XCircle, CheckCircle, BarChart2, ShoppingBag } from "lucide-react";
 
 // ── 타입 ──────────────────────────────────────────────
 interface UserRow {
@@ -443,10 +443,123 @@ function Skeleton() {
   );
 }
 
+// ── 플랫폼 통계 타입 ────────────────────────────────────
+interface PlatformStats {
+  users:   { total: number; byRole: Record<string, number> };
+  stores:  { total: number; approved: number; pending: number };
+  orders:  { total: number; completed: number; cancelled: number; today: number; thisMonth: number };
+  revenue: { total: number; today: number; thisMonth: number };
+  pick:    { circulation: number; totalIssued: number };
+}
+
+// ── 플랫폼 통계 탭 ──────────────────────────────────────
+function StatsTab({ stats }: { stats: PlatformStats | null }) {
+  if (!stats) return <Skeleton />;
+
+  const cards = [
+    { label: "전체 회원",    value: stats.users.total.toLocaleString(),              unit: "명",  bg: "bg-purple-50",  text: "text-pick-purple",  icon: <Users size={18} className="text-pick-purple" /> },
+    { label: "활성 가맹점",  value: stats.stores.approved.toLocaleString(),          unit: "곳",  bg: "bg-green-50",   text: "text-green-700",    icon: <Store size={18} className="text-green-600" /> },
+    { label: "전체 주문",    value: stats.orders.total.toLocaleString(),             unit: "건",  bg: "bg-amber-50",   text: "text-amber-700",    icon: <ShoppingBag size={18} className="text-amber-600" /> },
+    { label: "오늘 주문",    value: stats.orders.today.toLocaleString(),             unit: "건",  bg: "bg-sky-50",     text: "text-sky-700",      icon: <ShoppingBag size={18} className="text-sky-500" /> },
+    { label: "이번달 매출",  value: Math.round(stats.revenue.thisMonth / 1000).toLocaleString(), unit: "천원", bg: "bg-orange-50", text: "text-orange-700", icon: <Coins size={18} className="text-orange-500" /> },
+    { label: "PICK 유통량",  value: stats.pick.circulation.toLocaleString(),         unit: "P",   bg: "bg-pick-bg",    text: "text-pick-purple",  icon: <Coins size={18} className="text-pick-purple" /> },
+  ];
+
+  return (
+    <div className="px-4 py-4 space-y-4">
+      {/* 카드 그리드 */}
+      <div className="grid grid-cols-2 gap-3">
+        {cards.map((c) => (
+          <div key={c.label} className={`${c.bg} rounded-3xl p-4 border border-white`}>
+            <div className="flex items-center gap-2 mb-2">{c.icon}<p className="text-xs text-pick-text-sub font-semibold">{c.label}</p></div>
+            <p className={`text-2xl font-black ${c.text}`}>{c.value}</p>
+            <p className="text-xs text-pick-text-sub">{c.unit}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* 상세 통계 */}
+      <div className="bg-white rounded-3xl border-2 border-pick-border p-5 space-y-3">
+        <h3 className="text-sm font-black text-pick-text flex items-center gap-2">
+          <BarChart2 size={15} className="text-pick-purple" />
+          주문 현황
+        </h3>
+        {[
+          { label: "완료",   value: stats.orders.completed, color: "bg-green-400",  pct: stats.orders.total > 0 ? (stats.orders.completed / stats.orders.total) * 100 : 0 },
+          { label: "취소",   value: stats.orders.cancelled, color: "bg-red-400",    pct: stats.orders.total > 0 ? (stats.orders.cancelled / stats.orders.total) * 100 : 0 },
+          { label: "이번달", value: stats.orders.thisMonth, color: "bg-pick-purple", pct: stats.orders.total > 0 ? (stats.orders.thisMonth / stats.orders.total) * 100 : 0 },
+        ].map((row) => (
+          <div key={row.label}>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-pick-text-sub font-semibold">{row.label}</span>
+              <span className="font-black text-pick-text">{row.value.toLocaleString()}건</span>
+            </div>
+            <div className="w-full bg-pick-bg rounded-full h-2">
+              <div className={`${row.color} h-2 rounded-full transition-all`} style={{ width: `${row.pct}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-3xl border-2 border-pick-border p-5 space-y-3">
+        <h3 className="text-sm font-black text-pick-text flex items-center gap-2">
+          <Coins size={15} className="text-pick-yellow" />
+          PICK 토큰 현황
+        </h3>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-pick-bg rounded-2xl p-3 text-center">
+            <p className="text-xs text-pick-text-sub mb-1">현재 유통량</p>
+            <p className="font-black text-pick-purple text-lg">{stats.pick.circulation.toLocaleString()}</p>
+            <p className="text-[10px] text-pick-text-sub">PICK</p>
+          </div>
+          <div className="bg-pick-bg rounded-2xl p-3 text-center">
+            <p className="text-xs text-pick-text-sub mb-1">누적 발행량</p>
+            <p className="font-black text-amber-600 text-lg">{stats.pick.totalIssued.toLocaleString()}</p>
+            <p className="text-[10px] text-pick-text-sub">PICK</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          {[
+            { label: "일반회원", value: stats.users.byRole["user"] ?? 0 },
+            { label: "사장님",   value: stats.users.byRole["owner"] ?? 0 },
+            { label: "라이더",   value: stats.users.byRole["rider"] ?? 0 },
+          ].map((r) => (
+            <div key={r.label} className="bg-pick-bg rounded-2xl py-2">
+              <p className="text-xs text-pick-text-sub mb-0.5">{r.label}</p>
+              <p className="font-black text-pick-text text-sm">{r.value}명</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 가맹점 현황 */}
+      <div className="bg-white rounded-3xl border-2 border-pick-border p-5">
+        <h3 className="text-sm font-black text-pick-text mb-3 flex items-center gap-2">
+          <Store size={15} className="text-pick-purple" />
+          가맹점 현황
+        </h3>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          {[
+            { label: "전체",    value: stats.stores.total,    color: "text-pick-text" },
+            { label: "승인완료", value: stats.stores.approved, color: "text-green-600" },
+            { label: "승인대기", value: stats.stores.pending,  color: "text-amber-600" },
+          ].map((r) => (
+            <div key={r.label} className="bg-pick-bg rounded-2xl py-3">
+              <p className={`font-black text-xl ${r.color}`}>{r.value}</p>
+              <p className="text-[10px] text-pick-text-sub">{r.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── 메인 페이지 ───────────────────────────────────────
 export default function AdminDashboardPage() {
-  const [activeTab,    setActiveTab]    = useState<"users" | "stores">("users");
+  const [activeTab,    setActiveTab]    = useState<"stats" | "users" | "stores">("stats");
   const [users,        setUsers]        = useState<UserRow[]>([]);
+  const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState("");
   const [search,       setSearch]       = useState("");
@@ -470,6 +583,13 @@ export default function AdminDashboardPage() {
     }
   }, []);
 
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/stats");
+      if (res.ok) setPlatformStats(await res.json());
+    } catch { /* silent */ }
+  }, []);
+
   const fetchPendingCount = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/stores");
@@ -480,7 +600,7 @@ export default function AdminDashboardPage() {
     } catch { /* silent */ }
   }, []);
 
-  useEffect(() => { fetchUsers(); fetchPendingCount(); }, [fetchUsers, fetchPendingCount]);
+  useEffect(() => { fetchUsers(); fetchStats(); fetchPendingCount(); }, [fetchUsers, fetchStats, fetchPendingCount]);
 
   // 검색 + 역할 필터
   const filtered = users.filter((u) => {
@@ -515,11 +635,12 @@ export default function AdminDashboardPage() {
           <div>
             <h1 className="font-black text-pick-text text-xl">관리자 대시보드 🛡️</h1>
             <p className="text-xs text-pick-text-sub mt-0.5">
-              {activeTab === "users" ? `전체 ${users.length}명` : "가게 승인 관리"}
+              {activeTab === "stats"  ? "플랫폼 통계" :
+               activeTab === "users"  ? `전체 ${users.length}명` : "가게 승인 관리"}
             </p>
           </div>
           <button
-            onClick={() => { fetchUsers(); fetchPendingCount(); }}
+            onClick={() => { fetchUsers(); fetchStats(); fetchPendingCount(); }}
             className="p-2 rounded-full bg-pick-bg border border-pick-border text-pick-text-sub"
           >
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
@@ -528,8 +649,9 @@ export default function AdminDashboardPage() {
         {/* 탭 */}
         <div className="flex gap-1 -mx-0.5">
           {([
-            { key: "users"  as const, label: "회원 관리", icon: <Users size={13} />, badge: undefined as number | undefined },
-            { key: "stores" as const, label: "가게 승인", icon: <Store size={13} />, badge: pendingCount as number | undefined },
+            { key: "stats"  as const, label: "통계",      icon: <BarChart2 size={13} />, badge: undefined as number | undefined },
+            { key: "users"  as const, label: "회원 관리", icon: <Users    size={13} />, badge: undefined as number | undefined },
+            { key: "stores" as const, label: "가게 승인", icon: <Store    size={13} />, badge: pendingCount as number | undefined },
           ]).map(({ key, label, icon, badge }) => (
             <button
               key={key}
@@ -551,6 +673,8 @@ export default function AdminDashboardPage() {
           ))}
         </div>
       </div>
+
+      {activeTab === "stats" && <StatsTab stats={platformStats} />}
 
       {activeTab === "users" && (
         <>

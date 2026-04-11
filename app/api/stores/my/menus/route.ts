@@ -56,6 +56,7 @@ const AddMenuSchema = z.object({
   category:    z.string().min(1).max(30),
   description: z.string().max(200).optional(),
   is_popular:  z.boolean().optional(),
+  image_url:   z.string().url().nullable().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -87,7 +88,8 @@ export async function POST(request: NextRequest) {
       price:       parsed.data.price,
       category:    parsed.data.category,
       description: parsed.data.description ?? null,
-      is_popular:  parsed.data.is_popular ?? false,
+      is_popular:  parsed.data.is_popular  ?? false,
+      image_url:   parsed.data.image_url   ?? null,
       is_available: true,
       sort_order:  (count ?? 0) + 1,
     })
