@@ -64,7 +64,7 @@ const C = {
     fill: { color: C.purpleLight }, line: { color: C.purpleLight },
   });
 
-  slide.addText("2026년 4월 11일  |  MVP Phase 1 — 전체 주문 플로우 완성", {
+  slide.addText("2026년 4월 12일  |  MVP Phase 1 완성 + 쿠폰·PWA·주문상세 구현", {
     x: 1, y: 3.6, w: 11.6, h: 0.5,
     fontSize: 14, color: "C4B5FD",
     align: "center",
@@ -88,7 +88,7 @@ const C = {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("📊  Phase 1 MVP 진행 현황 (4/11 기준)", {
+  slide.addText("📊  Phase 1 MVP 진행 현황 (4/12 기준)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 26, bold: true, color: C.purpleDark,
   });
@@ -107,40 +107,43 @@ const C = {
     { label: "라이더 대시보드 / 배달 / 수익 / 위치 공유",  pct: 100, color: C.green },
     { label: "관리자 대시보드 + PICK 지급 + 가게 승인",    pct: 100, color: C.green },
     { label: "알림 시스템 + 친구 초대 레퍼럴",             pct: 100, color: C.green },
+    { label: "쿠폰 시스템 (관리자·사장님·사용자 전체)",    pct: 100, color: C.green },
+    { label: "PWA 설치 배너 + manifest + 앱 아이콘",       pct: 100, color: C.green },
+    { label: "주문 상세 페이지 + 에러/로딩/404 페이지",    pct: 100, color: C.green },
     { label: "Supabase Realtime (주문·상태 실시간 추적)",  pct: 100, color: C.green },
     { label: "DB RPC 함수 (상태변경·PICK적립·차감)",       pct: 100, color: C.green },
     { label: "FCM 푸시 알림",                              pct: 0,   color: C.red },
   ];
 
   progressItems.forEach((item, i) => {
-    const y = 1.05 + i * 0.43;
+    const y = 1.0 + i * 0.36;
     const barW = 5.5;
 
     slide.addText(item.label, {
-      x: 0.5, y: y + 0.05, w: 4.2, h: 0.34,
-      fontSize: 11, color: C.textDark,
+      x: 0.5, y: y + 0.04, w: 4.2, h: 0.28,
+      fontSize: 10.5, color: C.textDark,
     });
 
     slide.addShape(prs.ShapeType.rect, {
-      x: 4.85, y: y + 0.11, w: barW, h: 0.18,
+      x: 4.85, y: y + 0.1, w: barW, h: 0.15,
       fill: { color: "E5E7EB" }, line: { color: "E5E7EB" },
     });
     if (item.pct > 0) {
       slide.addShape(prs.ShapeType.rect, {
-        x: 4.85, y: y + 0.11, w: barW * item.pct / 100, h: 0.18,
+        x: 4.85, y: y + 0.1, w: barW * item.pct / 100, h: 0.15,
         fill: { color: item.color }, line: { color: item.color },
       });
     }
 
     slide.addText(`${item.pct}%`, {
-      x: 10.5, y: y + 0.05, w: 0.7, h: 0.34,
-      fontSize: 11, bold: true, color: item.color, align: "right",
+      x: 10.5, y: y + 0.04, w: 0.7, h: 0.28,
+      fontSize: 10.5, bold: true, color: item.color, align: "right",
     });
   });
 
   // 우측 요약 박스
   const summary = [
-    { icon: "✅", label: "완료 기능",  value: "30개+", color: C.green,  pale: C.greenPale },
+    { icon: "✅", label: "완료 기능",  value: "38개+", color: C.green,  pale: C.greenPale },
     { icon: "🚧", label: "진행 중",    value: "0개",   color: C.yellow, pale: "FFFBEB" },
     { icon: "⏳", label: "미착수",     value: "1개",   color: C.orange, pale: C.orangePale },
   ];
@@ -440,12 +443,94 @@ const C = {
   });
 }
 
-// ── 슬라이드 7 — 완료된 기능 전체 목록 (4/11 기준) ───
+// ── 슬라이드 7 — Day 5 작업 내역 (4/11~12) ──────────
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("✅  완료된 기능 전체 목록 (4/11 기준)", {
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 2.8, h: 0.55,
+    fill: { color: "FCE7F3" }, line: { color: "DB2777" },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 04. 11~12 (Day 5)", {
+    x: 0.4, y: 0.18, w: 2.8, h: 0.55,
+    fontSize: 11, bold: true, color: "DB2777", align: "center",
+  });
+
+  slide.addText("🎁  쿠폰·PWA·주문상세·에러/로딩 페이지 완성", {
+    x: 3.4, y: 0.22, w: 10.2, h: 0.55,
+    fontSize: 19, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day5 = [
+    {
+      emoji: "🎟️", title: "쿠폰 시스템 전체",
+      desc: "관리자·사장님·사용자 쿠폰 API\n고정할인·비율할인·무료배달 3종\nCartBottomSheet 할인 적용 연동",
+    },
+    {
+      emoji: "📱", title: "PWA 앱 설치",
+      desc: "manifest.json + 앱 아이콘 SVG\nAndroid beforeinstallprompt 배너\niOS Safari '홈 화면 추가' 안내",
+    },
+    {
+      emoji: "📋", title: "주문 상세 페이지",
+      desc: "/orders/[orderId] 신규 구현\n실시간 5단계 진행 스테퍼\n리뷰 모달 + 재주문 + 취소 버튼",
+    },
+    {
+      emoji: "⚠️", title: "에러·로딩·404 페이지",
+      desc: "app/not-found.tsx (404 브랜드)\napp/error.tsx (에러 바운더리)\napp/loading.tsx (스플래시 화면)",
+    },
+    {
+      emoji: "🏠", title: "홈 화면 업그레이드",
+      desc: "프로모션 배너 (가로 스크롤 3종)\n인기 가게 섹션 fetchTopStores\npick-bounce-dot CSS 애니메이션",
+    },
+    {
+      emoji: "🔊", title: "사장님 소리 알림",
+      desc: "Web Audio API 신규주문 알림음\nVolume 토글 버튼 (헤더 우측)\n파일 없이 브라우저 네이티브 생성",
+    },
+  ];
+
+  day5.forEach((item, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 2);
+    const x = 0.4 + col * 4.47;
+    const y = 1.0 + row * 2.35;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.2, h: 2.15,
+      fill: { color: "FCE7F3" }, line: { color: "F9A8D4" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: y + 0.2, w: 0.58, h: 0.58,
+      fill: { color: C.white }, line: { color: "F9A8D4" },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.18, y: y + 0.18, w: 0.6, h: 0.6,
+      fontSize: 18, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 0.88, y: y + 0.22, w: 3.14, h: 0.4,
+      fontSize: 12, bold: true, color: "DB2777",
+    });
+    slide.addText(item.desc, {
+      x: x + 0.22, y: y + 0.75, w: 3.8, h: 1.25,
+      fontSize: 10.5, color: C.textDark, wrap: true,
+    });
+  });
+}
+
+// ── 슬라이드 8 — 완료된 기능 전체 목록 (4/12 기준) ───
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addText("✅  완료된 기능 전체 목록 (4/12 기준)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 24, bold: true, color: C.purpleDark,
   });
@@ -467,14 +552,14 @@ const C = {
       ],
     },
     {
-      title: "🏠 사용자 탭 (4개)",
+      title: "🏠 사용자 탭 (4개) + PWA",
       color: C.blue, pale: C.bluePale,
       items: [
-        "홈: 카테고리 그리드 + 검색 + 즐겨찾기",
+        "홈: 카테고리 그리드 + 인기가게 + 프로모션",
         "지갑: 실잔액 + 충전 + PICK 보내기",
-        "PICK주문: Realtime 추적 + 취소 + 재주문",
-        "리뷰 작성 (별점 + 10 PICK 보상)",
+        "PICK주문: Realtime 추적 + 상세 + 재주문",
         "알림 드로어 + 자동 알림 트리거",
+        "PWA manifest + 앱 설치 배너 (Android/iOS)",
       ],
     },
     {
@@ -484,7 +569,7 @@ const C = {
         "가맹점 목록 (카테고리/검색 필터)",
         "가맹점 상세 + 메뉴 + 리뷰 목록",
         "메뉴 옵션 선택 UI (OptionSelectModal)",
-        "배달 주소 실DB + 배달 메모 + PICK 할인",
+        "쿠폰 적용 + PICK 할인 + 배달 메모",
         "주문 생성 + PICK 차감 + 완료 적립",
       ],
     },
@@ -492,11 +577,11 @@ const C = {
       title: "👨‍🍳 사장님 기능",
       color: C.yellow, pale: "FFFBEB",
       items: [
-        "가게 등록 배너 + 모달 (신규 사장님)",
+        "가게 등록 + 설정 + 쿠폰 관리",
         "주문 관리: 수락 ETA + 거절 확인 팝업",
         "메뉴 옵션 그룹/옵션 CRUD UI",
         "매출 통계 대시보드 + 주간 차트",
-        "useStoreOrderStatusRealtime 실시간",
+        "신규 주문 소리 알림 (Web Audio API)",
       ],
     },
     {
@@ -511,14 +596,14 @@ const C = {
       ],
     },
     {
-      title: "🛡️ 관리자 / DB 인프라",
+      title: "🛡️ 관리자 / UX 인프라",
       color: C.orange, pale: C.orangePale,
       items: [
         "관리자: 유저 목록 + PICK 직접 지급",
-        "관리자: 가게 승인 탭 + 건수 배지",
+        "관리자: 가게 승인 + 쿠폰 전체 관리",
+        "404·에러·로딩·스플래시 페이지",
         "setup-functions.sql (RPC 3개)",
-        "Supabase Realtime 테이블 등록",
-        "add-user-addresses.sql 마이그레이션",
+        "add-coupons.sql 쿠폰 테이블 마이그레이션",
       ],
     },
   ];
@@ -572,7 +657,7 @@ const C = {
     fill: { color: C.greenPale }, line: { color: C.green },
     rectRadius: 0.12,
   });
-  slide.addText("🎉  Phase 1 MVP 완료! 전체 주문 플로우 (사용자→사장님→라이더) 실동작 연결", {
+  slide.addText("🎉  Phase 1 MVP 완성! 쿠폰·PWA·주문상세·에러/로딩까지 전체 구현 완료", {
     x: 0.4, y: 1.0, w: 13.2, h: 0.6,
     fontSize: 14, bold: true, color: C.green, align: "center",
   });
@@ -582,8 +667,8 @@ const C = {
       priority: "🔴 즉시",
       pColor: C.red, pPale: C.redPale,
       items: [
-        { title: "DB 함수 실행", desc: "setup-functions.sql 실행\nupdate_order_status / reward_pick\nRealtime 테이블 등록" },
-        { title: "샘플 가맹점 데이터", desc: "seed-stores.sql 실행\n6개 가맹점 + 메뉴 데이터\nowner_id 실계정 연결" },
+        { title: "DB 마이그레이션 실행", desc: "add-coupons.sql 실행 (쿠폰 테이블)\nsetup-functions.sql (RPC 3개)\nRealtime 테이블 등록 확인" },
+        { title: "샘플 데이터 투입", desc: "seed-stores.sql 실행\n6개 가맹점 + 메뉴 데이터\nowner_id 실계정 연결" },
         { title: "관리자 계정 설정", desc: "Supabase에서 role='admin' 설정\nUPDATE users SET role='admin'\n/admin/dashboard 접근 확인" },
       ],
     },
@@ -591,18 +676,18 @@ const C = {
       priority: "🟡 Phase 2",
       pColor: C.yellow, pPale: "FFFBEB",
       items: [
-        { title: "라이더 배달 현황 페이지", desc: "/rider/delivery 실동작\npicked_up→delivering→delivered\n라이더 카카오맵 내비 연동" },
-        { title: "사용자 주문 실시간 추적", desc: "/orders/[orderId] 상세 페이지\nSupabase Realtime 연동\n라이더 위치 지도 표시" },
-        { title: "FCM 푸시 알림",           desc: "Firebase Admin SDK 설정\n주문 상태 변경 알림\n사장님 신규 주문 알림" },
+        { title: "FCM 푸시 알림", desc: "Firebase Admin SDK 설정\n주문 상태 변경 푸시\n사장님 신규 주문 알림" },
+        { title: "카카오맵 내비 연동", desc: "라이더 배달 현황 지도\n픽업지·배달지 경로 안내\nuseKakaoMap 훅 실동작" },
+        { title: "다크모드 지원", desc: "Tailwind dark: 클래스 적용\n시스템 다크모드 자동 감지\n로컬스토리지 테마 설정 저장" },
       ],
     },
     {
       priority: "🟢 Phase 3",
       pColor: C.green, pPale: C.greenPale,
       items: [
-        { title: "카카오페이 / 토스페이",  desc: "결제 모듈 연동\nPICK + 현금 혼합 결제\n환불 플로우 구현" },
-        { title: "쿠폰 / 프로모션",        desc: "쿠폰 발급/사용 시스템\n이벤트 할인 적용\n관리자 쿠폰 관리" },
-        { title: "PWA + 다크모드",         desc: "서비스 워커 + 오프라인\n다크모드 테마 전환\n앱 설치 프롬프트" },
+        { title: "카카오페이 / 토스페이", desc: "결제 모듈 연동\nPICK + 현금 혼합 결제\n환불 플로우 구현" },
+        { title: "PWA 오프라인 지원", desc: "서비스 워커 캐싱 전략\n오프라인 주문 내역 조회\nBackground Sync 활용" },
+        { title: "가맹점 광고 시스템", desc: "가맹점 상단 노출 광고\n광고 단가 PICK 결제\n관리자 광고 승인 관리" },
       ],
     },
   ];
@@ -669,12 +754,12 @@ const C = {
       statusColor: C.green,
       items: [
         "✅ 로그인 / 회원가입 + 지갑 자동생성",
-        "✅ 홈 탭 + 검색 + 즐겨찾기",
-        "✅ 지갑 탭 + 충전 + PICK 보내기",
-        "✅ 주문 + 메뉴 옵션 + 배달 주소",
-        "✅ 리뷰 + 레퍼럴 + 알림 시스템",
-        "✅ 사장님 / 라이더 / 관리자",
-        "✅ Realtime + DB RPC 함수",
+        "✅ 홈 탭 + 검색 + 인기가게 + 프로모션",
+        "✅ 지갑·주문·리뷰·레퍼럴·알림 시스템",
+        "✅ 사장님 / 라이더 / 관리자 전체",
+        "✅ 쿠폰 시스템 (3종) + 관리자 탭",
+        "✅ PWA 설치 배너 + 에러/404/로딩",
+        "✅ 주문 상세 실시간 추적 페이지",
         "⏳ FCM 푸시 알림",
       ],
     },
@@ -686,10 +771,10 @@ const C = {
       status: "진행 예정",
       statusColor: C.textSub,
       items: [
-        "⏳ 라이더 배달 현황 실동작",
-        "⏳ 사용자 주문 실시간 추적",
         "⏳ FCM 푸시 알림",
+        "⏳ 카카오맵 내비 연동 (라이더)",
         "⏳ PICK 등급 혜택 적용",
+        "⏳ 다크모드 지원",
         "⏳ 매출 고급 통계",
         "⏳ 가맹점 광고 노출 시스템",
       ],
@@ -703,11 +788,11 @@ const C = {
       statusColor: C.textSub,
       items: [
         "⏳ 카카오페이 / 토스페이",
-        "⏳ 쿠폰 / 프로모션",
+        "⏳ PWA 오프라인 (서비스 워커)",
         "⏳ 가맹점 광고 시스템",
-        "⏳ PWA 오프라인 지원",
-        "⏳ 다크모드",
-        "⏳ Sentry 모니터링",
+        "⏳ Sentry 모니터링 연동",
+        "⏳ Redis 캐싱 레이어",
+        "⏳ 성능 최적화 (Lighthouse)",
       ],
     },
     {
