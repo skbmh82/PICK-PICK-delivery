@@ -33,7 +33,7 @@ export default function OrderCompletePage() {
       </div>
 
       {/* 주문 요약 카드 */}
-      <div className="w-full bg-white rounded-3xl border-2 border-pick-border shadow-sm p-5 mb-4">
+      <div className="w-full bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm p-5 mb-4">
         {/* 가게명 */}
         <div className="flex items-center gap-3 mb-4 pb-4 border-b border-pick-border">
           <span className="text-4xl">{lastOrder.storeEmoji}</span>
@@ -96,7 +96,7 @@ export default function OrderCompletePage() {
       </div>
 
       {/* 배달 정보 */}
-      <div className="w-full bg-white rounded-3xl border-2 border-pick-border shadow-sm px-5 py-4 mb-6">
+      <div className="w-full bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm px-5 py-4 mb-6">
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-2xl bg-pick-bg flex items-center justify-center flex-shrink-0">

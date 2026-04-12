@@ -75,7 +75,7 @@ export default function InstallPrompt() {
 
   return (
     <div className="fixed bottom-[72px] left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[390px] z-50 animate-in slide-in-from-bottom-4 duration-300">
-      <div className="bg-white rounded-3xl border-2 border-pick-border shadow-2xl px-4 py-4">
+      <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-2xl px-4 py-4">
         <div className="flex items-start gap-3">
           {/* 앱 아이콘 */}
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-pick-purple to-pick-purple-light flex items-center justify-center flex-shrink-0 shadow-md">

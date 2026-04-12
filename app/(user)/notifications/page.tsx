@@ -103,7 +103,7 @@ export default function NotificationsPage() {
   return (
     <div className="min-h-screen bg-pick-bg pb-24">
       {/* 헤더 */}
-      <div className="sticky top-0 z-10 bg-white border-b border-pick-border">
+      <div className="sticky top-0 z-10 bg-white dark:bg-pick-card border-b border-pick-border">
         <div className="flex items-center gap-3 px-4 py-4">
           <button
             onClick={() => router.back()}
@@ -143,7 +143,7 @@ export default function NotificationsPage() {
         {loading ? (
           <div className="flex flex-col gap-3">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-3xl p-4 shadow-sm animate-pulse">
+              <div key={i} className="bg-white dark:bg-pick-card rounded-3xl p-4 shadow-sm animate-pulse">
                 <div className="flex gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-gray-100" />
                   <div className="flex-1 space-y-2">

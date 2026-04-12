@@ -50,7 +50,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
       <main className="pb-20">{children}</main>
 
       {/* 사장님 전용 하단 탭 */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50 bg-white rounded-t-3xl shadow-[0_-4px_20px_rgba(217,119,6,0.15)] border-t border-amber-100">
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50 bg-white dark:bg-pick-card rounded-t-3xl shadow-[0_-4px_20px_rgba(217,119,6,0.15)] border-t border-amber-100 dark:border-pick-border">
         <ul className="flex items-center px-2 py-1">
           {OWNER_NAV.map(({ href, label, Icon }) => {
             const isActive = pathname === href;

@@ -80,7 +80,7 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen bg-pick-bg flex flex-col">
       {/* 헤더 */}
-      <header className="sticky top-0 z-10 bg-white border-b border-pick-border px-4 py-3.5 flex items-center gap-3">
+      <header className="sticky top-0 z-10 bg-white dark:bg-pick-card border-b border-pick-border px-4 py-3.5 flex items-center gap-3">
         <button
           onClick={() => router.back()}
           className="w-9 h-9 flex items-center justify-center rounded-full bg-pick-bg border-2 border-pick-border active:scale-95 transition-transform"

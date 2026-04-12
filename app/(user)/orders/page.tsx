@@ -117,7 +117,7 @@ function ReviewModal({
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-[55]" onClick={onClose} />
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white rounded-t-3xl shadow-2xl">
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white dark:bg-pick-card rounded-t-3xl shadow-2xl">
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-pick-border">
           <div className="flex items-center gap-2">
             <span className="text-3xl">{storeEmoji}</span>
@@ -253,7 +253,7 @@ function ActiveOrderCard({
   };
 
   return (
-    <div className="bg-white rounded-3xl border-2 border-pick-purple/30 shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-purple/30 shadow-sm overflow-hidden">
       {/* 상태 바 */}
       <div className={`px-4 py-2.5 flex items-center gap-2 border-b ${cfg.bg}`}>
         <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
@@ -357,7 +357,7 @@ function CompletedOrderCard({
   const isDelivered = order.status === "delivered";
 
   return (
-    <div className="bg-white rounded-3xl border-2 border-pick-border shadow-sm px-4 py-4">
+    <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm px-4 py-4">
       <div className="flex items-center gap-3 mb-2">
         <span className="text-3xl">{storeEmoji}</span>
         <div className="flex-1 min-w-0">
@@ -503,7 +503,7 @@ export default function OrdersPage() {
         <h2 className="font-bold text-pick-text text-sm mb-3 px-1">진행 중인 주문</h2>
 
         {loading && activeOrders.length === 0 ? (
-          <div className="bg-white rounded-3xl border-2 border-pick-border p-8 flex items-center justify-center">
+          <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border p-8 flex items-center justify-center">
             <div className="w-6 h-6 border-2 border-pick-purple border-t-transparent rounded-full animate-spin" />
           </div>
         ) : activeOrders.length > 0 ? (
@@ -513,7 +513,7 @@ export default function OrdersPage() {
             ))}
           </div>
         ) : showLastOrderFallback ? (
-          <div className="bg-white rounded-3xl border-2 border-pick-purple/30 shadow-sm p-4">
+          <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-purple/30 shadow-sm p-4">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-2xl">{lastOrder!.storeEmoji}</span>
               <p className="font-black text-pick-text">{lastOrder!.storeName}</p>
@@ -524,7 +524,7 @@ export default function OrdersPage() {
             <p className="mt-2 text-xs text-pick-purple font-bold">⏳ 주문 처리 중...</p>
           </div>
         ) : (
-          <div className="bg-white rounded-3xl border-2 border-pick-border p-10 flex flex-col items-center text-pick-text-sub shadow-sm">
+          <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border p-10 flex flex-col items-center text-pick-text-sub shadow-sm">
             <span className="text-5xl mb-3">🛵</span>
             <p className="text-sm font-medium">진행 중인 주문이 없어요</p>
           </div>
@@ -547,7 +547,7 @@ export default function OrdersPage() {
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-3xl border-2 border-pick-border p-10 flex flex-col items-center text-pick-text-sub shadow-sm">
+          <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border p-10 flex flex-col items-center text-pick-text-sub shadow-sm">
             <ClipboardList size={44} className="mb-3 opacity-20" />
             <p className="text-sm font-medium">아직 주문 내역이 없어요</p>
             <p className="text-xs mt-1 opacity-70">첫 주문을 시작해보세요!</p>

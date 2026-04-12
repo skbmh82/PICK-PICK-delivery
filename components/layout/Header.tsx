@@ -43,9 +43,9 @@ function NotificationDrawer({
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-[55]" onClick={onClose} />
-      <div className="fixed top-0 right-0 h-full w-full max-w-[380px] z-[60] bg-white shadow-2xl flex flex-col">
+      <div className="fixed top-0 right-0 h-full w-full max-w-[380px] z-[60] bg-white dark:bg-pick-card shadow-2xl flex flex-col">
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-pick-border">
           <div className="flex items-center gap-2">
             <h2 className="font-black text-pick-text text-lg">알림</h2>
             {unread > 0 && (
@@ -80,13 +80,13 @@ function NotificationDrawer({
               <p className="text-sm font-medium">알림이 없어요</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-gray-50 dark:divide-pick-border">
               {notifications.map((n) => (
                 <button
                   key={n.id}
                   onClick={() => { if (!n.isRead) onReadOne(n.id); }}
                   className={`w-full flex items-start gap-3 px-5 py-4 text-left transition-colors ${
-                    n.isRead ? "bg-white" : "bg-pick-bg"
+                    n.isRead ? "bg-white dark:bg-pick-card" : "bg-pick-bg"
                   }`}
                 >
                   <NotifIcon type={n.type} />

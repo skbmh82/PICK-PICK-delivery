@@ -38,7 +38,7 @@ function ChargeModal({ onClose, onCharged }: { onClose: () => void; onCharged: (
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-[55]" onClick={onClose} />
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white rounded-t-3xl shadow-2xl">
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white dark:bg-pick-card rounded-t-3xl shadow-2xl">
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-pick-border">
           <h2 className="font-black text-pick-text text-lg">PICK 충전 💜</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-pick-bg">
@@ -169,7 +169,7 @@ function TransferModal({
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-[55]" onClick={onClose} />
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white rounded-t-3xl shadow-2xl">
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white dark:bg-pick-card rounded-t-3xl shadow-2xl">
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-pick-border">
           <h2 className="font-black text-pick-text text-lg">PICK 보내기 🚀</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-pick-bg">
@@ -376,7 +376,7 @@ function CouponSection() {
   };
 
   return (
-    <div className="bg-white rounded-3xl border-2 border-pick-border shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm overflow-hidden">
       {/* 헤더 */}
       <button
         onClick={() => setExpanded((v) => !v)}
@@ -410,7 +410,7 @@ function CouponSection() {
                 onKeyDown={(e) => e.key === "Enter" && handleRegister()}
                 placeholder="쿠폰 코드 입력 (예: WELCOME50)"
                 maxLength={30}
-                className="flex-1 border-2 border-pick-border rounded-2xl px-4 py-2.5 text-sm text-pick-text bg-white focus:outline-none focus:border-pick-purple uppercase placeholder:normal-case"
+                className="flex-1 border-2 border-pick-border rounded-2xl px-4 py-2.5 text-sm text-pick-text bg-white dark:bg-pick-surface focus:outline-none focus:border-pick-purple uppercase placeholder:normal-case"
               />
               <button
                 onClick={() => void handleRegister()}
@@ -661,13 +661,13 @@ export default function WalletPage() {
           </div>
 
           {transactions.length === 0 ? (
-            <div className="bg-white rounded-3xl border-2 border-pick-border p-10 flex flex-col items-center text-pick-text-sub shadow-sm">
+            <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border p-10 flex flex-col items-center text-pick-text-sub shadow-sm">
               <Wallet size={44} className="mb-3 opacity-20" />
               <p className="text-sm font-medium">아직 거래 내역이 없어요</p>
               <p className="text-xs mt-1 opacity-70">충전하고 첫 주문을 해보세요!</p>
             </div>
           ) : (
-            <div className="bg-white rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
+            <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
               {transactions.map((tx) => {
                 const cfg    = TX_CONFIG[tx.type] ?? TX_CONFIG.charge;
                 const isPlus = cfg.sign === "+";

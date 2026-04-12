@@ -14,7 +14,7 @@ async function SearchResultsView({ query }: { query: string }) {
       <div className="flex items-center gap-2 mb-4">
         <Link
           href="/home"
-          className="w-9 h-9 flex items-center justify-center rounded-full bg-white border-2 border-pick-border shadow-sm active:scale-95 transition-transform"
+          className="w-9 h-9 flex items-center justify-center rounded-full bg-white dark:bg-pick-card border-2 border-pick-border shadow-sm active:scale-95 transition-transform"
         >
           <ArrowLeft size={18} className="text-pick-purple" />
         </Link>
@@ -76,7 +76,7 @@ function SponsoredStoreCard({ store }: { store: AdStore }) {
   return (
     <Link
       href={`/store/${store.id}`}
-      className="block bg-white rounded-3xl border-2 border-amber-200 shadow-sm active:scale-95 transition-transform duration-150 overflow-hidden relative"
+      className="block bg-white dark:bg-pick-card rounded-3xl border-2 border-amber-200 shadow-sm active:scale-95 transition-transform duration-150 overflow-hidden relative"
     >
       {/* SPONSORED 뱃지 */}
       <div className="absolute top-3 left-3 z-10 flex items-center gap-1 bg-amber-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow">
@@ -242,7 +242,7 @@ function HotStoreCard({ store }: { store: StoreRow }) {
   return (
     <Link
       href={`/store/${store.id}`}
-      className="flex-shrink-0 w-40 bg-white rounded-3xl border-2 border-pick-border shadow-sm active:scale-95 transition-transform overflow-hidden"
+      className="flex-shrink-0 w-40 bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm active:scale-95 transition-transform overflow-hidden"
     >
       <div className="h-24 bg-gradient-to-br from-pick-bg to-pick-border flex items-center justify-center">
         <span className="text-5xl">{emoji}</span>
@@ -322,7 +322,7 @@ function StoreCard({ store }: { store: StoreRow }) {
   return (
     <Link
       href={`/store/${store.id}`}
-      className="block bg-white rounded-3xl border-2 border-pick-border shadow-sm active:scale-95 transition-transform duration-150 overflow-hidden"
+      className="block bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm active:scale-95 transition-transform duration-150 overflow-hidden"
     >
       <div className="h-36 bg-gradient-to-br from-pick-bg to-pick-border flex items-center justify-center">
         <span className="text-7xl">{emoji}</span>
@@ -386,7 +386,7 @@ async function StoreListView({ category }: { category: string }) {
       <div className="flex items-center gap-2 mb-4">
         <Link
           href="/home"
-          className="w-9 h-9 flex items-center justify-center rounded-full bg-white border-2 border-pick-border shadow-sm active:scale-95 transition-transform"
+          className="w-9 h-9 flex items-center justify-center rounded-full bg-white dark:bg-pick-card border-2 border-pick-border shadow-sm active:scale-95 transition-transform"
         >
           <ArrowLeft size={18} className="text-pick-purple" />
         </Link>

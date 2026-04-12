@@ -303,7 +303,7 @@ export default function CartBottomSheet({ onClose }: Props) {
     <>
       <div className="fixed inset-0 bg-black/40 z-[55] backdrop-blur-[1px]" onClick={onClose} />
 
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white rounded-t-3xl shadow-2xl max-h-[90dvh] flex flex-col overflow-hidden">
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white dark:bg-pick-card rounded-t-3xl shadow-2xl max-h-[90dvh] flex flex-col overflow-hidden">
         {/* 헤더 */}
         <div className="flex-shrink-0 px-5 pt-3 pb-4 border-b border-pick-border">
           <div className="w-10 h-1 bg-pick-border rounded-full mx-auto mb-4" />
@@ -342,7 +342,7 @@ export default function CartBottomSheet({ onClose }: Props) {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button onClick={() => cart.updateQuantity(item.menuId, -1)}
-                    className="w-7 h-7 rounded-full bg-white border-2 border-pick-border flex items-center justify-center active:scale-90 transition-transform">
+                    className="w-7 h-7 rounded-full bg-white dark:bg-pick-card border-2 border-pick-border flex items-center justify-center active:scale-90 transition-transform">
                     <Minus size={12} className="text-pick-purple" />
                   </button>
                   <span className="w-5 text-center font-black text-pick-text text-sm">{item.quantity}</span>
@@ -437,7 +437,7 @@ export default function CartBottomSheet({ onClose }: Props) {
               </button>
 
               {showCouponPicker && (
-                <div className="mt-1 bg-white border-2 border-pick-border rounded-2xl overflow-hidden">
+                <div className="mt-1 bg-white dark:bg-pick-card border-2 border-pick-border rounded-2xl overflow-hidden">
                   {/* 쿠폰 없음 옵션 */}
                   <button
                     onClick={() => { setSelectedCoupon(null); setShowCouponPicker(false); }}

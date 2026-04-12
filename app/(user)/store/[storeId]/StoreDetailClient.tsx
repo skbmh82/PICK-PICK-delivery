@@ -130,7 +130,7 @@ function OptionSelectModal({
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-[65] backdrop-blur-[1px]" onClick={onClose} />
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[70] bg-white rounded-t-3xl shadow-2xl max-h-[85dvh] flex flex-col overflow-hidden">
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[70] bg-white dark:bg-pick-card rounded-t-3xl shadow-2xl max-h-[85dvh] flex flex-col overflow-hidden">
         {/* 핸들 + 헤더 */}
         <div className="flex-shrink-0 px-5 pt-3 pb-4 border-b border-pick-border">
           <div className="w-10 h-1 bg-pick-border rounded-full mx-auto mb-4" />
@@ -227,7 +227,7 @@ function MenuItemCard({ menu, onAdd }: { menu: MenuItem; onAdd: () => void }) {
   const count = cartItems.find((i) => i.menuId === menu.id)?.quantity ?? 0;
 
   return (
-    <div className="flex items-center gap-4 bg-white rounded-3xl border-2 border-pick-border px-4 py-4 shadow-sm">
+    <div className="flex items-center gap-4 bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border px-4 py-4 shadow-sm">
       {/* 이모지 썸네일 */}
       <div className="w-20 h-20 flex-shrink-0 rounded-2xl bg-pick-bg border border-pick-border flex items-center justify-center">
         <span className="text-4xl">{menu.image}</span>
@@ -319,7 +319,7 @@ function ReviewSection({ reviews, rating, reviewCount }: { reviews: ReviewItem[]
           <span className="text-pick-text-sub text-xs">({reviewCount})</span>
         </span>
       </div>
-      <div className="bg-white rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
+      <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
         {reviews.map((r) => (
           <div key={r.id} className="px-4 py-4">
             <div className="flex items-center justify-between mb-1.5">
@@ -459,7 +459,7 @@ export default function StoreDetailClient({
       </div>
 
       {/* ── 가게 정보 카드 ── */}
-      <div className="mx-4 -mt-6 bg-white rounded-3xl border-2 border-pick-border shadow-lg px-5 py-5 mb-5">
+      <div className="mx-4 -mt-6 bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-lg px-5 py-5 mb-5">
         <span className="text-xs font-bold text-pick-purple bg-pick-bg border border-pick-border px-3 py-1 rounded-full">
           {categoryInfo?.emoji} {categoryInfo?.label}
         </span>

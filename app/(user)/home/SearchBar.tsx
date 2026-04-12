@@ -32,7 +32,7 @@ export default function SearchBar() {
   return (
     <div className="px-4 pt-4 pb-3">
       <form onSubmit={handleSubmit}>
-        <div className="flex items-center gap-3 bg-white rounded-full px-5 py-3.5 border-2 border-pick-border shadow-sm focus-within:border-pick-purple transition-colors">
+        <div className="flex items-center gap-3 bg-white dark:bg-pick-card rounded-full px-5 py-3.5 border-2 border-pick-border shadow-sm focus-within:border-pick-purple transition-colors">
           <Search size={18} className="text-pick-purple flex-shrink-0" />
           <input
             type="text"

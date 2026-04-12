@@ -8,9 +8,10 @@ import {
   User, MapPin, Heart, Star, Gift, Bell, HelpCircle, LogOut,
   ChevronRight, Store, Bike, LayoutDashboard, ClipboardList,
   TrendingUp, Navigation, Wallet, RefreshCw, Pencil, X, Check,
-  Copy, Share2, Plus, Trash2, Home, Briefcase,
+  Copy, Share2, Plus, Trash2, Home, Briefcase, Moon, Sun,
 } from "lucide-react";
 import { getCategoryEmoji } from "@/lib/utils/categoryEmoji";
+import { useTheme } from "@/hooks/useTheme";
 
 // ── 타입 ──────────────────────────────────────────────
 interface Grade    { label: string; earned: number; nextThreshold: number; multiplier?: number }
@@ -144,7 +145,7 @@ function FavoritesSection({ favorites }: { favorites: Favorite[] }) {
         <Heart size={16} className="text-red-400" />
         <h3 className="font-bold text-pick-text text-sm">즐겨찾기 가맹점</h3>
       </div>
-      <div className="bg-white rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
+      <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
         {favorites.map((fav) => (
           <Link
             key={fav.storeId}
@@ -180,7 +181,7 @@ function ReviewsSection({ reviews }: { reviews: Review[] }) {
         <Star size={16} className="text-pick-yellow fill-pick-yellow" />
         <h3 className="font-bold text-pick-text text-sm">내 리뷰</h3>
       </div>
-      <div className="bg-white rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
+      <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
         {reviews.map((r) => (
           <div key={r.id} className="px-4 py-3.5">
             <div className="flex items-center justify-between mb-1">
@@ -251,7 +252,7 @@ function EditProfileModal({
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-[55]" onClick={onClose} />
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white rounded-t-3xl shadow-2xl">
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white dark:bg-pick-card rounded-t-3xl shadow-2xl">
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-pick-border">
           <h2 className="font-black text-pick-text text-lg">프로필 수정 ✏️</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-pick-bg">
@@ -408,7 +409,7 @@ function ReferralCard() {
       </div>
 
       {/* 코드 입력 (친구에게 받은 코드) */}
-      <div className="bg-white rounded-3xl border-2 border-pick-border p-4 shadow-sm">
+      <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border p-4 shadow-sm">
         <p className="text-xs font-bold text-pick-text mb-2">
           친구에게 초대 코드를 받았나요?
         </p>
@@ -606,7 +607,7 @@ function AddressManagerModal({ onClose }: { onClose: () => void }) {
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-[55]" onClick={onClose} />
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col">
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white dark:bg-pick-card rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col">
         {/* 헤더 */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-pick-border flex-shrink-0">
           <div>
@@ -634,7 +635,7 @@ function AddressManagerModal({ onClose }: { onClose: () => void }) {
             addresses.map((addr) => (
               <div
                 key={addr.id}
-                className={`bg-white rounded-3xl border-2 px-4 py-4 shadow-sm ${
+                className={`bg-white dark:bg-pick-card rounded-3xl border-2 px-4 py-4 shadow-sm ${
                   addr.isDefault ? "border-pick-purple" : "border-pick-border"
                 }`}
               >
@@ -703,7 +704,7 @@ function AddressManagerModal({ onClose }: { onClose: () => void }) {
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-bold transition-all ${
                     label === l
                       ? "bg-pick-purple text-white"
-                      : "bg-white border-2 border-pick-border text-pick-text-sub"
+                      : "bg-white dark:bg-pick-card border-2 border-pick-border text-pick-text-sub"
                   }`}
                 >
                   {LABEL_ICON[l]} {l}
@@ -712,7 +713,7 @@ function AddressManagerModal({ onClose }: { onClose: () => void }) {
             </div>
             {/* 주소 검색 레이어 */}
             {searchOpen && (
-              <div className="fixed inset-0 z-[70] flex flex-col bg-white rounded-t-3xl">
+              <div className="fixed inset-0 z-[70] flex flex-col bg-white dark:bg-pick-card rounded-t-3xl">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-pick-border flex-shrink-0">
                   <p className="font-black text-pick-text text-sm">주소 검색 🔍</p>
                   <button
@@ -845,6 +846,7 @@ export default function MyPickPage() {
   const user    = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
   const router  = useRouter();
+  const { isDark, toggle: toggleTheme } = useTheme();
 
   const [meData,       setMeData]       = useState<MeData | null>(null);
   const [loadingMe,    setLoadingMe]    = useState(false);
@@ -934,7 +936,7 @@ export default function MyPickPage() {
 
       {/* 프로필 카드 */}
       <div className="px-4 pt-4 pb-4">
-        <div className="bg-white rounded-3xl border-2 border-pick-border p-5 flex items-center gap-4 shadow-sm">
+        <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border p-5 flex items-center gap-4 shadow-sm">
           {/* 프로필 이미지 */}
           <div className="relative flex-shrink-0">
             <input ref={pfpInputRef} type="file" accept="image/*" className="hidden"
@@ -1016,16 +1018,37 @@ export default function MyPickPage() {
       <ReferralCard />
 
       {/* 메뉴 목록 */}
-      <div className="mx-4 bg-white rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
+      <div className="mx-4 bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
         <MenuItem icon={<MapPin  size={18} />} label="배달 주소 관리" onClick={() => setAddressOpen(true)} />
         <MenuItem icon={<Heart   size={18} />} label="즐겨찾기 가맹점" />
         <MenuItem icon={<Star    size={18} />} label="내 리뷰" />
         <MenuItem icon={<Bell    size={18} />} label="알림" href="/notifications" />
         <MenuItem icon={<HelpCircle size={18} />} label="공지사항 / FAQ" />
+        {/* 다크모드 토글 */}
+        <div className="flex items-center justify-between px-5 py-4">
+          <div className="flex items-center gap-3.5">
+            <span className="w-9 h-9 flex items-center justify-center rounded-2xl bg-pick-bg text-pick-purple">
+              {isDark ? <Moon size={18} /> : <Sun size={18} />}
+            </span>
+            <span className="text-sm text-pick-text font-semibold">
+              {isDark ? "다크 모드" : "라이트 모드"}
+            </span>
+          </div>
+          <button
+            onClick={toggleTheme}
+            className={`relative w-12 h-6 rounded-full transition-all duration-300 ${
+              isDark ? "bg-pick-purple" : "bg-gray-200"
+            }`}
+          >
+            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-300 ${
+              isDark ? "left-6" : "left-0.5"
+            }`} />
+          </button>
+        </div>
       </div>
 
       {/* 로그아웃 */}
-      <div className="mx-4 mt-3 bg-white rounded-3xl border-2 border-red-100 overflow-hidden shadow-sm">
+      <div className="mx-4 mt-3 bg-white dark:bg-pick-card rounded-3xl border-2 border-red-100 overflow-hidden shadow-sm">
         <button
           onClick={() => void handleSignOut()}
           className="flex items-center gap-3.5 w-full px-5 py-4 text-red-500 hover:bg-red-50 active:bg-red-100 transition-colors"

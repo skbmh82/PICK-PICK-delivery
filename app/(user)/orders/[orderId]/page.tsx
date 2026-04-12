@@ -144,7 +144,7 @@ function ReviewModal({
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-[55]" onClick={onClose} />
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white rounded-t-3xl shadow-2xl">
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white dark:bg-pick-card rounded-t-3xl shadow-2xl">
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-pick-border">
           <div className="flex items-center gap-2">
             <span className="text-3xl">{emoji}</span>
@@ -333,7 +333,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
 
         {/* 진행 단계 (취소·환불 제외) */}
         {isActive && stepIdx >= 0 && (
-          <div className="bg-white rounded-3xl border-2 border-pick-border shadow-sm px-5 py-5">
+          <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm px-5 py-5">
             <p className="text-xs font-bold text-pick-text-sub mb-4">주문 진행 현황</p>
             <div className="flex items-center gap-1">
               {STEP_LABELS.map((label, i) => {
@@ -418,7 +418,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
         )}
 
         {/* 가게 정보 */}
-        <div className="bg-white rounded-3xl border-2 border-pick-border shadow-sm px-5 py-4">
+        <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm px-5 py-4">
           <div className="flex items-center gap-3 mb-3">
             <span className="text-4xl">{emoji}</span>
             <div className="flex-1 min-w-0">
@@ -439,7 +439,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
         </div>
 
         {/* 주문 아이템 */}
-        <div className="bg-white rounded-3xl border-2 border-pick-border shadow-sm px-5 py-4">
+        <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm px-5 py-4">
           <p className="text-xs font-bold text-pick-text-sub mb-3">주문 내역</p>
           <div className="flex flex-col gap-3">
             {order.order_items.map((item) => (
@@ -464,7 +464,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
         </div>
 
         {/* 결제 요약 */}
-        <div className="bg-white rounded-3xl border-2 border-pick-border shadow-sm px-5 py-4">
+        <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm px-5 py-4">
           <p className="text-xs font-bold text-pick-text-sub mb-3">결제 정보</p>
           <div className="flex flex-col gap-2 text-sm">
             <div className="flex justify-between">
@@ -501,7 +501,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
         </div>
 
         {/* 배달 정보 */}
-        <div className="bg-white rounded-3xl border-2 border-pick-border shadow-sm px-5 py-4">
+        <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm px-5 py-4">
           <p className="text-xs font-bold text-pick-text-sub mb-3">배달 정보</p>
           <div className="flex items-start gap-2 mb-2">
             <MapPin size={14} className="text-pick-purple mt-0.5 flex-shrink-0" />
@@ -537,7 +537,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
             )}
             <button
               onClick={handleReorder}
-              className="flex items-center justify-center gap-2 bg-white border-2 border-pick-border text-pick-purple font-black py-4 px-6 rounded-full active:scale-95 transition-all"
+              className="flex items-center justify-center gap-2 bg-white dark:bg-pick-card border-2 border-pick-border text-pick-purple font-black py-4 px-6 rounded-full active:scale-95 transition-all"
             >
               <RotateCcw size={18} /> 재주문
             </button>
