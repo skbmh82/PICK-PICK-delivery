@@ -7,6 +7,7 @@ import {
   ClipboardList,
   UtensilsCrossed,
   TrendingUp,
+  Megaphone,
   ChevronLeft,
 } from "lucide-react";
 
@@ -14,6 +15,7 @@ const OWNER_NAV = [
   { href: "/owner/dashboard",   label: "대시보드", Icon: LayoutDashboard },
   { href: "/owner/orders",      label: "주문관리", Icon: ClipboardList },
   { href: "/owner/menu",        label: "메뉴관리", Icon: UtensilsCrossed },
+  { href: "/owner/ads",         label: "광고",     Icon: Megaphone },
   { href: "/owner/settlement",  label: "정산/매출", Icon: TrendingUp },
 ] as const;
 

@@ -1,4 +1,5 @@
 import { createServerClient } from "./server";
+import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export interface StoreRow {
   id: string;
@@ -99,6 +100,55 @@ export async function fetchTopStores(limit = 8): Promise<StoreRow[]> {
     return [];
   }
   return (data ?? []) as StoreRow[];
+}
+
+/* ─── 광고 타입 ─── */
+export interface AdStore extends StoreRow {
+  adId: string;
+  adType: "top" | "banner";
+  bannerTitle: string | null;
+  bannerSub: string | null;
+  bannerGradient: string | null;
+}
+
+// 현재 활성 광고 가게 목록 (상단 노출용)
+export async function fetchSponsoredStores(): Promise<AdStore[]> {
+  const admin = getAdminSupabaseClient();
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { data, error } = await admin
+    .from("store_ads")
+    .select(`
+      id,
+      type,
+      banner_title,
+      banner_sub,
+      banner_gradient,
+      stores (
+        id, name, category, description, address, lat, lng,
+        rating, review_count, delivery_time, delivery_fee,
+        min_order_amount, pick_reward_rate, is_open
+      )
+    `)
+    .eq("status", "active")
+    .lte("start_date", today)
+    .gte("end_date", today)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return [];
+
+  return data.flatMap((row) => {
+    const store = (Array.isArray(row.stores) ? row.stores[0] : row.stores) as StoreRow | null;
+    if (!store || !store.is_open) return [];
+    return [{
+      ...store,
+      adId:           row.id,
+      adType:         row.type as "top" | "banner",
+      bannerTitle:    row.banner_title,
+      bannerSub:      row.banner_sub,
+      bannerGradient: row.banner_gradient,
+    }];
+  });
 }
 
 // 가게 메뉴 목록

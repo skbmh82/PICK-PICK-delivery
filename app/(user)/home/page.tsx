@@ -1,7 +1,7 @@
-import { MapPin, ChevronRight, Star, Clock, Bike, ArrowLeft, Frown, Search, Zap, Gift, Flame } from "lucide-react";
+import { MapPin, ChevronRight, Star, Clock, Bike, ArrowLeft, Frown, Search, Zap, Gift, Flame, Megaphone } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
-import { fetchStoresByCategory, searchStores, fetchTopStores, type StoreRow } from "@/lib/supabase/stores";
+import { fetchStoresByCategory, searchStores, fetchTopStores, fetchSponsoredStores, type StoreRow, type AdStore } from "@/lib/supabase/stores";
 import { CATEGORY_META, getCategoryEmoji } from "@/lib/utils/categoryEmoji";
 import SearchBar from "./SearchBar";
 
@@ -69,6 +69,113 @@ const CATEGORIES = [
   { id: "dessert",  label: "디저트",   emoji: "🍰", bg: "bg-fuchsia-50",  border: "border-fuchsia-200", text: "text-fuchsia-800" },
   { id: "snacks",   label: "간식",     emoji: "🍿", bg: "bg-indigo-50",   border: "border-indigo-200",  text: "text-indigo-800" },
 ];
+
+/* ────────────── 스폰서 가게 카드 ────────────── */
+function SponsoredStoreCard({ store }: { store: AdStore }) {
+  const emoji = getCategoryEmoji(store.category);
+  return (
+    <Link
+      href={`/store/${store.id}`}
+      className="block bg-white rounded-3xl border-2 border-amber-200 shadow-sm active:scale-95 transition-transform duration-150 overflow-hidden relative"
+    >
+      {/* SPONSORED 뱃지 */}
+      <div className="absolute top-3 left-3 z-10 flex items-center gap-1 bg-amber-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow">
+        <Megaphone size={10} />
+        AD
+      </div>
+      <div className="h-36 bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center">
+        <span className="text-7xl">{emoji}</span>
+      </div>
+      <div className="px-4 pt-3 pb-4">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h3 className="font-black text-pick-text text-base leading-snug flex-1">{store.name}</h3>
+          <span className="flex-shrink-0 text-xs font-black bg-pick-yellow-light text-pick-yellow-dark px-2.5 py-1 rounded-full">
+            +{store.pick_reward_rate}%
+          </span>
+        </div>
+        {store.description && (
+          <p className="text-xs text-pick-text-sub mb-2 line-clamp-1">{store.description}</p>
+        )}
+        <div className="flex items-center gap-3 text-xs text-pick-text-sub">
+          <span className="flex items-center gap-1">
+            <Star size={12} className="text-pick-yellow fill-pick-yellow" />
+            <span className="font-bold text-pick-text">{store.rating}</span>
+            <span>({store.review_count})</span>
+          </span>
+          <span className="w-0.5 h-3 bg-pick-border" />
+          <span className="flex items-center gap-1">
+            <Clock size={12} />
+            {store.delivery_time}분
+          </span>
+          <span className="w-0.5 h-3 bg-pick-border" />
+          <span className="flex items-center gap-1">
+            <Bike size={12} />
+            {store.delivery_fee === 0
+              ? <span className="font-bold text-green-600">무료배달</span>
+              : `${store.delivery_fee.toLocaleString()}원`}
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+async function SponsoredSection() {
+  const sponsored = await fetchSponsoredStores();
+  const topAds    = sponsored.filter((s) => s.adType === "top");
+  const bannerAds = sponsored.filter((s) => s.adType === "banner");
+
+  if (topAds.length === 0 && bannerAds.length === 0) return null;
+
+  return (
+    <>
+      {/* 배너 광고 */}
+      {bannerAds.length > 0 && (
+        <div className="px-4 pt-1 pb-0">
+          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide snap-x snap-mandatory">
+            {bannerAds.map((store) => (
+              <Link
+                key={store.adId}
+                href={`/store/${store.id}`}
+                className={`flex-shrink-0 w-[76vw] max-w-[310px] snap-start bg-gradient-to-r ${
+                  store.bannerGradient ?? "from-pick-purple-dark via-pick-purple to-pick-purple-light"
+                } rounded-3xl p-5 text-white shadow-lg active:scale-95 transition-transform`}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="text-[10px] font-black px-2.5 py-1 rounded-full bg-white/25">
+                    AD
+                  </div>
+                  <Megaphone size={22} className="text-white/70" />
+                </div>
+                <p className="font-black text-base leading-snug mb-1">
+                  {store.bannerTitle ?? store.name}
+                </p>
+                <p className="text-xs text-white/80 leading-relaxed">
+                  {store.bannerSub ?? store.description ?? ""}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 상단 노출 가게 */}
+      {topAds.length > 0 && (
+        <section className="px-4 pt-3 pb-1">
+          <div className="flex items-center gap-2 mb-3">
+            <Zap size={15} className="text-amber-500 fill-amber-500" />
+            <h2 className="font-black text-pick-text text-base">광고 가게</h2>
+          </div>
+          <div className="flex flex-col gap-4">
+            {topAds.map((store) => (
+              <SponsoredStoreCard key={store.adId} store={store} />
+            ))}
+          </div>
+        </section>
+      )}
+    </>
+  );
+}
 
 /* ────────────── 프로모션 배너 ────────────── */
 const BANNERS = [
@@ -260,7 +367,19 @@ function StoreCard({ store }: { store: StoreRow }) {
 /* ────────────── 가게 목록 뷰 (실데이터) ────────────── */
 async function StoreListView({ category }: { category: string }) {
   const info = CATEGORY_META[category];
-  const stores = await fetchStoresByCategory(category);
+  const [stores, allSponsored] = await Promise.all([
+    fetchStoresByCategory(category),
+    fetchSponsoredStores(),
+  ]);
+  // 해당 카테고리의 상단 노출 광고 가게
+  const sponsoredTop = allSponsored.filter(
+    (s) => s.adType === "top" && s.category === category
+  );
+  // 광고 가게 id 제외한 일반 가게
+  const sponsoredIds = new Set(sponsoredTop.map((s) => s.id));
+  const regularStores = stores.filter((s) => !sponsoredIds.has(s.id));
+
+  const totalCount = sponsoredTop.length + regularStores.length;
 
   return (
     <section className="px-4 pt-3 pb-4">
@@ -274,11 +393,11 @@ async function StoreListView({ category }: { category: string }) {
         <div className="flex items-center gap-2">
           <span className="text-2xl">{info?.emoji ?? "🍽️"}</span>
           <h2 className="text-lg font-black text-pick-text">{info?.label ?? category}</h2>
-          <span className="text-sm text-pick-text-sub font-medium">{stores.length}개</span>
+          <span className="text-sm text-pick-text-sub font-medium">{totalCount}개</span>
         </div>
       </div>
 
-      {stores.length === 0 ? (
+      {totalCount === 0 ? (
         <div className="flex flex-col items-center py-16 text-pick-text-sub">
           <Frown size={48} className="mb-3 opacity-20" />
           <p className="text-sm font-medium">아직 이 카테고리 가게가 없어요</p>
@@ -292,7 +411,12 @@ async function StoreListView({ category }: { category: string }) {
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {stores.map((store) => (
+          {/* 광고 가게 최상단 */}
+          {sponsoredTop.map((store) => (
+            <SponsoredStoreCard key={store.adId} store={store} />
+          ))}
+          {/* 일반 가게 */}
+          {regularStores.map((store) => (
             <StoreCard key={store.id} store={store} />
           ))}
         </div>
@@ -325,6 +449,11 @@ export default async function HomePage({
         <StoreListView category={category!} />
       ) : (
         <>
+          {/* 광고 섹션 (배너 광고 + 상단 노출) */}
+          <Suspense fallback={null}>
+            <SponsoredSection />
+          </Suspense>
+
           {/* 프로모션 배너 */}
           <PromoBanner />
 

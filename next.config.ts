@@ -1,15 +1,14 @@
 import type { NextConfig } from "next";
 import withSerwistInit from "@serwist/next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const withSerwist = withSerwistInit({
   swSrc:  "app/sw.ts",
   swDest: "public/sw.js",
-  // 개발 모드에서는 서비스 워커 비활성화
   disable: process.env.NODE_ENV === "development",
 });
 
 const nextConfig: NextConfig = {
-  // 이미지 최적화
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "*.supabase.co" },
@@ -18,4 +17,19 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSerwist(nextConfig);
+const serwistConfig = withSerwist(nextConfig);
+
+export default withSentryConfig(serwistConfig, {
+  org:     process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  // 소스맵 업로드 (토큰 없으면 건너뜀)
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent:    true,
+  // 프로덕션 빌드 시에만 소스맵 업로드
+  sourcemaps: {
+    disable: process.env.NODE_ENV !== "production",
+    deleteSourcemapsAfterUpload: true,
+  },
+  // 클라이언트 번들에 Sentry 자동 주입
+  autoInstrumentServerFunctions: true,
+});
