@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { X, Trash2, Minus, Plus, ShoppingBag, Bike, Coins, MapPin, ChevronRight, Home, Briefcase, Check, Ticket, ChevronDown } from "lucide-react";
+import { X, Trash2, Minus, Plus, ShoppingBag, Bike, Coins, MapPin, ChevronRight, Home, Briefcase, Check, Ticket, ChevronDown, CreditCard } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 import { useOrderStore } from "@/stores/orderStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -107,6 +107,7 @@ export default function CartBottomSheet({ onClose }: Props) {
   const [pickBalance,    setPickBalance]    = useState(0);
   const [usePick,        setUsePick]        = useState(false);
   const [isOrdering,     setIsOrdering]     = useState(false);
+  const [paymentMethod,  setPaymentMethod]  = useState<"PICK" | "TOSS">("PICK");
 
   // 배달 주소
   const [addresses,      setAddresses]      = useState<UserAddress[]>([]);
@@ -213,15 +214,30 @@ export default function CartBottomSheet({ onClose }: Props) {
           })),
           totalAmount:     itemsAmount,
           deliveryFee:     effectiveDeliveryFee,
-          pickUsed:        pickDiscount,
+          pickUsed:        paymentMethod === "PICK" ? pickDiscount : 0,
           userCouponId:    selectedCoupon?.userCouponId ?? undefined,
           deliveryAddress: deliveryAddressText,
           deliveryNote:    note.trim() || undefined,
+          paymentMethod,
         }),
       });
       if (res.ok) {
         const data = await res.json();
         if (data.orderId) orderId = data.orderId;
+
+        // 카드/간편결제 → Toss 결제 페이지로 이동
+        if (paymentMethod === "TOSS" && data.tossOrderId) {
+          const orderName = `${cart.storeName} ${cart.items[0]?.menuName ?? "주문"}${cart.items.length > 1 ? ` 외 ${cart.items.length - 1}개` : ""}`;
+          const params = new URLSearchParams({
+            orderId:     data.orderId,
+            tossOrderId: data.tossOrderId,
+            amount:      String(totalPaid),
+            orderName,
+          });
+          cart.clearCart();
+          router.push(`/checkout?${params.toString()}`);
+          return;
+        }
       } else {
         const err = await res.json().catch(() => ({}));
         alert(err.error ?? "주문 생성에 실패했습니다");
@@ -441,7 +457,38 @@ export default function CartBottomSheet({ onClose }: Props) {
             </div>
           )}
 
-          {/* PICK 토큰 사용 */}
+          {/* 결제 수단 선택 */}
+          <div className="mx-4 mb-3">
+            <p className="text-xs font-black text-pick-text mb-2 px-1">결제 수단</p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: "PICK",  label: "PICK 토큰",   emoji: "🪙", sub: "잔액으로 결제" },
+                { id: "TOSS",  label: "카드·간편결제", emoji: "💳", sub: "카카오페이·토스페이 등" },
+              ].map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setPaymentMethod(m.id as "PICK" | "TOSS")}
+                  className={`flex items-center gap-2.5 px-3.5 py-3 rounded-2xl border-2 transition-all text-left ${
+                    paymentMethod === m.id
+                      ? "border-pick-purple bg-pick-purple/5"
+                      : "border-pick-border bg-white"
+                  }`}
+                >
+                  <span className="text-xl flex-shrink-0">{m.emoji}</span>
+                  <div>
+                    <p className={`text-xs font-black leading-tight ${paymentMethod === m.id ? "text-pick-purple" : "text-pick-text"}`}>
+                      {m.label}
+                    </p>
+                    <p className="text-[10px] text-pick-text-sub leading-tight mt-0.5">{m.sub}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* PICK 토큰 사용 (PICK 결제일 때만) */}
+          {paymentMethod === "PICK" && (
           <div className="mx-4 mb-4 bg-pick-bg rounded-2xl border-2 border-pick-border px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -467,6 +514,7 @@ export default function CartBottomSheet({ onClose }: Props) {
               </p>
             )}
           </div>
+          )}
         </div>
 
         {/* 결제 요약 + 주문 버튼 */}
@@ -543,8 +591,10 @@ export default function CartBottomSheet({ onClose }: Props) {
           >
             {isOrdering ? (
               <><span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />주문 중...</>
+            ) : paymentMethod === "TOSS" ? (
+              <><CreditCard size={18} />{totalPaid.toLocaleString()}원 카드 결제</>
             ) : (
-              <><ShoppingBag size={18} />{totalPaid.toLocaleString()}원 주문하기</>
+              <><ShoppingBag size={18} />{totalPaid.toLocaleString()}원 PICK 결제</>
             )}
           </button>
         </div>

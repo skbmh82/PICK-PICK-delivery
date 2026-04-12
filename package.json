@@ -14,6 +14,7 @@
     "@serwist/next": "^9.5.7",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.102.1",
+    "@tosspayments/payment-widget-sdk": "^0.12.1",
     "firebase": "^12.12.0",
     "firebase-admin": "^13.8.0",
     "lucide-react": "^1.7.0",

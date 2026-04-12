@@ -22,6 +22,7 @@ const CreateOrderSchema = z.object({
   userCouponId:    z.string().uuid().optional(),
   deliveryAddress: z.string().min(1),
   deliveryNote:    z.string().optional(),
+  paymentMethod:   z.enum(["PICK", "TOSS", "KAKAO"]).default("PICK"),
 });
 
 // POST /api/orders — 주문 생성
@@ -56,7 +57,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { storeId, items, totalAmount, deliveryFee, pickUsed, userCouponId, deliveryAddress, deliveryNote } = parsed.data;
+  const { storeId, items, totalAmount, deliveryFee, pickUsed, userCouponId,
+          deliveryAddress, deliveryNote, paymentMethod } = parsed.data;
 
   // 4. 가맹점 존재/영업 여부 확인
   const { data: store } = await admin
@@ -125,20 +127,25 @@ export async function POST(request: NextRequest) {
   const pickReward  = baseReward + Math.floor(baseReward * couponExtraPickRate / 100) + couponFixedPick;
 
   // 8. 주문 생성 (admin 클라이언트로 RLS 우회)
+  const tossOrderId = paymentMethod !== "PICK"
+    ? `PICK-APP-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+    : null;
+
   const { data: orderData, error: orderError } = await admin
     .from("orders")
     .insert({
-      user_id:         profile.id,
-      store_id:        storeId,
-      status:          "pending",
-      payment_method:  "PICK",
-      total_amount:    totalAmount + deliveryFee - pickUsed,
-      delivery_fee:    deliveryFee,
-      pick_used:       pickUsed,
-      pick_reward:     pickReward,
+      user_id:          profile.id,
+      store_id:         storeId,
+      status:           "pending",
+      payment_method:   paymentMethod,
+      total_amount:     totalAmount + deliveryFee - pickUsed,
+      delivery_fee:     deliveryFee,
+      pick_used:        paymentMethod === "PICK" ? pickUsed : 0,
+      pick_reward:      pickReward,
       delivery_address: deliveryAddress,
-      delivery_note:   deliveryNote ?? null,
-      estimated_time:  store.delivery_time ?? 30,
+      delivery_note:    deliveryNote ?? null,
+      estimated_time:   store.delivery_time ?? 30,
+      toss_order_id:    tossOrderId,
     })
     .select("id")
     .single();
@@ -173,8 +180,8 @@ export async function POST(request: NextRequest) {
       .eq("id", userCouponId);
   }
 
-  // 11. PICK 차감 (RPC 호출)
-  if (pickUsed > 0) {
+  // 11. PICK 차감 (PICK 결제인 경우만)
+  if (paymentMethod === "PICK" && pickUsed > 0) {
     const { error: deductError } = await admin.rpc("deduct_pick", {
       p_user_id:  profile.id,
       p_amount:   pickUsed,
@@ -206,5 +213,9 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  return NextResponse.json({ orderId }, { status: 201 });
+  // TOSS/KAKAO 결제는 tossOrderId 추가 반환 (클라이언트에서 Toss SDK에 전달)
+  return NextResponse.json(
+    { orderId, tossOrderId },
+    { status: 201 }
+  );
 }
