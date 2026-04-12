@@ -27,8 +27,8 @@ export async function GET() {
   const { data: orders, error } = await (admin as any)
     .from("orders")
     .select(`
-      id, status, total_amount, delivery_fee, delivery_address, delivery_note, created_at,
-      stores ( id, name, address ),
+      id, status, total_amount, delivery_fee, delivery_address, delivery_lat, delivery_lng, delivery_note, created_at,
+      stores ( id, name, address, lat, lng ),
       users ( id, name, phone ),
       order_items ( id, menu_name, quantity )
     `)

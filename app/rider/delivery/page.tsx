@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { MapPin, Package, CheckCircle, X, Clock, Bike, RefreshCw, Navigation } from "lucide-react";
+import { MapPin, Package, CheckCircle, X, Clock, Bike, RefreshCw, Navigation, Map } from "lucide-react";
+import { openKakaoNavi, openKakaoRoute } from "@/lib/kakao/maps";
 
 // ── 타입 ──────────────────────────────────────────────
 type DBStatus = "ready" | "picked_up" | "delivering" | "delivered" | "cancelled";
@@ -12,8 +13,10 @@ interface DeliveryOrder {
   total_amount: number;
   delivery_fee: number;
   delivery_address: string;
+  delivery_lat?: number | null;
+  delivery_lng?: number | null;
   created_at: string;
-  stores: { id: string; name: string; address: string } | null;
+  stores: { id: string; name: string; address: string; lat?: number | null; lng?: number | null } | null;
   order_items: { id: string; menu_name: string; quantity: number }[];
   rider_earnings: { amount_pick: number }[] | null;
 }
@@ -24,8 +27,10 @@ interface AvailableOrder {
   total_amount: number;
   delivery_fee: number;
   delivery_address: string;
+  delivery_lat?: number | null;
+  delivery_lng?: number | null;
   created_at: string;
-  stores: { id: string; name: string; address: string } | null;
+  stores: { id: string; name: string; address: string; lat?: number | null; lng?: number | null } | null;
   order_items: { id: string; menu_name: string; quantity: number }[];
 }
 
@@ -101,6 +106,22 @@ function AvailableCard({
             주문 금액 {Number(order.total_amount).toLocaleString()}원
           </p>
         </div>
+
+        {/* 픽업지 내비 버튼 */}
+        {order.stores && (
+          <button
+            onClick={() => openKakaoNavi({
+              name: order.stores!.name,
+              lat: order.stores!.lat,
+              lng: order.stores!.lng,
+              address: order.stores!.address,
+            })}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border-2 border-sky-200 bg-sky-50 text-sky-600 font-bold text-sm active:scale-95 transition-transform mb-2"
+          >
+            <Map size={14} />
+            픽업지 카카오맵 내비
+          </button>
+        )}
 
         <div className="grid grid-cols-2 gap-2">
           <button
@@ -229,6 +250,65 @@ function DeliveryCard({
             주문 금액 {Number(order.total_amount).toLocaleString()}원
           </p>
         </div>
+
+        {/* 내비게이션 버튼 */}
+        {!isDone && (
+          <div className="flex gap-2 mb-3">
+            {order.stores && (
+              <button
+                onClick={() => openKakaoNavi({
+                  name: order.stores!.name,
+                  lat: order.stores!.lat,
+                  lng: order.stores!.lng,
+                  address: order.stores!.address,
+                })}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl border-2 border-amber-200 bg-amber-50 text-amber-700 font-bold text-xs active:scale-95 transition-transform"
+              >
+                <Map size={13} />
+                픽업지
+              </button>
+            )}
+            <button
+              onClick={() => {
+                const hasRoute =
+                  order.stores?.lat && order.stores?.lng &&
+                  order.delivery_lat && order.delivery_lng;
+                if (hasRoute) {
+                  openKakaoRoute({
+                    pickupName: order.stores!.name,
+                    pickupLat:  Number(order.stores!.lat),
+                    pickupLng:  Number(order.stores!.lng),
+                    destName:   "배달지",
+                    destLat:    Number(order.delivery_lat),
+                    destLng:    Number(order.delivery_lng),
+                  });
+                } else {
+                  openKakaoNavi({ name: "배달지", address: order.delivery_address });
+                }
+              }}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl border-2 border-sky-200 bg-sky-50 text-sky-700 font-bold text-xs active:scale-95 transition-transform"
+            >
+              <Navigation size={13} />
+              배달지
+            </button>
+            {order.stores?.lat && order.stores?.lng && order.delivery_lat && order.delivery_lng && (
+              <button
+                onClick={() => openKakaoRoute({
+                  pickupName: order.stores!.name,
+                  pickupLat:  Number(order.stores!.lat),
+                  pickupLng:  Number(order.stores!.lng),
+                  destName:   "배달지",
+                  destLat:    Number(order.delivery_lat),
+                  destLng:    Number(order.delivery_lng),
+                })}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-400 text-white font-bold text-xs active:scale-95 transition-transform shadow-sm"
+              >
+                <Map size={13} />
+                전체 경로
+              </button>
+            )}
+          </div>
+        )}
 
         {/* 배달 중 GPS 상태 */}
         {isDelivering && (
