@@ -461,12 +461,27 @@ const LABEL_ICON: Record<string, React.ReactNode> = {
   "기타": <MapPin size={14} />,
 };
 
+/* Daum Postcode API 타입 */
+declare global {
+  interface Window {
+    daum?: {
+      Postcode: new (opts: {
+        oncomplete: (data: { roadAddress: string; jibunAddress: string; zonecode: string }) => void;
+        width?: string | number;
+        height?: string | number;
+      }) => { open: () => void; embed: (el: HTMLElement) => void };
+    };
+  }
+}
+
 function AddressManagerModal({ onClose }: { onClose: () => void }) {
   const [addresses,   setAddresses]   = useState<UserAddress[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [addOpen,     setAddOpen]     = useState(false);
   const [editTarget,  setEditTarget]  = useState<UserAddress | null>(null);
   const [deleting,    setDeleting]    = useState<string | null>(null);
+  const [searchOpen,  setSearchOpen]  = useState(false);
+  const searchLayerRef                = useRef<HTMLDivElement>(null);
 
   // 폼 state
   const [label,     setLabel]     = useState<AddressLabel>("집");
@@ -486,6 +501,33 @@ function AddressManagerModal({ onClose }: { onClose: () => void }) {
       }
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  /* Daum Postcode 스크립트 로드 + 주소 검색 레이어 열기 */
+  const openPostcodeSearch = useCallback(() => {
+    const load = () => {
+      if (!window.daum?.Postcode || !searchLayerRef.current) return;
+      searchLayerRef.current.innerHTML = "";
+      setSearchOpen(true);
+      new window.daum.Postcode({
+        oncomplete: (data) => {
+          setAddress(data.roadAddress || data.jibunAddress);
+          setSearchOpen(false);
+          setFormErr("");
+        },
+        width: "100%",
+        height: "100%",
+      }).embed(searchLayerRef.current);
+    };
+
+    if (window.daum?.Postcode) {
+      load();
+    } else {
+      const script = document.createElement("script");
+      script.src = "//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
+      script.onload = load;
+      document.head.appendChild(script);
     }
   }, []);
 
@@ -668,12 +710,36 @@ function AddressManagerModal({ onClose }: { onClose: () => void }) {
                 </button>
               ))}
             </div>
-            <input
-              type="text" value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="도로명 주소 또는 지번 주소"
-              className="w-full border-2 border-pick-border rounded-2xl px-3 py-2.5 text-sm text-pick-text focus:outline-none focus:border-pick-purple bg-white mb-2"
-            />
+            {/* 주소 검색 레이어 */}
+            {searchOpen && (
+              <div className="fixed inset-0 z-[70] flex flex-col bg-white rounded-t-3xl">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-pick-border flex-shrink-0">
+                  <p className="font-black text-pick-text text-sm">주소 검색 🔍</p>
+                  <button
+                    onClick={() => setSearchOpen(false)}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-pick-bg"
+                  >
+                    <X size={15} className="text-pick-text-sub" />
+                  </button>
+                </div>
+                <div ref={searchLayerRef} className="flex-1" />
+              </div>
+            )}
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text" value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="도로명 주소 또는 지번 주소"
+                className="flex-1 border-2 border-pick-border rounded-2xl px-3 py-2.5 text-sm text-pick-text focus:outline-none focus:border-pick-purple bg-white"
+              />
+              <button
+                type="button"
+                onClick={openPostcodeSearch}
+                className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-pick-purple text-white text-xs font-black whitespace-nowrap active:scale-95 transition-transform"
+              >
+                <MapPin size={13} /> 검색
+              </button>
+            </div>
             <input
               type="text" value={detail}
               onChange={(e) => setDetail(e.target.value)}

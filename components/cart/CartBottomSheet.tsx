@@ -38,6 +38,25 @@ const LABEL_ICON: Record<string, React.ReactNode> = {
 };
 
 // ── 주소 선택 패널 ─────────────────────────────────────
+function openDaumPostcode(onDone: (addr: string) => void) {
+  const load = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    new (window as any).daum.Postcode({
+      oncomplete: (data: { roadAddress: string; jibunAddress: string }) =>
+        onDone(data.roadAddress || data.jibunAddress),
+    }).open();
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ((window as any).daum?.Postcode) {
+    load();
+  } else {
+    const s = document.createElement("script");
+    s.src = "//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
+    s.onload = load;
+    document.head.appendChild(s);
+  }
+}
+
 function AddressPicker({
   addresses,
   selectedId,
@@ -45,13 +64,15 @@ function AddressPicker({
   onSelect,
   onManualChange,
   onClose,
+  onSearchAddress,
 }: {
-  addresses:      UserAddress[];
-  selectedId:     string | null;
-  manualAddr:     string;
-  onSelect:       (addr: UserAddress) => void;
-  onManualChange: (v: string) => void;
-  onClose:        () => void;
+  addresses:       UserAddress[];
+  selectedId:      string | null;
+  manualAddr:      string;
+  onSelect:        (addr: UserAddress) => void;
+  onManualChange:  (v: string) => void;
+  onClose:         () => void;
+  onSearchAddress: () => void;
 }) {
   return (
     <div className="bg-pick-bg border-t-2 border-pick-border px-4 py-3">
@@ -87,13 +108,22 @@ function AddressPicker({
         ))}
       </div>
       {/* 직접 입력 */}
-      <input
-        type="text"
-        value={manualAddr}
-        onChange={(e) => onManualChange(e.target.value)}
-        placeholder="직접 입력 (도로명 또는 지번)"
-        className="w-full border-2 border-pick-border rounded-2xl px-3 py-2 text-xs text-pick-text focus:outline-none focus:border-pick-purple bg-white"
-      />
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={manualAddr}
+          onChange={(e) => onManualChange(e.target.value)}
+          placeholder="직접 입력 (도로명 또는 지번)"
+          className="flex-1 border-2 border-pick-border rounded-2xl px-3 py-2 text-xs text-pick-text focus:outline-none focus:border-pick-purple bg-white"
+        />
+        <button
+          type="button"
+          onClick={onSearchAddress}
+          className="flex-shrink-0 px-3 py-2 rounded-2xl bg-pick-purple text-white text-xs font-black active:scale-95 transition-transform"
+        >
+          검색
+        </button>
+      </div>
     </div>
   );
 }
@@ -365,6 +395,7 @@ export default function CartBottomSheet({ onClose }: Props) {
               onSelect={(addr) => { setSelectedAddr(addr); setManualAddr(""); }}
               onManualChange={(v) => { setManualAddr(v); setSelectedAddr(null); }}
               onClose={() => setShowPicker(false)}
+              onSearchAddress={() => openDaumPostcode((addr) => { setManualAddr(addr); setSelectedAddr(null); })}
             />
           )}
 
