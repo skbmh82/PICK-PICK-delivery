@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ClipboardList, TrendingUp, Bell, Star, CheckCircle, XCircle, Clock, RefreshCw, Store, ChevronDown, X, Check, Settings } from "lucide-react";
+import { ClipboardList, TrendingUp, Bell, CheckCircle, XCircle, Clock, RefreshCw, Store, ChevronDown, X, Check, BarChart2, Utensils, Zap, ArrowUp, ArrowDown, Settings } from "lucide-react";
 import { useStoreOrderRealtime } from "@/hooks/useRealtime";
 
 // ── 타입 ──────────────────────────────────────────────
@@ -156,6 +156,232 @@ function WeeklyChart({ weekly }: { weekly: WeeklyDay[] }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ── 고급 통계 타입 ─────────────────────────────────────
+interface AnalyticsData {
+  monthly:   { month: string; revenue: number; orders: number }[];
+  topMenus:  { name: string; count: number; revenue: number }[];
+  peakHours: { hour: string; count: number }[];
+  summary: {
+    thisMonthRevenue: number;
+    lastMonthRevenue: number;
+    thisMonthOrders:  number;
+    lastMonthOrders:  number;
+    growthRate:       number | null;
+  } | null;
+}
+
+// ── 고급 통계 섹션 ────────────────────────────────────
+function AnalyticsSection() {
+  const [data,    setData]    = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [tab,     setTab]     = useState<"monthly" | "menu" | "peak">("monthly");
+
+  useEffect(() => {
+    fetch("/api/stores/my/analytics")
+      .then((r) => r.json())
+      .then((d) => setData(d))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <div className="mx-4 mb-5 bg-white rounded-3xl border-2 border-pick-border shadow-sm overflow-hidden">
+      {/* 헤더 */}
+      <div className="px-5 pt-4 pb-3 border-b border-pick-border">
+        <div className="flex items-center gap-2 mb-3">
+          <BarChart2 size={18} className="text-pick-purple" />
+          <h3 className="font-bold text-pick-text text-sm">고급 통계</h3>
+        </div>
+
+        {/* 탭 */}
+        <div className="flex gap-2">
+          {([
+            { key: "monthly" as const, label: "월별 매출" },
+            { key: "menu"    as const, label: "인기 메뉴" },
+            { key: "peak"    as const, label: "피크 시간" },
+          ]).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                tab === key
+                  ? "bg-pick-purple text-white"
+                  : "bg-pick-bg text-pick-text-sub border border-pick-border"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="px-5 py-4">
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <div className="w-6 h-6 border-2 border-pick-purple border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : tab === "monthly" ? (
+          <MonthlyChart data={data} />
+        ) : tab === "menu" ? (
+          <TopMenus data={data} />
+        ) : (
+          <PeakHours data={data} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MonthlyChart({ data }: { data: AnalyticsData | null }) {
+  const monthly = data?.monthly ?? [];
+  const summary = data?.summary ?? null;
+  const max = Math.max(...monthly.map((d) => d.revenue), 1);
+
+  return (
+    <div>
+      {/* 이번달 vs 지난달 */}
+      {summary && (
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="bg-pick-bg rounded-2xl p-3">
+            <p className="text-[10px] text-pick-text-sub font-medium mb-1">이번달 매출</p>
+            <p className="font-black text-pick-text text-lg">{summary.thisMonthRevenue.toLocaleString()}원</p>
+            <p className="text-[10px] text-pick-text-sub mt-0.5">{summary.thisMonthOrders}건</p>
+          </div>
+          <div className="bg-pick-bg rounded-2xl p-3">
+            <p className="text-[10px] text-pick-text-sub font-medium mb-1">전월 대비</p>
+            {summary.growthRate !== null ? (
+              <div className={`flex items-center gap-1 ${summary.growthRate >= 0 ? "text-green-600" : "text-red-500"}`}>
+                {summary.growthRate >= 0
+                  ? <ArrowUp size={16} />
+                  : <ArrowDown size={16} />
+                }
+                <span className="font-black text-lg">{Math.abs(summary.growthRate)}%</span>
+              </div>
+            ) : (
+              <p className="font-black text-pick-text-sub text-lg">-</p>
+            )}
+            <p className="text-[10px] text-pick-text-sub mt-0.5">지난달 {summary.lastMonthRevenue.toLocaleString()}원</p>
+          </div>
+        </div>
+      )}
+
+      {/* 월별 바 차트 */}
+      <div className="flex items-end gap-1.5 h-28">
+        {monthly.map((d, i) => {
+          const heightPct = Math.round((d.revenue / max) * 100);
+          const isThis    = i === monthly.length - 1;
+          return (
+            <div key={d.month} className="flex-1 flex flex-col items-center gap-1">
+              <div className="w-full flex flex-col justify-end" style={{ height: "88px" }}>
+                <div
+                  className={`w-full rounded-t-lg transition-all ${
+                    isThis ? "bg-gradient-to-t from-pick-purple to-pick-purple-light" : "bg-pick-purple/20"
+                  }`}
+                  style={{ height: `${Math.max(heightPct, 4)}%` }}
+                />
+              </div>
+              <span className={`text-[9px] font-bold ${isThis ? "text-pick-purple" : "text-pick-text-sub"}`}>
+                {d.month}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {monthly.every((d) => d.revenue === 0) && (
+        <p className="text-xs text-pick-text-sub text-center mt-2">아직 매출 데이터가 없어요</p>
+      )}
+    </div>
+  );
+}
+
+function TopMenus({ data }: { data: AnalyticsData | null }) {
+  const menus = data?.topMenus ?? [];
+
+  if (menus.length === 0) {
+    return (
+      <div className="flex flex-col items-center py-8 gap-2">
+        <Utensils size={32} className="text-pick-border" />
+        <p className="text-xs text-pick-text-sub">최근 30일 주문 데이터가 없어요</p>
+      </div>
+    );
+  }
+
+  const maxCount = Math.max(...menus.map((m) => m.count), 1);
+
+  return (
+    <div className="flex flex-col gap-3">
+      {menus.map((menu, i) => (
+        <div key={menu.name} className="flex items-center gap-3">
+          <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${
+            i === 0 ? "bg-pick-yellow text-white"
+            : i === 1 ? "bg-gray-300 text-white"
+            : i === 2 ? "bg-amber-700/60 text-white"
+            : "bg-pick-bg text-pick-text-sub"
+          }`}>
+            {i + 1}
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs font-bold text-pick-text truncate">{menu.name}</p>
+              <p className="text-xs font-black text-pick-purple flex-shrink-0 ml-2">{menu.count}개</p>
+            </div>
+            <div className="w-full h-1.5 bg-pick-bg rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-pick-purple to-pick-purple-light rounded-full"
+                style={{ width: `${(menu.count / maxCount) * 100}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PeakHours({ data }: { data: AnalyticsData | null }) {
+  const hours = data?.peakHours ?? [];
+  const max   = Math.max(...hours.map((h) => h.count), 1);
+  const peak  = hours.reduce((a, b) => (a.count >= b.count ? a : b), hours[0]);
+
+  return (
+    <div>
+      {peak && peak.count > 0 && (
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-3 py-2 mb-4">
+          <Zap size={14} className="text-amber-500 flex-shrink-0" />
+          <p className="text-xs font-bold text-amber-700">
+            피크 시간: <span className="text-amber-600">{peak.hour}</span> — {peak.count}건
+          </p>
+        </div>
+      )}
+
+      <div className="flex items-end gap-1 h-20 overflow-x-auto scrollbar-hide">
+        {hours.map((h) => {
+          const heightPct = Math.round((h.count / max) * 100);
+          const isPeak    = h.count === max && max > 0;
+          return (
+            <div key={h.hour} className="flex-shrink-0 w-6 flex flex-col items-center gap-0.5">
+              <div className="w-full flex flex-col justify-end" style={{ height: "60px" }}>
+                <div
+                  className={`w-full rounded-t transition-all ${
+                    isPeak ? "bg-amber-400" : "bg-amber-100"
+                  }`}
+                  style={{ height: `${Math.max(heightPct, 4)}%` }}
+                />
+              </div>
+              <span className="text-[8px] text-pick-text-sub font-medium">
+                {h.hour.replace("시", "")}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {hours.every((h) => h.count === 0) && (
+        <p className="text-xs text-pick-text-sub text-center mt-2">최근 30일 주문 데이터가 없어요</p>
+      )}
     </div>
   );
 }
@@ -564,6 +790,7 @@ export default function OwnerDashboardPage() {
       <SummaryCards today={today} />
       <TodayRevenue today={today} />
       {weekly.length > 0 && <WeeklyChart weekly={weekly} />}
+      <AnalyticsSection />
 
       {/* 빠른 메뉴 */}
       <div className="mx-4 mb-4">
