@@ -2,6 +2,7 @@ import Header from "@/components/layout/Header";
 import BottomNav from "@/components/layout/BottomNav";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 import FcmProvider from "@/components/pwa/FcmProvider";
+import OfflineBanner from "@/components/pwa/OfflineBanner";
 
 export default function UserLayout({
   children,
@@ -15,6 +16,7 @@ export default function UserLayout({
       <BottomNav />
       <InstallPrompt />
       <FcmProvider />
+      <OfflineBanner />
     </div>
   );
 }
