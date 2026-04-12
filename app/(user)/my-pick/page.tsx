@@ -809,6 +809,7 @@ export default function MyPickPage() {
   useEffect(() => { fetchMe(); }, [fetchMe]);
 
   const handleSignOut = async () => {
+    await fetch("/api/fcm/token", { method: "DELETE" }).catch(() => {});
     await signOut();
     router.replace("/login");
   };

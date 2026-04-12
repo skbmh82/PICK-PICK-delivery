@@ -1,4 +1,5 @@
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
+import { sendPushNotification } from "@/lib/firebase/admin";
 
 interface CreateNotificationParams {
   userId:  string;
@@ -8,10 +9,12 @@ interface CreateNotificationParams {
   data?:   Record<string, unknown>;
 }
 
-// 알림 단건 생성 (서버 사이드 전용)
+// 알림 단건 생성 + FCM 푸시 전송 (서버 사이드 전용)
 export async function createNotification(params: CreateNotificationParams) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminSupabaseClient() as any;
+
+  // 1. DB 알림 저장
   const { error } = await admin.from("notifications").insert({
     user_id:    params.userId,
     type:       params.type,
@@ -22,6 +25,31 @@ export async function createNotification(params: CreateNotificationParams) {
     created_at: new Date().toISOString(),
   });
   if (error) console.error("createNotification 오류:", error.message);
+
+  // 2. FCM 토큰 조회 후 푸시 전송
+  const { data: fcmRow } = await admin
+    .from("fcm_tokens")
+    .select("token")
+    .eq("user_id", params.userId)
+    .single();
+
+  if (fcmRow?.token) {
+    const dataStrings: Record<string, string> = {};
+    for (const [k, v] of Object.entries(params.data ?? {})) {
+      dataStrings[k] = String(v);
+    }
+    // orderId가 있으면 클릭 시 주문 상세로 이동
+    if (dataStrings.orderId) {
+      dataStrings.url = `/orders/${dataStrings.orderId}`;
+    }
+
+    await sendPushNotification({
+      token: fcmRow.token as string,
+      title: params.title,
+      body:  params.body ?? "",
+      data:  dataStrings,
+    });
+  }
 }
 
 // 주문 상태별 사용자 알림 메시지
