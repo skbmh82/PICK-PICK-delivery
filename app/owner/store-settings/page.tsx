@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Store, MapPin, Phone, Clock, Wallet, ToggleLeft, ToggleRight,
   ChevronLeft, Check, Loader2, Star, FileText, AlertCircle,
-  ImagePlus, Camera, Ticket, Plus, X, Tag,
+  ImagePlus, Camera, Ticket, Plus, X, Tag, CalendarDays,
 } from "lucide-react";
 
 // ── 타입 ──────────────────────────────────────────────
@@ -45,6 +45,191 @@ function Field({
 
 const inputCls = "w-full bg-pick-bg border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text font-medium focus:outline-none focus:border-pick-purple transition-colors";
 const numInputCls = `${inputCls} text-right`;
+
+// ── 영업시간 관리 섹션 ──────────────────────────────────
+const DAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
+
+interface HourRow {
+  day_of_week: number;
+  open_time:   string;
+  close_time:  string;
+  is_closed:   boolean;
+}
+
+function defaultHours(): HourRow[] {
+  return Array.from({ length: 7 }, (_, i) => ({
+    day_of_week: i,
+    open_time:   "09:00",
+    close_time:  "22:00",
+    is_closed:   false,
+  }));
+}
+
+function StoreHoursSection() {
+  const [expanded, setExpanded] = useState(false);
+  const [hours,    setHours]    = useState<HourRow[]>(defaultHours());
+  const [loading,  setLoading]  = useState(false);
+  const [saving,   setSaving]   = useState(false);
+  const [saved,    setSaved]    = useState(false);
+  const [err,      setErr]      = useState("");
+
+  const fetchHours = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/stores/my/hours");
+      if (res.ok) {
+        const { hours: rows } = await res.json() as { hours: HourRow[] };
+        if (rows && rows.length === 7) {
+          setHours(rows.sort((a, b) => a.day_of_week - b.day_of_week));
+        }
+      }
+    } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { if (expanded) fetchHours(); }, [expanded, fetchHours]);
+
+  const update = (dow: number, field: keyof HourRow, value: string | boolean) => {
+    setHours((prev) => prev.map((h) =>
+      h.day_of_week === dow ? { ...h, [field]: value } : h
+    ));
+  };
+
+  // 특정 요일과 동일하게 일괄 복사
+  const copyToAll = (dow: number) => {
+    const src = hours.find((h) => h.day_of_week === dow);
+    if (!src) return;
+    setHours((prev) => prev.map((h) => ({
+      ...h,
+      open_time:  src.open_time,
+      close_time: src.close_time,
+      is_closed:  src.is_closed,
+    })));
+  };
+
+  const handleSave = async () => {
+    setSaving(true); setErr("");
+    try {
+      const res = await fetch("/api/stores/my/hours", {
+        method:  "PUT",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ hours }),
+      });
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      } else {
+        const j = await res.json().catch(() => ({}));
+        setErr((j.error as string) ?? "저장에 실패했습니다");
+      }
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="bg-white rounded-3xl shadow-sm border border-pick-border overflow-hidden">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center justify-between px-5 py-4 active:bg-pick-bg transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <CalendarDays size={16} className="text-pick-purple" />
+          <span className="font-black text-pick-text text-sm">영업시간 설정</span>
+        </div>
+        {expanded
+          ? <X size={16} className="text-pick-text-sub" />
+          : <Plus size={16} className="text-pick-text-sub" />
+        }
+      </button>
+
+      {expanded && (
+        <div className="border-t border-pick-border px-4 py-4 flex flex-col gap-3">
+          {loading ? (
+            Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="h-12 bg-gray-50 rounded-2xl animate-pulse" />
+            ))
+          ) : (
+            <>
+              {hours.map((h) => (
+                <div key={h.day_of_week} className={`flex items-center gap-2 px-3 py-2.5 rounded-2xl border-2 transition-all ${
+                  h.is_closed ? "bg-gray-50 border-gray-200 opacity-60" : "bg-pick-bg border-pick-border"
+                }`}>
+                  {/* 요일 */}
+                  <span className={`text-xs font-black w-5 text-center flex-shrink-0 ${
+                    h.day_of_week === 0 ? "text-red-500" :
+                    h.day_of_week === 6 ? "text-blue-500" :
+                    "text-pick-text"
+                  }`}>
+                    {DAYS[h.day_of_week]}
+                  </span>
+
+                  {/* 휴무 토글 */}
+                  <button
+                    onClick={() => update(h.day_of_week, "is_closed", !h.is_closed)}
+                    className={`flex-shrink-0 text-[10px] font-black px-2 py-1 rounded-full transition-all ${
+                      h.is_closed
+                        ? "bg-gray-200 text-gray-500"
+                        : "bg-green-100 text-green-700"
+                    }`}
+                  >
+                    {h.is_closed ? "휴무" : "영업"}
+                  </button>
+
+                  {/* 시간 설정 */}
+                  {!h.is_closed && (
+                    <>
+                      <input
+                        type="time"
+                        value={h.open_time}
+                        onChange={(e) => update(h.day_of_week, "open_time", e.target.value)}
+                        className="flex-1 min-w-0 text-xs font-bold bg-white border border-pick-border rounded-xl px-2 py-1.5 text-pick-text focus:outline-none focus:border-pick-purple"
+                      />
+                      <span className="text-xs text-pick-text-sub flex-shrink-0">~</span>
+                      <input
+                        type="time"
+                        value={h.close_time}
+                        onChange={(e) => update(h.day_of_week, "close_time", e.target.value)}
+                        className="flex-1 min-w-0 text-xs font-bold bg-white border border-pick-border rounded-xl px-2 py-1.5 text-pick-text focus:outline-none focus:border-pick-purple"
+                      />
+                      {/* 전체 복사 버튼 */}
+                      <button
+                        onClick={() => copyToAll(h.day_of_week)}
+                        title="이 시간을 모든 요일에 적용"
+                        className="flex-shrink-0 text-[10px] text-pick-purple font-black px-2 py-1 bg-pick-bg border border-pick-border rounded-full whitespace-nowrap active:scale-90 transition-transform"
+                      >
+                        전체적용
+                      </button>
+                    </>
+                  )}
+                  {h.is_closed && (
+                    <span className="flex-1 text-xs text-pick-text-sub text-center">오늘 쉬어요</span>
+                  )}
+                </div>
+              ))}
+
+              {err && <p className="text-xs text-red-500 font-bold text-center">{err}</p>}
+
+              <button
+                onClick={() => void handleSave()}
+                disabled={saving}
+                className={`w-full py-3 rounded-full font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 ${
+                  saved
+                    ? "bg-green-500 text-white"
+                    : "bg-pick-purple text-white"
+                }`}
+              >
+                {saving
+                  ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> 저장 중...</>
+                  : saved
+                    ? <><Check size={14} /> 저장 완료!</>
+                    : <><Clock size={14} /> 영업시간 저장</>
+                }
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── 사장님 쿠폰 관리 섹션 ─────────────────────────────
 interface OwnerCoupon {
@@ -712,6 +897,9 @@ export default function StoreSettingsPage() {
             inputMode="decimal"
           />
         </div>
+
+        {/* 영업시간 관리 */}
+        <StoreHoursSection />
 
         {/* 쿠폰 관리 */}
         <OwnerCouponSection />

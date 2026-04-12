@@ -1,14 +1,18 @@
 "use client";
 
-import { useState, useEffect, useCallback, use } from "react";
+import { useState, useEffect, useCallback, use, useRef } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Clock, Bike, MapPin, Coins, Star, X,
   CheckCircle, RotateCcw, Navigation, Phone, Copy, Check,
+  ImagePlus, Trash2,
 } from "lucide-react";
 import { useOrderRealtime, useRiderLocationRealtime, type OrderStatus } from "@/hooks/useRealtime";
 import { useCartStore } from "@/stores/cartStore";
 import { getCategoryEmoji } from "@/lib/utils/categoryEmoji";
+
+const KakaoMap = dynamic(() => import("@/components/shared/KakaoMap"), { ssr: false });
 
 // ── 타입 ──────────────────────────────────────────────
 interface OrderItem {
@@ -37,6 +41,8 @@ interface OrderDetail {
   pick_reward: number;
   delivery_address: string;
   delivery_note: string | null;
+  delivery_lat: number | null;
+  delivery_lng: number | null;
   estimated_time: number | null;
   confirmed_at: string | null;
   picked_up_at: string | null;
@@ -77,30 +83,57 @@ function getStepIndex(status: OrderStatus): number {
   return -1;
 }
 
-// ── 라이더 위치 카드 ──────────────────────────────────
-function RiderLocationCard({ riderId }: { riderId: string }) {
-  const [hasLocation, setHasLocation] = useState(false);
+// ── 라이더 실시간 지도 ────────────────────────────────
+function RiderMapCard({
+  riderId,
+  destLat,
+  destLng,
+}: {
+  riderId: string;
+  destLat: number | null;
+  destLng: number | null;
+}) {
+  const [riderPos, setRiderPos] = useState<{ lat: number; lng: number } | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  useRiderLocationRealtime(riderId, () => {
-    setHasLocation(true);
+  useRiderLocationRealtime(riderId, (lat, lng) => {
+    setRiderPos({ lat, lng });
     setLastUpdated(new Date());
   });
 
+  // 목적지 좌표 (없으면 서울 중심)
+  const baseLat = destLat ?? 37.5665;
+  const baseLng = destLng ?? 126.9780;
+
   return (
-    <div className="flex items-center gap-3 bg-pick-bg border-2 border-pick-border rounded-2xl px-4 py-3">
-      <div className="w-9 h-9 rounded-full bg-pick-purple/10 flex items-center justify-center flex-shrink-0">
-        <Navigation size={16} className="text-pick-purple animate-pulse" />
+    <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-purple/30 overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-pick-border">
+        <div className="w-7 h-7 rounded-full bg-pick-purple/10 flex items-center justify-center">
+          <Navigation size={14} className="text-pick-purple animate-pulse" />
+        </div>
+        <p className="text-sm font-bold text-pick-text flex-1">라이더가 배달 중이에요 🛵</p>
+        {riderPos && (
+          <span className="flex items-center gap-1 text-[10px] text-pick-text-sub">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            {lastUpdated?.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+          </span>
+        )}
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-pick-text">라이더가 배달 중이에요 🛵</p>
-        <p className="text-xs text-pick-text-sub mt-0.5">
-          {hasLocation && lastUpdated
-            ? `위치 업데이트 ${lastUpdated.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`
-            : "라이더 위치 수신 대기 중..."}
-        </p>
-      </div>
-      {hasLocation && <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse flex-shrink-0" />}
+
+      {riderPos ? (
+        <KakaoMap
+          lat={baseLat}
+          lng={baseLng}
+          riderLat={riderPos.lat}
+          riderLng={riderPos.lng}
+          className="w-full h-48"
+        />
+      ) : (
+        <div className="h-28 flex flex-col items-center justify-center gap-2 text-pick-text-sub">
+          <div className="w-6 h-6 border-2 border-pick-border border-t-pick-purple rounded-full animate-spin" />
+          <p className="text-xs">라이더 위치 수신 중...</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -115,11 +148,44 @@ function ReviewModal({
   onClose: () => void;
   onReviewed: () => void;
 }) {
-  const [rating,  setRating]  = useState(5);
-  const [content, setContent] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState("");
-  const [success, setSuccess] = useState(false);
+  const [rating,     setRating]     = useState(5);
+  const [content,    setContent]    = useState("");
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState("");
+  const [success,    setSuccess]    = useState(false);
+  const [imageUrls,  setImageUrls]  = useState<string[]>([]);
+  const [uploading,  setUploading]  = useState(false);
+  const imgInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImagePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    if (imageUrls.length + files.length > 3) {
+      setError("사진은 최대 3장까지 첨부할 수 있어요");
+      return;
+    }
+    setUploading(true);
+    setError("");
+    try {
+      const uploaded: string[] = [];
+      for (const file of files) {
+        const form = new FormData();
+        form.append("file",   file);
+        form.append("folder", "reviews");
+        const res  = await fetch("/api/upload", { method: "POST", body: form });
+        const json = await res.json() as { url?: string; error?: string };
+        if (!res.ok) { setError(json.error ?? "이미지 업로드 실패"); break; }
+        if (json.url) uploaded.push(json.url);
+      }
+      setImageUrls((prev) => [...prev, ...uploaded].slice(0, 3));
+    } finally {
+      setUploading(false);
+      if (imgInputRef.current) imgInputRef.current.value = "";
+    }
+  };
+
+  const removeImage = (idx: number) =>
+    setImageUrls((prev) => prev.filter((_, i) => i !== idx));
 
   const handleSubmit = async () => {
     setLoading(true); setError("");
@@ -127,7 +193,11 @@ function ReviewModal({
       const res = await fetch("/api/reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId: order.id, rating, content: content || undefined }),
+        body: JSON.stringify({
+          orderId: order.id, rating,
+          content: content || undefined,
+          imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+        }),
       });
       if (res.ok) {
         setSuccess(true);
@@ -176,6 +246,45 @@ function ReviewModal({
             rows={4}
             className="w-full border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text resize-none focus:outline-none focus:border-pick-purple"
           />
+          {/* 사진 첨부 */}
+          <input
+            ref={imgInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleImagePick}
+          />
+          <div className="flex items-center gap-2 flex-wrap">
+            {imageUrls.map((url, i) => (
+              <div key={i} className="relative w-20 h-20 rounded-2xl overflow-hidden border-2 border-pick-border flex-shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt={`리뷰 사진 ${i + 1}`} className="w-full h-full object-cover" />
+                <button
+                  onClick={() => removeImage(i)}
+                  className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/50 rounded-full flex items-center justify-center"
+                >
+                  <Trash2 size={10} className="text-white" />
+                </button>
+              </div>
+            ))}
+            {imageUrls.length < 3 && (
+              <button
+                type="button"
+                onClick={() => imgInputRef.current?.click()}
+                disabled={uploading}
+                className="w-20 h-20 rounded-2xl border-2 border-dashed border-pick-border bg-pick-bg flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform disabled:opacity-50 flex-shrink-0"
+              >
+                {uploading
+                  ? <span className="w-5 h-5 border-2 border-pick-purple/40 border-t-pick-purple rounded-full animate-spin" />
+                  : <>
+                      <ImagePlus size={18} className="text-pick-text-sub" />
+                      <span className="text-[10px] text-pick-text-sub font-bold">{imageUrls.length}/3</span>
+                    </>
+                }
+              </button>
+            )}
+          </div>
           {error   && <p className="text-xs text-red-500 font-bold text-center">{error}</p>}
           {success && <p className="text-xs text-green-600 font-bold text-center">✓ 리뷰가 등록됐어요! +10 PICK 지급</p>}
         </div>
@@ -240,12 +349,12 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
     if (!confirm("주문을 취소하시겠어요?")) return;
     setCancelling(true);
     try {
-      const res = await fetch(`/api/orders/${orderId}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "cancelled" }),
-      });
+      const res = await fetch(`/api/orders/${orderId}/cancel`, { method: "POST" });
       if (res.ok) { setStatus("cancelled"); setOrder((o) => o ? { ...o, status: "cancelled" } : o); }
+      else {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        alert(err.error ?? "주문 취소에 실패했습니다");
+      }
     } finally { setCancelling(false); }
   };
 
@@ -361,10 +470,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
               })}
             </div>
 
-            {/* 배달 중 라이더 위치 */}
+            {/* 배달 중 라이더 위치 지도 */}
             {status === "delivering" && order.rider_id && (
               <div className="mt-4">
-                <RiderLocationCard riderId={order.rider_id} />
+                <RiderMapCard
+                  riderId={order.rider_id}
+                  destLat={order.delivery_lat}
+                  destLng={order.delivery_lng}
+                />
               </div>
             )}
 

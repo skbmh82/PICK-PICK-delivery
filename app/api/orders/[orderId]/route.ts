@@ -21,10 +21,11 @@ export async function GET(
     .select(`
       id, status, total_amount, delivery_fee,
       pick_used, pick_reward, delivery_address, delivery_note,
+      delivery_lat, delivery_lng,
       estimated_time, confirmed_at, picked_up_at, delivered_at,
-      cancelled_at, created_at,
+      cancelled_at, created_at, rider_id,
       stores ( id, name, image_url, category, phone, address ),
-      order_items ( id, menu_name, price, quantity, options )
+      order_items ( id, menu_id, menu_name, price, quantity, options )
     `)
     .eq("id", orderId)
     .single();

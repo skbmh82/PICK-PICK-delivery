@@ -137,3 +137,50 @@ export async function PATCH(request: NextRequest) {
 
   return NextResponse.json({ ok: true });
 }
+
+// DELETE /api/users/me — 회원탈퇴
+export async function DELETE() {
+  const supabase = await createServerSupabaseClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminSupabaseClient() as any;
+
+  const { data: profile } = await admin
+    .from("users").select("id, role").eq("auth_id", user.id).single();
+  if (!profile) return NextResponse.json({ error: "사용자를 찾을 수 없습니다" }, { status: 404 });
+
+  // 진행 중인 주문이 있으면 탈퇴 불가
+  const ACTIVE = ["pending","confirmed","preparing","ready","picked_up","delivering"];
+  const { count } = await admin
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", profile.id)
+    .in("status", ACTIVE);
+
+  if ((count ?? 0) > 0) {
+    return NextResponse.json({ error: "진행 중인 주문이 있어 탈퇴할 수 없어요. 주문 완료 후 다시 시도해 주세요." }, { status: 400 });
+  }
+
+  // 1. users 테이블 개인정보 익명화 (주문 내역 보존 목적)
+  await admin.from("users").update({
+    name:          "탈퇴한 사용자",
+    email:         null,
+    phone:         null,
+    profile_image: null,
+    address_main:  null,
+    updated_at:    new Date().toISOString(),
+  }).eq("id", profile.id);
+
+  // 2. FCM 토큰 삭제
+  await admin.from("fcm_tokens").delete().eq("user_id", profile.id);
+
+  // 3. Supabase Auth 계정 삭제 (Admin API)
+  const authAdmin = getAdminSupabaseClient();
+  await authAdmin.auth.admin.deleteUser(user.id);
+
+  return NextResponse.json({ ok: true });
+}

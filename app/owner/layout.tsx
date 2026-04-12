@@ -2,25 +2,65 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   ClipboardList,
   UtensilsCrossed,
-  TrendingUp,
   Megaphone,
+  Star,
   ChevronLeft,
 } from "lucide-react";
 
 const OWNER_NAV = [
-  { href: "/owner/dashboard",   label: "대시보드", Icon: LayoutDashboard },
-  { href: "/owner/orders",      label: "주문관리", Icon: ClipboardList },
-  { href: "/owner/menu",        label: "메뉴관리", Icon: UtensilsCrossed },
-  { href: "/owner/ads",         label: "광고",     Icon: Megaphone },
-  { href: "/owner/settlement",  label: "정산/매출", Icon: TrendingUp },
+  { href: "/owner/dashboard",  label: "대시보드", Icon: LayoutDashboard },
+  { href: "/owner/orders",     label: "주문관리", Icon: ClipboardList },
+  { href: "/owner/menu",       label: "메뉴관리", Icon: UtensilsCrossed },
+  { href: "/owner/reviews",    label: "리뷰",     Icon: Star },
+  { href: "/owner/ads",        label: "광고",     Icon: Megaphone },
 ] as const;
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [storeName, setStoreName] = useState<string | null>(null);
+  const [isOpen,    setIsOpen]    = useState<boolean | null>(null);
+  const [toggling,  setToggling]  = useState(false);
+
+  useEffect(() => {
+    fetch("/api/stores/my")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (d?.store) {
+          setStoreName(d.store.name);
+          setIsOpen(d.store.is_open ?? true);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleToggle = async () => {
+    if (toggling || isOpen === null) return;
+    const next = !isOpen;
+    setToggling(true);
+    setIsOpen(next);
+    try {
+      await fetch("/api/stores/my/hours", {
+        method:  "PUT",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          hours: Array.from({ length: 7 }, (_, i) => ({
+            day_of_week: i,
+            open_time:   "00:00",
+            close_time:  "23:59",
+            is_closed:   false,
+          })),
+          is_open_override: next,
+        }),
+      });
+    } finally {
+      setToggling(false);
+    }
+  };
 
   return (
     <div id="app-shell">
@@ -35,15 +75,27 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
           </Link>
           <div>
             <p className="text-white font-black text-base leading-tight">🏪 사장님 모드</p>
-            <p className="text-white/75 text-xs">바삭대장 치킨</p>
+            <p className="text-white/75 text-xs">
+              {storeName ?? "내 가게"}
+            </p>
           </div>
         </div>
 
         {/* 영업 상태 토글 */}
-        <div className="flex items-center gap-2 bg-white/20 rounded-full px-3.5 py-1.5">
-          <span className="w-2 h-2 rounded-full bg-green-300 animate-pulse" />
-          <span className="text-white text-xs font-bold">영업 중</span>
-        </div>
+        <button
+          onClick={() => void handleToggle()}
+          disabled={toggling || isOpen === null}
+          className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 transition-all active:scale-95 disabled:opacity-60 ${
+            isOpen ? "bg-white/20" : "bg-black/20"
+          }`}
+        >
+          <span className={`w-2 h-2 rounded-full transition-colors ${
+            isOpen ? "bg-green-300 animate-pulse" : "bg-gray-400"
+          }`} />
+          <span className="text-white text-xs font-bold">
+            {isOpen === null ? "로딩 중" : isOpen ? "영업 중" : "영업 종료"}
+          </span>
+        </button>
       </header>
 
       {/* 콘텐츠 */}

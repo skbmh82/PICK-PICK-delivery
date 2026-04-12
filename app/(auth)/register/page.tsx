@@ -9,6 +9,14 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { Eye, EyeOff } from "lucide-react";
 
+function KakaoIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="#3C1E1E">
+      <path d="M12 3C6.477 3 2 6.477 2 10.8c0 2.74 1.63 5.15 4.09 6.59L5.1 21l4.54-2.95c.77.12 1.55.18 2.36.18 5.523 0 10-3.477 10-7.8C22 6.477 17.523 3 12 3z"/>
+    </svg>
+  );
+}
+
 const schema = z.object({
   name:     z.string().min(2, "이름은 2자 이상이어야 해요"),
   email:    z.string().email("올바른 이메일을 입력해주세요"),
@@ -25,10 +33,24 @@ const ROLES = [
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [showPw, setShowPw] = useState(false);
-  const [serverError, setServerError] = useState("");
+  const [showPw,            setShowPw]            = useState(false);
+  const [serverError,       setServerError]       = useState("");
+  const [kakaoLoading,      setKakaoLoading]      = useState(false);
   // 이메일 인증이 필요한 경우 이 state가 true로 바뀜
   const [needsEmailConfirm, setNeedsEmailConfirm] = useState(false);
+
+  const handleKakaoLogin = async () => {
+    setKakaoLoading(true);
+    const callbackUrl = `${window.location.origin}/api/auth/callback`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "kakao",
+      options:  { redirectTo: callbackUrl },
+    });
+    if (error) {
+      setServerError("카카오 로그인에 실패했어요. 다시 시도해주세요.");
+      setKakaoLoading(false);
+    }
+  };
 
   const {
     register,
@@ -123,6 +145,34 @@ export default function RegisterPage() {
           PICK PICK
         </h1>
         <p className="text-sm text-pick-text-sub mt-1">새 계정을 만들어보세요!</p>
+      </div>
+
+      {/* 카카오로 빠른 시작 */}
+      <div className="bg-white rounded-3xl border-2 border-pick-border p-5 shadow-sm">
+        <p className="text-xs text-pick-text-sub text-center mb-3 font-medium">소셜 계정으로 빠르게 시작해요</p>
+        <button
+          type="button"
+          onClick={() => void handleKakaoLogin()}
+          disabled={kakaoLoading}
+          className="w-full flex items-center justify-center gap-3 bg-[#FEE500] text-[#3C1E1E] font-black py-3.5 rounded-full active:scale-95 transition-all disabled:opacity-60"
+        >
+          {kakaoLoading ? (
+            <span className="w-5 h-5 border-2 border-[#3C1E1E]/30 border-t-[#3C1E1E] rounded-full animate-spin" />
+          ) : (
+            <KakaoIcon />
+          )}
+          카카오로 시작하기
+        </button>
+        <p className="text-[10px] text-pick-text-sub text-center mt-2.5">
+          카카오 가입 시 일반 사용자(User)로 자동 등록됩니다
+        </p>
+      </div>
+
+      {/* 구분선 */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px bg-pick-border" />
+        <span className="text-xs text-pick-text-sub font-medium">또는 이메일로 가입</span>
+        <div className="flex-1 h-px bg-pick-border" />
       </div>
 
       {/* 폼 카드 */}

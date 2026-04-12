@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -8,16 +9,38 @@ import {
   Clock,
   Bike,
   ChevronRight,
+  ChevronDown,
   ShoppingBag,
   Flame,
   Heart,
   MessageSquare,
   X,
   Check,
+  MapPin,
+  Phone,
+  AlertCircle,
 } from "lucide-react";
 import { CATEGORY_META } from "@/lib/utils/categoryEmoji";
 import { useCartStore, type SelectedOption } from "@/stores/cartStore";
 import CartBottomSheet from "@/components/cart/CartBottomSheet";
+
+const KakaoMap = dynamic(() => import("@/components/shared/KakaoMap"), { ssr: false });
+
+// ── 영업시간 타입 ──────────────────────────────────────
+export interface TodayHours {
+  openTime:         string;  // "09:00"
+  closeTime:        string;  // "22:00"
+  isClosed:         boolean;
+  isCurrentlyOpen:  boolean;
+}
+
+// ── 주간 영업시간 타입 ─────────────────────────────────
+export interface WeeklyHour {
+  dayOfWeek: number;  // 0=일, 1=월 ... 6=토
+  openTime:  string;
+  closeTime: string;
+  isClosed:  boolean;
+}
 
 // ── 가게 상세용 타입 ───────────────────────────────────
 export interface MenuOption {
@@ -39,7 +62,8 @@ export interface MenuItem {
   name:         string;
   description:  string;
   price:        number;
-  image:        string;       // 이모지
+  image:        string;       // 이모지 (imageUrl 없을 때 fallback)
+  imageUrl?:    string | null; // 실사 이미지 URL
   isPopular?:   boolean;
   isAvailable?: boolean;
   category:     string;
@@ -52,6 +76,9 @@ export interface ReviewItem {
   content: string | null;
   createdAt: string;
   userName: string;
+  imageUrls?: string[];
+  ownerReply?: string | null;
+  ownerRepliedAt?: string | null;
 }
 
 export interface StoreDetail {
@@ -59,6 +86,8 @@ export interface StoreDetail {
   name: string;
   category: string;
   emoji: string;
+  imageUrl?: string | null;
+  bannerUrl?: string | null;
   rating: number;
   reviewCount: number;
   deliveryTime: number;
@@ -67,6 +96,11 @@ export interface StoreDetail {
   pickRewardRate: number;
   tags: string[];
   menus: MenuItem[];
+  // 위치 정보
+  address: string;
+  phone: string | null;
+  lat: number;
+  lng: number;
 }
 
 /* ────────────── 옵션 선택 모달 ────────────── */
@@ -136,7 +170,14 @@ function OptionSelectModal({
           <div className="w-10 h-1 bg-pick-border rounded-full mx-auto mb-4" />
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <span className="text-4xl flex-shrink-0">{menu.image}</span>
+              <div className="w-12 h-12 flex-shrink-0 rounded-2xl bg-pick-bg border border-pick-border flex items-center justify-center overflow-hidden">
+                {menu.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={menu.imageUrl} alt={menu.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-3xl">{menu.image}</span>
+                )}
+              </div>
               <div className="min-w-0">
                 <p className="font-black text-pick-text text-base leading-snug truncate">{menu.name}</p>
                 <p className="text-xs text-pick-text-sub mt-0.5">{menu.price.toLocaleString()}원~</p>
@@ -228,9 +269,14 @@ function MenuItemCard({ menu, onAdd }: { menu: MenuItem; onAdd: () => void }) {
 
   return (
     <div className="flex items-center gap-4 bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border px-4 py-4 shadow-sm">
-      {/* 이모지 썸네일 */}
-      <div className="w-20 h-20 flex-shrink-0 rounded-2xl bg-pick-bg border border-pick-border flex items-center justify-center">
-        <span className="text-4xl">{menu.image}</span>
+      {/* 썸네일 (실사 이미지 or 이모지) */}
+      <div className="w-20 h-20 flex-shrink-0 rounded-2xl bg-pick-bg border border-pick-border flex items-center justify-center overflow-hidden">
+        {menu.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={menu.imageUrl} alt={menu.name} className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-4xl">{menu.image}</span>
+        )}
       </div>
 
       {/* 정보 */}
@@ -303,9 +349,157 @@ function MenuSection({
   );
 }
 
+/* ────────────── 리뷰 카드 ────────────── */
+function ReviewCard({ r }: { r: ReviewItem }) {
+  return (
+    <div className="px-4 py-4">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-pick-text text-sm">{r.userName}</span>
+          <div className="flex">
+            {[1,2,3,4,5].map((s) => (
+              <Star key={s} size={11}
+                className={s <= r.rating ? "text-pick-yellow fill-pick-yellow" : "text-gray-200 fill-gray-200"} />
+            ))}
+          </div>
+        </div>
+        <span className="text-[10px] text-pick-text-sub">
+          {new Date(r.createdAt).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}
+        </span>
+      </div>
+      {r.content && (
+        <p className="text-sm text-pick-text-sub leading-relaxed">{r.content}</p>
+      )}
+      {r.imageUrls && r.imageUrls.length > 0 && (
+        <div className="flex gap-2 mt-2 flex-wrap">
+          {r.imageUrls.map((url, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={i}
+              src={url}
+              alt={`리뷰 사진 ${i + 1}`}
+              className="w-20 h-20 rounded-2xl object-cover border border-pick-border"
+            />
+          ))}
+        </div>
+      )}
+      {r.ownerReply && (
+        <div className="mt-2.5 bg-pick-bg border border-pick-border rounded-2xl px-3 py-2.5">
+          <p className="text-[10px] font-black text-pick-purple mb-1">🏪 사장님 답글</p>
+          <p className="text-xs text-pick-text leading-relaxed">{r.ownerReply}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ────────────── 주간 영업시간 ────────────── */
+const DAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
+
+function WeeklyHoursSection({
+  weeklyHours,
+  todayDow,
+}: {
+  weeklyHours: WeeklyHour[];
+  todayDow:    number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (weeklyHours.length === 0) return null;
+
+  return (
+    <div className="mx-4 mb-5">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center justify-between bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border px-4 py-3.5 shadow-sm active:scale-[0.99] transition-transform"
+      >
+        <div className="flex items-center gap-2">
+          <Clock size={16} className="text-pick-purple" />
+          <span className="font-black text-pick-text text-sm">주간 영업시간</span>
+        </div>
+        <ChevronDown
+          size={16}
+          className={`text-pick-text-sub transition-transform ${expanded ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {expanded && (
+        <div className="mt-1 bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm">
+          {weeklyHours.map((h) => {
+            const isToday = h.dayOfWeek === todayDow;
+            return (
+              <div
+                key={h.dayOfWeek}
+                className={`flex items-center justify-between px-5 py-3 border-b border-pick-border last:border-0 ${
+                  isToday ? "bg-pick-purple/5" : ""
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm font-black w-5 text-center ${isToday ? "text-pick-purple" : "text-pick-text"}`}>
+                    {DAY_NAMES[h.dayOfWeek]}
+                  </span>
+                  {isToday && (
+                    <span className="text-[10px] font-black bg-pick-purple text-white px-1.5 py-0.5 rounded-full">
+                      오늘
+                    </span>
+                  )}
+                </div>
+                {h.isClosed ? (
+                  <span className="text-xs font-bold text-pick-text-sub">휴무</span>
+                ) : (
+                  <span className={`text-xs font-bold ${isToday ? "text-pick-purple" : "text-pick-text"}`}>
+                    {h.openTime.slice(0, 5)} ~ {h.closeTime.slice(0, 5)}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ────────────── 메인 클라이언트 컴포넌트 ────────────── */
 /* ────────────── 리뷰 섹션 ────────────── */
-function ReviewSection({ reviews, rating, reviewCount }: { reviews: ReviewItem[]; rating: number; reviewCount: number }) {
+function ReviewSection({
+  storeId,
+  initialReviews,
+  rating,
+  reviewCount,
+}: {
+  storeId: string;
+  initialReviews: ReviewItem[];
+  rating: number;
+  reviewCount: number;
+}) {
+  const [reviews,     setReviews]     = useState<ReviewItem[]>(initialReviews);
+  const [hasMore,     setHasMore]     = useState(initialReviews.length === 10);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const offsetRef = useRef(initialReviews.length);
+
+  // initialReviews prop 변경 시 동기화
+  useEffect(() => {
+    setReviews(initialReviews);
+    offsetRef.current = initialReviews.length;
+    setHasMore(initialReviews.length === 10);
+  }, [initialReviews]);
+
+  const loadMore = async () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await fetch(`/api/reviews/store/${storeId}?offset=${offsetRef.current}&limit=10`);
+      if (!res.ok) return;
+      const { reviews: more, hasMore: more2 } = await res.json() as { reviews: ReviewItem[]; hasMore: boolean };
+      setReviews((prev) => [...prev, ...more]);
+      offsetRef.current += more.length;
+      setHasMore(more2);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   if (reviews.length === 0) return null;
 
   return (
@@ -320,28 +514,19 @@ function ReviewSection({ reviews, rating, reviewCount }: { reviews: ReviewItem[]
         </span>
       </div>
       <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
-        {reviews.map((r) => (
-          <div key={r.id} className="px-4 py-4">
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-pick-text text-sm">{r.userName}</span>
-                <div className="flex">
-                  {[1,2,3,4,5].map((s) => (
-                    <Star key={s} size={11}
-                      className={s <= r.rating ? "text-pick-yellow fill-pick-yellow" : "text-gray-200 fill-gray-200"} />
-                  ))}
-                </div>
-              </div>
-              <span className="text-[10px] text-pick-text-sub">
-                {new Date(r.createdAt).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}
-              </span>
-            </div>
-            {r.content && (
-              <p className="text-sm text-pick-text-sub leading-relaxed">{r.content}</p>
-            )}
-          </div>
-        ))}
+        {reviews.map((r) => <ReviewCard key={r.id} r={r} />)}
       </div>
+      {hasMore && (
+        <button
+          onClick={() => void loadMore()}
+          disabled={loadingMore}
+          className="mt-3 w-full py-3 rounded-full border-2 border-pick-border text-pick-text-sub text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 bg-white dark:bg-pick-card"
+        >
+          {loadingMore
+            ? <span className="w-4 h-4 border-2 border-pick-border border-t-pick-purple rounded-full animate-spin" />
+            : "리뷰 더 보기 ▼"}
+        </button>
+      )}
     </div>
   );
 }
@@ -350,15 +535,20 @@ export default function StoreDetailClient({
   store,
   isFavorited: initialFavorited = false,
   reviews = [],
+  todayHours = null,
+  weeklyHours = null,
 }: {
   store: StoreDetail;
   isFavorited?: boolean;
   reviews?: ReviewItem[];
+  todayHours?: TodayHours | null;
+  weeklyHours?: WeeklyHour[] | null;
 }) {
   const [cartOpen,      setCartOpen]      = useState(false);
   const [favorited,     setFavorited]     = useState(initialFavorited);
   const [favLoading,    setFavLoading]    = useState(false);
   const [optionTarget,  setOptionTarget]  = useState<MenuItem | null>(null);
+  const todayDow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" })).getDay();
   const handleCartClose = useCallback(() => setCartOpen(false), []);
   const addItem     = useCartStore((s) => s.addItem);
   const cartItems   = useCartStore((s) => s.items);
@@ -434,8 +624,21 @@ export default function StoreDetailClient({
 
       {/* ── 헤더 배너 ── */}
       <div className="relative">
-        <div className="h-52 bg-gradient-to-br from-pick-purple-dark via-pick-purple to-pick-purple-light flex items-center justify-center">
-          <span className="text-9xl drop-shadow-lg">{store.emoji}</span>
+        <div className="h-52 bg-gradient-to-br from-pick-purple-dark via-pick-purple to-pick-purple-light flex items-center justify-center overflow-hidden">
+          {store.bannerUrl ?? store.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={(store.bannerUrl ?? store.imageUrl)!}
+              alt={store.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span className="text-9xl drop-shadow-lg">{store.emoji}</span>
+          )}
+          {/* 이미지 위에 반투명 오버레이 (텍스트 가독성) */}
+          {(store.bannerUrl ?? store.imageUrl) && (
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+          )}
         </div>
         {/* 뒤로가기 */}
         <Link
@@ -498,6 +701,89 @@ export default function StoreDetailClient({
         </p>
       </div>
 
+      {/* ── 영업 상태 / 영업시간 ── */}
+      {todayHours && (
+        <div className={`mx-4 mb-5 rounded-3xl border-2 px-4 py-3.5 flex items-center gap-3 ${
+          todayHours.isClosed
+            ? "bg-gray-50 border-gray-200"
+            : todayHours.isCurrentlyOpen
+              ? "bg-green-50 border-green-200"
+              : "bg-amber-50 border-amber-200"
+        }`}>
+          <span className={`w-9 h-9 flex items-center justify-center rounded-2xl flex-shrink-0 ${
+            todayHours.isClosed
+              ? "bg-gray-100"
+              : todayHours.isCurrentlyOpen
+                ? "bg-green-100"
+                : "bg-amber-100"
+          }`}>
+            {todayHours.isClosed || !todayHours.isCurrentlyOpen
+              ? <AlertCircle size={18} className={todayHours.isClosed ? "text-gray-400" : "text-amber-600"} />
+              : <Clock size={18} className="text-green-600" />
+            }
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className={`text-sm font-black ${
+              todayHours.isClosed
+                ? "text-gray-500"
+                : todayHours.isCurrentlyOpen
+                  ? "text-green-700"
+                  : "text-amber-700"
+            }`}>
+              {todayHours.isClosed
+                ? "오늘 휴무예요"
+                : todayHours.isCurrentlyOpen
+                  ? "영업 중"
+                  : "영업 준비 중 / 마감"
+              }
+            </p>
+            {!todayHours.isClosed && (
+              <p className="text-xs text-pick-text-sub mt-0.5">
+                오늘 {todayHours.openTime} ~ {todayHours.closeTime}
+              </p>
+            )}
+          </div>
+          {(todayHours.isClosed || !todayHours.isCurrentlyOpen) && (
+            <span className="flex-shrink-0 text-[10px] font-black bg-gray-200 text-gray-600 px-2.5 py-1 rounded-full">
+              주문 불가
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* ── 주간 영업시간 ── */}
+      {weeklyHours && weeklyHours.length > 0 && (
+        <WeeklyHoursSection weeklyHours={weeklyHours} todayDow={todayDow} />
+      )}
+
+      {/* ── 가게 위치 ── */}
+      <div className="mx-4 mb-5 bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm overflow-hidden">
+        <div className="px-4 pt-4 pb-3">
+          <h3 className="font-black text-pick-text text-sm flex items-center gap-2 mb-3">
+            <MapPin size={16} className="text-pick-purple" />
+            가게 위치
+          </h3>
+          <p className="text-xs text-pick-text-sub mb-2 leading-relaxed">{store.address}</p>
+          {store.phone && (
+            <a
+              href={`tel:${store.phone}`}
+              className="flex items-center gap-1.5 text-xs font-bold text-pick-purple"
+            >
+              <Phone size={12} />
+              {store.phone}
+            </a>
+          )}
+        </div>
+        {store.lat !== 0 && store.lng !== 0 && (
+          <KakaoMap
+            lat={store.lat}
+            lng={store.lng}
+            label={store.name}
+            className="w-full h-44"
+          />
+        )}
+      </div>
+
       {/* ── 메뉴 목록 ── */}
       <div className="mb-4">
         <h2 className="font-black text-pick-text text-base px-4 mb-5 flex items-center gap-2">
@@ -510,7 +796,7 @@ export default function StoreDetailClient({
       </div>
 
       {/* ── 리뷰 목록 ── */}
-      <ReviewSection reviews={reviews} rating={store.rating} reviewCount={store.reviewCount} />
+      <ReviewSection storeId={store.id} initialReviews={reviews} rating={store.rating} reviewCount={store.reviewCount} />
 
       {/* ── 하단 장바구니 버튼 (고정) ── */}
       <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-4 z-30">

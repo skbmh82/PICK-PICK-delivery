@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
+import { geocodeAddress } from "@/lib/kakao/geocode";
 
 const LABELS = ["집", "회사", "기타"] as const;
 const MAX_ADDRESSES = 5;
@@ -39,7 +40,7 @@ export async function GET() {
   const admin = getAdminSupabaseClient() as any;
   const { data: rows, error } = await admin
     .from("user_addresses")
-    .select("id, label, address, detail, is_default, created_at")
+    .select("id, label, address, detail, is_default, lat, lng, created_at")
     .eq("user_id", profile.id)
     .order("is_default", { ascending: false })
     .order("created_at",  { ascending: true });
@@ -55,6 +56,8 @@ export async function GET() {
     address:   r.address,
     detail:    r.detail ?? "",
     isDefault: r.is_default,
+    lat:       r.lat  != null ? Number(r.lat)  : null,
+    lng:       r.lng  != null ? Number(r.lng)  : null,
   }));
 
   return NextResponse.json({ addresses });
@@ -101,6 +104,9 @@ export async function POST(request: NextRequest) {
       .eq("user_id", profile.id);
   }
 
+  // 주소 → 좌표 변환 (Kakao Local API, 키 없으면 null)
+  const coords = await geocodeAddress(address);
+
   const { data: newAddr, error: insertErr } = await admin
     .from("user_addresses")
     .insert({
@@ -109,8 +115,10 @@ export async function POST(request: NextRequest) {
       address,
       detail:     detail ?? null,
       is_default: makeDefault,
+      lat:        coords?.lat ?? null,
+      lng:        coords?.lng ?? null,
     })
-    .select("id, label, address, detail, is_default")
+    .select("id, label, address, detail, is_default, lat, lng")
     .single();
 
   if (insertErr) {
@@ -124,6 +132,8 @@ export async function POST(request: NextRequest) {
       address:   newAddr.address,
       detail:    newAddr.detail ?? "",
       isDefault: newAddr.is_default,
+      lat:       newAddr.lat  != null ? Number(newAddr.lat)  : null,
+      lng:       newAddr.lng  != null ? Number(newAddr.lng)  : null,
     },
   }, { status: 201 });
 }

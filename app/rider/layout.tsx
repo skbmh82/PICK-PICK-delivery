@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Navigation, Bike, Wallet, ChevronLeft } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuthStore } from "@/stores/authStore";
 
 const RIDER_NAV = [
   { href: "/rider/dashboard", label: "배달현황", Icon: Navigation },
@@ -12,8 +13,38 @@ const RIDER_NAV = [
 ] as const;
 
 export default function RiderLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const [isOnline, setIsOnline] = useState(true);
+  const pathname   = usePathname();
+  const user       = useAuthStore((s) => s.user);
+  const [isOnline, setIsOnline] = useState(false);
+  const [toggling, setToggling] = useState(false);
+  const [name,     setName]     = useState("라이더");
+
+  // 최초 진입 시 현재 온라인 상태 + 이름 조회
+  useEffect(() => {
+    fetch("/api/rider/status")
+      .then((r) => r.json())
+      .then((d) => {
+        if (typeof d.isActive === "boolean") setIsOnline(d.isActive);
+        if (d.name) setName(d.name as string);
+      })
+      .catch(() => {/* 비로그인 등 무시 */});
+  }, [user]);
+
+  const handleToggle = async () => {
+    if (toggling) return;
+    setToggling(true);
+    const next = !isOnline;
+    try {
+      const res = await fetch("/api/rider/location", {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ lat: 0, lng: 0, isActive: next }),
+      });
+      if (res.ok) setIsOnline(next);
+    } finally {
+      setToggling(false);
+    }
+  };
 
   return (
     <div id="app-shell">
@@ -28,14 +59,15 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
           </Link>
           <div>
             <p className="text-white font-black text-base leading-tight">🛵 라이더 모드</p>
-            <p className="text-white/75 text-xs">임권 라이더님</p>
+            <p className="text-white/75 text-xs">{name}님</p>
           </div>
         </div>
 
         {/* 온/오프라인 토글 */}
         <button
-          onClick={() => setIsOnline((v) => !v)}
-          className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 transition-all ${
+          onClick={() => void handleToggle()}
+          disabled={toggling}
+          className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 transition-all disabled:opacity-60 ${
             isOnline
               ? "bg-white/20 border border-white/30"
               : "bg-white/10 border border-white/10"
@@ -45,7 +77,7 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
             isOnline ? "bg-green-300 animate-pulse" : "bg-white/40"
           }`} />
           <span className="text-white text-xs font-bold">
-            {isOnline ? "온라인" : "오프라인"}
+            {toggling ? "변경 중..." : isOnline ? "온라인" : "오프라인"}
           </span>
         </button>
       </header>
@@ -54,7 +86,7 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
       <main className="pb-20">{children}</main>
 
       {/* 라이더 전용 하단 탭 */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50 bg-white rounded-t-3xl shadow-[0_-4px_20px_rgba(14,165,233,0.15)] border-t border-sky-100">
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50 bg-white dark:bg-pick-card rounded-t-3xl shadow-[0_-4px_20px_rgba(14,165,233,0.15)] border-t border-sky-100 dark:border-pick-border">
         <ul className="flex items-center px-2 py-1">
           {RIDER_NAV.map(({ href, label, Icon }) => {
             const isActive = pathname === href;

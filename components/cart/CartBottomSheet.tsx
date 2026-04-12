@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { X, Trash2, Minus, Plus, ShoppingBag, Bike, Coins, MapPin, ChevronRight, Home, Briefcase, Check, Ticket, ChevronDown, CreditCard } from "lucide-react";
+import { X, Trash2, Minus, Plus, ShoppingBag, Bike, Coins, MapPin, ChevronRight, Home, Briefcase, Check, Ticket, ChevronDown, CreditCard, Package } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 import { useOrderStore } from "@/stores/orderStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -29,6 +29,8 @@ interface UserAddress {
   address:   string;
   detail:    string;
   isDefault: boolean;
+  lat?:      number | null;
+  lng?:      number | null;
 }
 
 const LABEL_ICON: Record<string, React.ReactNode> = {
@@ -138,6 +140,7 @@ export default function CartBottomSheet({ onClose }: Props) {
   const [usePick,        setUsePick]        = useState(false);
   const [isOrdering,     setIsOrdering]     = useState(false);
   const [paymentMethod,  setPaymentMethod]  = useState<"PICK" | "TOSS">("PICK");
+  const [orderType,      setOrderType]      = useState<"delivery" | "takeout">("delivery");
 
   // 배달 주소
   const [addresses,      setAddresses]      = useState<UserAddress[]>([]);
@@ -204,7 +207,7 @@ export default function CartBottomSheet({ onClose }: Props) {
   const couponFreeDelivery = selectedCoupon?.coupon.type === "free_delivery";
   const couponPickRate     = selectedCoupon?.coupon.type === "pick_rate"     ? selectedCoupon.coupon.value : 0;
   const couponFixedPick    = selectedCoupon?.coupon.type === "fixed_pick"    ? selectedCoupon.coupon.value : 0;
-  const effectiveDeliveryFee = couponFreeDelivery ? 0 : cart.deliveryFee;
+  const effectiveDeliveryFee = (couponFreeDelivery || orderType === "takeout") ? 0 : cart.deliveryFee;
   const isCouponApplicable = !selectedCoupon || itemsAmount >= selectedCoupon.coupon.minOrder;
 
   const totalPaid     = itemsAmount + effectiveDeliveryFee - pickDiscount;
@@ -219,7 +222,7 @@ export default function CartBottomSheet({ onClose }: Props) {
 
   const handleOrder = async () => {
     if (isBelowMin || isOrdering) return;
-    if (!deliveryAddressText) {
+    if (orderType === "delivery" && !deliveryAddressText) {
       setShowPicker(true);
       return;
     }
@@ -246,9 +249,12 @@ export default function CartBottomSheet({ onClose }: Props) {
           deliveryFee:     effectiveDeliveryFee,
           pickUsed:        paymentMethod === "PICK" ? pickDiscount : 0,
           userCouponId:    selectedCoupon?.userCouponId ?? undefined,
-          deliveryAddress: deliveryAddressText,
+          deliveryAddress: orderType === "takeout" ? "포장 주문" : deliveryAddressText,
+          deliveryLat:     orderType === "takeout" ? undefined : (selectedAddr?.lat ?? undefined),
+          deliveryLng:     orderType === "takeout" ? undefined : (selectedAddr?.lng ?? undefined),
           deliveryNote:    note.trim() || undefined,
           paymentMethod,
+          orderType,
         }),
       });
       if (res.ok) {
@@ -322,6 +328,39 @@ export default function CartBottomSheet({ onClose }: Props) {
           <p className="text-xs text-pick-text-sub mt-1 font-medium">{cart.storeEmoji} {cart.storeName}</p>
         </div>
 
+        {/* 배달 / 포장 토글 */}
+        <div className="flex-shrink-0 px-4 py-3 border-b border-pick-border">
+          <div className="flex gap-2 bg-pick-bg rounded-2xl p-1">
+            <button
+              onClick={() => setOrderType("delivery")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                orderType === "delivery"
+                  ? "bg-pick-purple text-white shadow-sm"
+                  : "text-pick-text-sub"
+              }`}
+            >
+              <Bike size={14} />
+              배달
+            </button>
+            <button
+              onClick={() => setOrderType("takeout")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                orderType === "takeout"
+                  ? "bg-pick-purple text-white shadow-sm"
+                  : "text-pick-text-sub"
+              }`}
+            >
+              <Package size={14} />
+              포장
+            </button>
+          </div>
+          {orderType === "takeout" && (
+            <p className="text-xs text-pick-text-sub mt-2 text-center">
+              🏃 포장 주문 시 배달비 무료 · 가게 방문 후 수령
+            </p>
+          )}
+        </div>
+
         {/* 스크롤 영역 */}
         <div className="flex-1 min-h-0 overflow-y-auto">
           {/* 아이템 목록 */}
@@ -359,44 +398,48 @@ export default function CartBottomSheet({ onClose }: Props) {
             ))}
           </div>
 
-          {/* 배달 주소 */}
-          <div className="px-4 pb-3">
-            <div className="bg-pick-bg rounded-2xl border-2 border-pick-border px-4 py-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
-                  <MapPin size={15} className="text-pick-purple flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-black text-pick-text">배달 주소</p>
-                    {deliveryAddressText ? (
-                      <p className="text-xs text-pick-text-sub mt-0.5 truncate max-w-[200px]">
-                        {deliveryAddressText}
-                      </p>
-                    ) : (
-                      <p className="text-xs text-red-500 font-bold mt-0.5">주소를 선택해주세요</p>
-                    )}
+          {/* 배달 주소 (배달 주문일 때만) */}
+          {orderType === "delivery" && (
+            <>
+              <div className="px-4 pb-3">
+                <div className="bg-pick-bg rounded-2xl border-2 border-pick-border px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <MapPin size={15} className="text-pick-purple flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-black text-pick-text">배달 주소</p>
+                        {deliveryAddressText ? (
+                          <p className="text-xs text-pick-text-sub mt-0.5 truncate max-w-[200px]">
+                            {deliveryAddressText}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-red-500 font-bold mt-0.5">주소를 선택해주세요</p>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowPicker((v) => !v)}
+                      className="flex items-center gap-0.5 text-xs font-bold text-pick-purple flex-shrink-0"
+                    >
+                      변경 <ChevronRight size={13} />
+                    </button>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowPicker((v) => !v)}
-                  className="flex items-center gap-0.5 text-xs font-bold text-pick-purple flex-shrink-0"
-                >
-                  변경 <ChevronRight size={13} />
-                </button>
               </div>
-            </div>
-          </div>
 
-          {/* 주소 선택 패널 */}
-          {showPicker && (
-            <AddressPicker
-              addresses={addresses}
-              selectedId={selectedAddr?.id ?? null}
-              manualAddr={manualAddr}
-              onSelect={(addr) => { setSelectedAddr(addr); setManualAddr(""); }}
-              onManualChange={(v) => { setManualAddr(v); setSelectedAddr(null); }}
-              onClose={() => setShowPicker(false)}
-              onSearchAddress={() => openDaumPostcode((addr) => { setManualAddr(addr); setSelectedAddr(null); })}
-            />
+              {/* 주소 선택 패널 */}
+              {showPicker && (
+                <AddressPicker
+                  addresses={addresses}
+                  selectedId={selectedAddr?.id ?? null}
+                  manualAddr={manualAddr}
+                  onSelect={(addr) => { setSelectedAddr(addr); setManualAddr(""); }}
+                  onManualChange={(v) => { setManualAddr(v); setSelectedAddr(null); }}
+                  onClose={() => setShowPicker(false)}
+                  onSearchAddress={() => openDaumPostcode((addr) => { setManualAddr(addr); setSelectedAddr(null); })}
+                />
+              )}
+            </>
           )}
 
           {/* 배달 메모 */}
@@ -405,7 +448,7 @@ export default function CartBottomSheet({ onClose }: Props) {
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="배달 메모 (예: 문 앞에 놔주세요)"
+              placeholder={orderType === "takeout" ? "요청사항 (예: 소스 많이 주세요)" : "배달 메모 (예: 문 앞에 놔주세요)"}
               maxLength={100}
               className="w-full border-2 border-pick-border rounded-2xl px-4 py-2.5 text-xs text-pick-text focus:outline-none focus:border-pick-purple bg-white"
             />
@@ -609,7 +652,7 @@ export default function CartBottomSheet({ onClose }: Props) {
               ⚠️ 로그인 후 주문하면 PICK이 적립됩니다
             </p>
           )}
-          {!deliveryAddressText && (
+          {orderType === "delivery" && !deliveryAddressText && (
             <p className="text-xs text-red-500 font-bold text-center mb-2">
               📍 배달 주소를 입력해주세요
             </p>
@@ -623,9 +666,9 @@ export default function CartBottomSheet({ onClose }: Props) {
             {isOrdering ? (
               <><span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />주문 중...</>
             ) : paymentMethod === "TOSS" ? (
-              <><CreditCard size={18} />{totalPaid.toLocaleString()}원 카드 결제</>
+              <><CreditCard size={18} />{totalPaid.toLocaleString()}원 {orderType === "takeout" ? "포장" : "카드"} 결제</>
             ) : (
-              <><ShoppingBag size={18} />{totalPaid.toLocaleString()}원 PICK 결제</>
+              <><ShoppingBag size={18} />{totalPaid.toLocaleString()}원 {orderType === "takeout" ? "포장" : "PICK"} 결제</>
             )}
           </button>
         </div>

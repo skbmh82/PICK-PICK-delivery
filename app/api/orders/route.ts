@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createNotification } from "@/lib/notifications";
 import { calcPickReward } from "@/lib/pick-grade";
+import { geocodeAddress } from "@/lib/kakao/geocode";
 
 const OrderItemSchema = z.object({
   menuId:   z.string().uuid(),
@@ -21,8 +22,11 @@ const CreateOrderSchema = z.object({
   pickUsed:        z.number().min(0),
   userCouponId:    z.string().uuid().optional(),
   deliveryAddress: z.string().min(1),
+  deliveryLat:     z.number().optional(),
+  deliveryLng:     z.number().optional(),
   deliveryNote:    z.string().optional(),
   paymentMethod:   z.enum(["PICK", "TOSS", "KAKAO"]).default("PICK"),
+  orderType:       z.enum(["delivery", "takeout"]).default("delivery"),
 });
 
 // POST /api/orders — 주문 생성
@@ -58,7 +62,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { storeId, items, totalAmount, deliveryFee, pickUsed, userCouponId,
-          deliveryAddress, deliveryNote, paymentMethod } = parsed.data;
+          deliveryAddress, deliveryLat, deliveryLng, deliveryNote, paymentMethod, orderType } = parsed.data;
 
   // 4. 가맹점 존재/영업 여부 확인
   const { data: store } = await admin
@@ -126,7 +130,15 @@ export async function POST(request: NextRequest) {
   );
   const pickReward  = baseReward + Math.floor(baseReward * couponExtraPickRate / 100) + couponFixedPick;
 
-  // 8. 주문 생성 (admin 클라이언트로 RLS 우회)
+  // 8. 배달 좌표 확정 — 클라이언트 제공 우선, 없으면 서버 지오코딩
+  let finalLat = deliveryLat ?? null;
+  let finalLng = deliveryLng ?? null;
+  if (orderType === "delivery" && (finalLat == null || finalLng == null)) {
+    const coords = await geocodeAddress(deliveryAddress);
+    if (coords) { finalLat = coords.lat; finalLng = coords.lng; }
+  }
+
+  // 9. 주문 생성 (admin 클라이언트로 RLS 우회)
   const tossOrderId = paymentMethod !== "PICK"
     ? `PICK-APP-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
     : null;
@@ -143,9 +155,14 @@ export async function POST(request: NextRequest) {
       pick_used:        paymentMethod === "PICK" ? pickUsed : 0,
       pick_reward:      pickReward,
       delivery_address: deliveryAddress,
+      delivery_lat:     finalLat,
+      delivery_lng:     finalLng,
       delivery_note:    deliveryNote ?? null,
-      estimated_time:   store.delivery_time ?? 30,
+      estimated_time:   orderType === "takeout"
+        ? Math.max((store.delivery_time ?? 30) - 10, 10)
+        : store.delivery_time ?? 30,
       toss_order_id:    tossOrderId,
+      order_type:       orderType,
     })
     .select("id")
     .single();
@@ -157,7 +174,7 @@ export async function POST(request: NextRequest) {
 
   const orderId = orderData.id as string;
 
-  // 9. 주문 아이템 일괄 insert
+  // 10. 주문 아이템 일괄 insert
   const orderItems = items.map((item) => ({
     order_id:  orderId,
     menu_id:   item.menuId,

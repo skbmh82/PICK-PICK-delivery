@@ -6,9 +6,10 @@ import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 const REVIEW_PICK_REWARD = 10; // 리뷰 작성 시 PICK 보상
 
 const ReviewSchema = z.object({
-  orderId: z.string().uuid(),
-  rating:  z.number().int().min(1).max(5),
-  content: z.string().max(500).optional(),
+  orderId:    z.string().uuid(),
+  rating:     z.number().int().min(1).max(5),
+  content:    z.string().max(500).optional(),
+  imageUrls:  z.array(z.string().url()).max(3).optional(),
 });
 
 // GET /api/reviews?orderId= — 해당 주문 리뷰 존재 여부 확인
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
     .from("users").select("id").eq("auth_id", user.id).single();
   if (!profile) return NextResponse.json({ error: "사용자를 찾을 수 없습니다" }, { status: 404 });
 
-  const { orderId, rating, content } = parsed.data;
+  const { orderId, rating, content, imageUrls } = parsed.data;
 
   // 주문 검증: 본인 주문 + 배달 완료 상태
   const { data: order } = await admin
@@ -93,6 +94,7 @@ export async function POST(request: NextRequest) {
     store_id:    order.store_id,
     rating,
     content:     content ?? null,
+    image_urls:  imageUrls ?? [],
     pick_reward: REVIEW_PICK_REWARD,
   });
 

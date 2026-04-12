@@ -5,6 +5,7 @@ import { Bell, X, Package, Gift, Megaphone, ArrowUpRight, Circle } from "lucide-
 import { useAuthStore } from "@/stores/authStore";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { fetchMyPickBalance } from "@/lib/supabase/wallet";
+import { useRouter } from "next/navigation";
 
 // ── 타입 ──────────────────────────────────────────────
 interface Notification {
@@ -26,6 +27,15 @@ function NotifIcon({ type }: { type: string }) {
   return <div className={`${base} bg-gray-100`}><Megaphone size={16} className="text-gray-400" /></div>;
 }
 
+// 알림 타입별 딥링크
+function getNotifHref(n: Notification): string | null {
+  const orderId = n.data?.orderId as string | undefined;
+  if (n.type === "order_update" && orderId) return `/orders/${orderId}`;
+  if (n.type === "reward")   return "/wallet";
+  if (n.type === "transfer") return "/wallet";
+  return null;
+}
+
 // ── 알림 드로어 ───────────────────────────────────────
 function NotificationDrawer({
   notifications,
@@ -38,6 +48,7 @@ function NotificationDrawer({
   onReadAll: () => void;
   onReadOne: (id: string) => void;
 }) {
+  const router = useRouter();
   const unread = notifications.filter((n) => !n.isRead).length;
 
   return (
@@ -81,13 +92,19 @@ function NotificationDrawer({
             </div>
           ) : (
             <div className="divide-y divide-gray-50 dark:divide-pick-border">
-              {notifications.map((n) => (
+              {notifications.map((n) => {
+                const href = getNotifHref(n);
+                const handleClick = () => {
+                  if (!n.isRead) onReadOne(n.id);
+                  if (href) { onClose(); router.push(href); }
+                };
+                return (
                 <button
                   key={n.id}
-                  onClick={() => { if (!n.isRead) onReadOne(n.id); }}
+                  onClick={handleClick}
                   className={`w-full flex items-start gap-3 px-5 py-4 text-left transition-colors ${
                     n.isRead ? "bg-white dark:bg-pick-card" : "bg-pick-bg"
-                  }`}
+                  } ${href ? "active:bg-pick-border/40" : ""}`}
                 >
                   <NotifIcon type={n.type} />
                   <div className="flex-1 min-w-0">
@@ -110,7 +127,8 @@ function NotificationDrawer({
                     </p>
                   </div>
                 </button>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

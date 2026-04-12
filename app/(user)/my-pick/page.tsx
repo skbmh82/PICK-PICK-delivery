@@ -9,6 +9,7 @@ import {
   ChevronRight, Store, Bike, LayoutDashboard, ClipboardList,
   TrendingUp, Navigation, Wallet, RefreshCw, Pencil, X, Check,
   Copy, Share2, Plus, Trash2, Home, Briefcase, Moon, Sun,
+  AlertTriangle,
 } from "lucide-react";
 import { getCategoryEmoji } from "@/lib/utils/categoryEmoji";
 import { useTheme } from "@/hooks/useTheme";
@@ -848,13 +849,17 @@ export default function MyPickPage() {
   const router  = useRouter();
   const { isDark, toggle: toggleTheme } = useTheme();
 
-  const [meData,       setMeData]       = useState<MeData | null>(null);
-  const [loadingMe,    setLoadingMe]    = useState(false);
-  const [previewRole,  setPreviewRole]  = useState<PreviewRole>("user");
-  const [editOpen,     setEditOpen]     = useState(false);
-  const [addressOpen,  setAddressOpen]  = useState(false);
-  const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [uploadingPfp, setUploadingPfp] = useState(false);
+  const [meData,          setMeData]          = useState<MeData | null>(null);
+  const [loadingMe,       setLoadingMe]       = useState(false);
+  const [previewRole,     setPreviewRole]      = useState<PreviewRole>("user");
+  const [editOpen,        setEditOpen]        = useState(false);
+  const [addressOpen,     setAddressOpen]     = useState(false);
+  const [profileImage,    setProfileImage]    = useState<string | null>(null);
+  const [uploadingPfp,    setUploadingPfp]    = useState(false);
+  const [deleteConfirm,   setDeleteConfirm]   = useState(false);
+  const [deleteInput,     setDeleteInput]     = useState("");
+  const [deleting,        setDeleting]        = useState(false);
+  const [deleteError,     setDeleteError]     = useState("");
   const pfpInputRef = useRef<HTMLInputElement>(null);
 
   const displayRole = user ? user.role : previewRole;
@@ -880,6 +885,24 @@ export default function MyPickPage() {
     await fetch("/api/fcm/token", { method: "DELETE" }).catch(() => {});
     await signOut();
     router.replace("/login");
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteInput !== "탈퇴") return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      const res  = await fetch("/api/users/me", { method: "DELETE" });
+      const json = await res.json() as { error?: string };
+      if (!res.ok) {
+        setDeleteError(json.error ?? "탈퇴에 실패했습니다");
+        return;
+      }
+      await signOut();
+      router.replace("/login");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1005,14 +1028,18 @@ export default function MyPickPage() {
       {displayRole === "rider" && <RiderBanner />}
 
       {/* 즐겨찾기 (데이터 있을 때만) */}
-      {meData?.favorites && meData.favorites.length > 0 && (
-        <FavoritesSection favorites={meData.favorites} />
-      )}
+      <div id="section-favorites">
+        {meData?.favorites && meData.favorites.length > 0 && (
+          <FavoritesSection favorites={meData.favorites} />
+        )}
+      </div>
 
       {/* 내 리뷰 (데이터 있을 때만) */}
-      {meData?.reviews && meData.reviews.length > 0 && (
-        <ReviewsSection reviews={meData.reviews} />
-      )}
+      <div id="section-reviews">
+        {meData?.reviews && meData.reviews.length > 0 && (
+          <ReviewsSection reviews={meData.reviews} />
+        )}
+      </div>
 
       {/* 친구 초대 레퍼럴 카드 */}
       <ReferralCard />
@@ -1020,10 +1047,16 @@ export default function MyPickPage() {
       {/* 메뉴 목록 */}
       <div className="mx-4 bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
         <MenuItem icon={<MapPin  size={18} />} label="배달 주소 관리" onClick={() => setAddressOpen(true)} />
-        <MenuItem icon={<Heart   size={18} />} label="즐겨찾기 가맹점" />
-        <MenuItem icon={<Star    size={18} />} label="내 리뷰" />
+        <MenuItem icon={<Heart   size={18} />} label="즐겨찾기 가맹점"
+          onClick={() => document.getElementById("section-favorites")?.scrollIntoView({ behavior: "smooth" })}
+          badge={meData?.favorites.length ? String(meData.favorites.length) : undefined}
+        />
+        <MenuItem icon={<Star    size={18} />} label="내 리뷰"
+          onClick={() => document.getElementById("section-reviews")?.scrollIntoView({ behavior: "smooth" })}
+          badge={meData?.reviews.length ? String(meData.reviews.length) : undefined}
+        />
         <MenuItem icon={<Bell    size={18} />} label="알림" href="/notifications" />
-        <MenuItem icon={<HelpCircle size={18} />} label="공지사항 / FAQ" />
+        <MenuItem icon={<HelpCircle size={18} />} label="공지사항 / FAQ" href="/faq" />
         {/* 다크모드 토글 */}
         <div className="flex items-center justify-between px-5 py-4">
           <div className="flex items-center gap-3.5">
@@ -1059,6 +1092,63 @@ export default function MyPickPage() {
           <span className="text-sm font-semibold">로그아웃</span>
         </button>
       </div>
+
+      {/* 회원탈퇴 */}
+      {user && !deleteConfirm && (
+        <div className="mx-4 mt-2 text-center">
+          <button
+            onClick={() => setDeleteConfirm(true)}
+            className="text-xs text-pick-text-sub underline underline-offset-2 opacity-50 hover:opacity-80 transition-opacity"
+          >
+            회원탈퇴
+          </button>
+        </div>
+      )}
+
+      {/* 회원탈퇴 확인 패널 */}
+      {user && deleteConfirm && (
+        <div className="mx-4 mt-2 bg-red-50 border-2 border-red-200 rounded-3xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle size={18} className="text-red-500 flex-shrink-0" />
+            <p className="font-black text-red-700 text-sm">정말 탈퇴하시겠어요?</p>
+          </div>
+          <ul className="text-xs text-red-600 leading-relaxed space-y-1 mb-4">
+            <li>• 계정과 개인정보가 즉시 삭제됩니다</li>
+            <li>• 보유한 PICK 토큰은 복구되지 않습니다</li>
+            <li>• 진행 중인 주문이 있으면 탈퇴할 수 없습니다</li>
+          </ul>
+          <p className="text-xs font-bold text-red-700 mb-2">
+            확인을 위해 아래에 <span className="bg-red-100 px-1 rounded">&ldquo;탈퇴&rdquo;</span>를 입력해주세요
+          </p>
+          <input
+            value={deleteInput}
+            onChange={(e) => setDeleteInput(e.target.value)}
+            placeholder="탈퇴"
+            className="w-full border-2 border-red-300 rounded-2xl px-4 py-2.5 text-sm text-red-700 font-bold focus:outline-none focus:border-red-500 bg-white mb-3"
+          />
+          {deleteError && (
+            <p className="text-xs text-red-600 font-bold mb-2">{deleteError}</p>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setDeleteConfirm(false); setDeleteInput(""); setDeleteError(""); }}
+              className="flex-1 py-2.5 rounded-full border-2 border-red-200 text-red-500 text-sm font-bold"
+            >
+              취소
+            </button>
+            <button
+              onClick={() => void handleDeleteAccount()}
+              disabled={deleteInput !== "탈퇴" || deleting}
+              className="flex-1 py-2.5 rounded-full bg-red-500 text-white text-sm font-black disabled:opacity-40 flex items-center justify-center gap-1.5"
+            >
+              {deleting
+                ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                : "탈퇴 확인"
+              }
+            </button>
+          </div>
+        </div>
+      )}
 
       <p className="text-center text-xs text-pick-text-sub mt-6 mb-2">
         PICK PICK v0.1.0

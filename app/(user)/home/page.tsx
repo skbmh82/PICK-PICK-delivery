@@ -4,14 +4,16 @@ import { Suspense } from "react";
 import { fetchStoresByCategory, searchStores, fetchTopStores, fetchSponsoredStores, type StoreRow, type AdStore } from "@/lib/supabase/stores";
 import { CATEGORY_META, getCategoryEmoji } from "@/lib/utils/categoryEmoji";
 import SearchBar from "./SearchBar";
+import FilterSortBar, { type SortKey } from "./FilterSortBar";
+import LoadMoreStores from "./LoadMoreStores";
 
 /* ────────────── 검색 결과 뷰 ────────────── */
-async function SearchResultsView({ query }: { query: string }) {
-  const stores = await searchStores(query);
+async function SearchResultsView({ query, sort }: { query: string; sort: SortKey }) {
+  const stores = await searchStores(query, sort);
 
   return (
-    <section className="px-4 pt-3 pb-4">
-      <div className="flex items-center gap-2 mb-4">
+    <section className="pt-3 pb-4">
+      <div className="flex items-center gap-2 mb-3 px-4">
         <Link
           href="/home"
           className="w-9 h-9 flex items-center justify-center rounded-full bg-white dark:bg-pick-card border-2 border-pick-border shadow-sm active:scale-95 transition-transform"
@@ -27,8 +29,12 @@ async function SearchResultsView({ query }: { query: string }) {
         </div>
       </div>
 
+      <Suspense fallback={null}>
+        <FilterSortBar currentSort={sort} />
+      </Suspense>
+
       {stores.length === 0 ? (
-        <div className="flex flex-col items-center py-16 text-pick-text-sub">
+        <div className="flex flex-col items-center py-16 text-pick-text-sub px-4">
           <Frown size={48} className="mb-3 opacity-20" />
           <p className="text-sm font-medium">검색 결과가 없어요</p>
           <p className="text-xs mt-1 opacity-70">다른 검색어를 입력해보세요</p>
@@ -40,7 +46,7 @@ async function SearchResultsView({ query }: { query: string }) {
           </Link>
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 px-4">
           {stores.map((store) => (
             <StoreCard key={store.id} store={store} />
           ))}
@@ -244,8 +250,13 @@ function HotStoreCard({ store }: { store: StoreRow }) {
       href={`/store/${store.id}`}
       className="flex-shrink-0 w-40 bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm active:scale-95 transition-transform overflow-hidden"
     >
-      <div className="h-24 bg-gradient-to-br from-pick-bg to-pick-border flex items-center justify-center">
-        <span className="text-5xl">{emoji}</span>
+      <div className="h-24 bg-gradient-to-br from-pick-bg to-pick-border flex items-center justify-center relative">
+        {store.image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={store.image_url} alt={store.name} className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-5xl">{emoji}</span>
+        )}
       </div>
       <div className="px-3 pt-2 pb-3">
         <p className="font-black text-pick-text text-xs leading-snug truncate mb-1">{store.name}</p>
@@ -324,8 +335,13 @@ function StoreCard({ store }: { store: StoreRow }) {
       href={`/store/${store.id}`}
       className="block bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm active:scale-95 transition-transform duration-150 overflow-hidden"
     >
-      <div className="h-36 bg-gradient-to-br from-pick-bg to-pick-border flex items-center justify-center">
-        <span className="text-7xl">{emoji}</span>
+      <div className="h-36 bg-gradient-to-br from-pick-bg to-pick-border flex items-center justify-center relative">
+        {store.image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={store.image_url} alt={store.name} className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-7xl">{emoji}</span>
+        )}
       </div>
       <div className="px-4 pt-3 pb-4">
         <div className="flex items-start justify-between gap-2 mb-2">
@@ -365,10 +381,10 @@ function StoreCard({ store }: { store: StoreRow }) {
 }
 
 /* ────────────── 가게 목록 뷰 (실데이터) ────────────── */
-async function StoreListView({ category }: { category: string }) {
+async function StoreListView({ category, sort }: { category: string; sort: SortKey }) {
   const info = CATEGORY_META[category];
-  const [stores, allSponsored] = await Promise.all([
-    fetchStoresByCategory(category),
+  const [{ stores, hasMore }, allSponsored] = await Promise.all([
+    fetchStoresByCategory(category, sort),
     fetchSponsoredStores(),
   ]);
   // 해당 카테고리의 상단 노출 광고 가게
@@ -376,14 +392,13 @@ async function StoreListView({ category }: { category: string }) {
     (s) => s.adType === "top" && s.category === category
   );
   // 광고 가게 id 제외한 일반 가게
-  const sponsoredIds = new Set(sponsoredTop.map((s) => s.id));
+  const sponsoredIds  = new Set(sponsoredTop.map((s) => s.id));
   const regularStores = stores.filter((s) => !sponsoredIds.has(s.id));
-
-  const totalCount = sponsoredTop.length + regularStores.length;
+  const initialCount  = sponsoredTop.length + regularStores.length;
 
   return (
-    <section className="px-4 pt-3 pb-4">
-      <div className="flex items-center gap-2 mb-4">
+    <section className="pt-3 pb-4">
+      <div className="flex items-center gap-2 mb-3 px-4">
         <Link
           href="/home"
           className="w-9 h-9 flex items-center justify-center rounded-full bg-white dark:bg-pick-card border-2 border-pick-border shadow-sm active:scale-95 transition-transform"
@@ -393,12 +408,18 @@ async function StoreListView({ category }: { category: string }) {
         <div className="flex items-center gap-2">
           <span className="text-2xl">{info?.emoji ?? "🍽️"}</span>
           <h2 className="text-lg font-black text-pick-text">{info?.label ?? category}</h2>
-          <span className="text-sm text-pick-text-sub font-medium">{totalCount}개</span>
+          {initialCount > 0 && (
+            <span className="text-sm text-pick-text-sub font-medium">{initialCount}개{hasMore ? "+" : ""}</span>
+          )}
         </div>
       </div>
 
-      {totalCount === 0 ? (
-        <div className="flex flex-col items-center py-16 text-pick-text-sub">
+      <Suspense fallback={null}>
+        <FilterSortBar currentSort={sort} />
+      </Suspense>
+
+      {initialCount === 0 ? (
+        <div className="flex flex-col items-center py-16 text-pick-text-sub px-4">
           <Frown size={48} className="mb-3 opacity-20" />
           <p className="text-sm font-medium">아직 이 카테고리 가게가 없어요</p>
           <p className="text-xs mt-1 opacity-70">다른 카테고리를 선택해보세요!</p>
@@ -410,28 +431,39 @@ async function StoreListView({ category }: { category: string }) {
           </Link>
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 px-4">
           {/* 광고 가게 최상단 */}
           {sponsoredTop.map((store) => (
             <SponsoredStoreCard key={store.adId} store={store} />
           ))}
-          {/* 일반 가게 */}
+          {/* 초기 일반 가게 */}
           {regularStores.map((store) => (
             <StoreCard key={store.id} store={store} />
           ))}
+          {/* 클라이언트 더보기 */}
+          <LoadMoreStores
+            category={category}
+            sort={sort}
+            initialOffset={stores.length}
+            initialHasMore={hasMore}
+          />
         </div>
       )}
     </section>
   );
 }
 
+const VALID_SORTS: SortKey[] = ["rating", "delivery_fee", "min_order", "delivery_time"];
+
 /* ────────────── 메인 페이지 ────────────── */
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; search?: string }>;
+  searchParams: Promise<{ category?: string; search?: string; sort?: string }>;
 }) {
-  const { category, search } = await searchParams;
+  const { category, search, sort: sortParam } = await searchParams;
+  const sort: SortKey =
+    VALID_SORTS.includes(sortParam as SortKey) ? (sortParam as SortKey) : "rating";
 
   const showSearch   = !!search?.trim();
   const showCategory = !showSearch && !!category;
@@ -444,9 +476,9 @@ export default async function HomePage({
       </Suspense>
 
       {showSearch ? (
-        <SearchResultsView query={search!.trim()} />
+        <SearchResultsView query={search!.trim()} sort={sort} />
       ) : showCategory ? (
-        <StoreListView category={category!} />
+        <StoreListView category={category!} sort={sort} />
       ) : (
         <>
           {/* 광고 섹션 (배너 광고 + 상단 노출) */}

@@ -2,8 +2,13 @@ import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 
+const ACTIVE_STATUSES = ["pending","confirmed","preparing","ready","picked_up","delivering"];
+
 // GET /api/orders/my — 내 주문 목록
-export async function GET() {
+// ?status=active&limit=1  → activeCount만 반환 (BottomNav 배지용)
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const statusFilter = searchParams.get("status");
   const supabase = await createServerSupabaseClient();
   const admin    = getAdminSupabaseClient();
 
@@ -19,7 +24,17 @@ export async function GET() {
     .single();
 
   if (!profile) {
-    return NextResponse.json({ orders: [] });
+    return NextResponse.json({ orders: [], activeCount: 0 });
+  }
+
+  // 진행 중 주문 수만 필요할 때 (BottomNav 배지)
+  if (statusFilter === "active") {
+    const { count } = await admin
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", profile.id)
+      .in("status", ACTIVE_STATUSES);
+    return NextResponse.json({ activeCount: count ?? 0 });
   }
 
   const { data: orders, error } = await admin
@@ -29,7 +44,7 @@ export async function GET() {
       pick_used, pick_reward, delivery_address,
       estimated_time, created_at, rider_id,
       stores ( id, name, image_url, category ),
-      order_items ( id, menu_name, price, quantity, options )
+      order_items ( id, menu_id, menu_name, price, quantity, options )
     `)
     .eq("user_id", profile.id)
     .order("created_at", { ascending: false })
@@ -61,5 +76,9 @@ export async function GET() {
     hasReview: reviewedSet.has(o.id as string),
   }));
 
-  return NextResponse.json({ orders: result });
+  const activeCount = result.filter((o: { status: string }) =>
+    ACTIVE_STATUSES.includes(o.status)
+  ).length;
+
+  return NextResponse.json({ orders: result, activeCount });
 }

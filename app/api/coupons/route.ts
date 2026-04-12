@@ -123,6 +123,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "쿠폰 등록에 실패했습니다" }, { status: 500 });
   }
 
+  // used_count 증가
+  await admin
+    .from("coupons")
+    .update({ used_count: (coupon.used_count as number) + 1 })
+    .eq("id", coupon.id);
+
   return NextResponse.json({
     ok: true,
     message: `"${coupon.title}" 쿠폰이 등록됐습니다!`,

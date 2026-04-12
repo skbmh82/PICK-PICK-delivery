@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
+import { geocodeAddress } from "@/lib/kakao/geocode";
 
 const LABELS = ["집", "회사", "기타"] as const;
 
@@ -61,11 +62,18 @@ export async function PATCH(
   if (detail    !== undefined) updates.detail     = detail || null;
   if (isDefault !== undefined) updates.is_default = isDefault;
 
+  // 주소가 변경된 경우 좌표 재계산
+  if (address !== undefined) {
+    const coords = await geocodeAddress(address);
+    updates.lat = coords?.lat ?? null;
+    updates.lng = coords?.lng ?? null;
+  }
+
   const { data: updated, error: updateErr } = await admin
     .from("user_addresses")
     .update(updates)
     .eq("id", addressId)
-    .select("id, label, address, detail, is_default")
+    .select("id, label, address, detail, is_default, lat, lng")
     .single();
 
   if (updateErr) {
@@ -79,6 +87,8 @@ export async function PATCH(
       address:   updated.address,
       detail:    updated.detail ?? "",
       isDefault: updated.is_default,
+      lat:       updated.lat  != null ? Number(updated.lat)  : null,
+      lng:       updated.lng  != null ? Number(updated.lng)  : null,
     },
   });
 }

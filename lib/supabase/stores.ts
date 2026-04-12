@@ -7,8 +7,11 @@ export interface StoreRow {
   category: string;
   description: string | null;
   address: string;
+  phone?: string | null;
   lat: number;
   lng: number;
+  image_url?: string | null;
+  banner_url?: string | null;
   rating: number;
   review_count: number;
   delivery_time: number;
@@ -31,37 +34,57 @@ export interface MenuRow {
   image_url: string | null;
 }
 
-// 카테고리별 가게 목록
-export async function fetchStoresByCategory(category: string): Promise<StoreRow[]> {
+type SortKey = "rating" | "delivery_fee" | "min_order" | "delivery_time";
+
+const SORT_MAP: Record<SortKey, { col: string; asc: boolean }> = {
+  rating:        { col: "rating",           asc: false },
+  delivery_fee:  { col: "delivery_fee",     asc: true  },
+  min_order:     { col: "min_order_amount", asc: true  },
+  delivery_time: { col: "delivery_time",    asc: true  },
+};
+
+const STORES_PAGE_SIZE = 12;
+
+// 카테고리별 가게 목록 (페이지네이션)
+export async function fetchStoresByCategory(
+  category: string,
+  sort: SortKey = "rating",
+  offset = 0,
+  limit  = STORES_PAGE_SIZE,
+): Promise<{ stores: StoreRow[]; hasMore: boolean }> {
   const supabase = createServerClient();
+  const { col, asc } = SORT_MAP[sort] ?? SORT_MAP.rating;
   const { data, error } = await supabase
     .from("stores")
-    .select("id, name, category, description, address, lat, lng, rating, review_count, delivery_time, delivery_fee, min_order_amount, pick_reward_rate, is_open")
+    .select("id, name, category, description, address, lat, lng, image_url, banner_url, rating, review_count, delivery_time, delivery_fee, min_order_amount, pick_reward_rate, is_open")
     .eq("category", category)
     .eq("is_approved", true)
-    .eq("is_open", true)
-    .order("rating", { ascending: false });
+    .order(col, { ascending: asc })
+    .range(offset, offset + limit - 1);
 
   if (error) {
     console.error("fetchStoresByCategory error:", error.message);
-    return [];
+    return { stores: [], hasMore: false };
   }
-  return (data ?? []) as StoreRow[];
+  const stores = (data ?? []) as StoreRow[];
+  return { stores, hasMore: stores.length === limit };
 }
 
-// 가게 검색 (이름 또는 메뉴명)
-export async function searchStores(query: string): Promise<StoreRow[]> {
+// 가게 검색 (가게명 OR 메뉴명) — PostgreSQL 전문검색(GIN) + ilike 하이브리드
+export async function searchStores(
+  query: string,
+  sort: SortKey = "rating"
+): Promise<StoreRow[]> {
   const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from("stores")
-    .select("id, name, category, description, address, lat, lng, rating, review_count, delivery_time, delivery_fee, min_order_amount, pick_reward_rate, is_open")
-    .eq("is_approved", true)
-    .ilike("name", `%${query}%`)
-    .order("rating", { ascending: false })
-    .limit(30);
+
+  const { data, error } = await supabase.rpc("search_stores", {
+    p_query: query,
+    p_sort:  sort,
+    p_limit: 30,
+  });
 
   if (error) {
-    console.error("searchStores error:", error.message);
+    console.error("searchStores RPC error:", error.message);
     return [];
   }
   return (data ?? []) as StoreRow[];
@@ -72,7 +95,7 @@ export async function fetchStoreById(id: string): Promise<StoreRow | null> {
   const supabase = createServerClient();
   const { data, error } = await supabase
     .from("stores")
-    .select("id, name, category, description, address, lat, lng, rating, review_count, delivery_time, delivery_fee, min_order_amount, pick_reward_rate, is_open")
+    .select("id, name, category, description, address, phone, lat, lng, image_url, banner_url, rating, review_count, delivery_time, delivery_fee, min_order_amount, pick_reward_rate, is_open")
     .eq("id", id)
     .single();
 
@@ -88,7 +111,7 @@ export async function fetchTopStores(limit = 8): Promise<StoreRow[]> {
   const supabase = createServerClient();
   const { data, error } = await supabase
     .from("stores")
-    .select("id, name, category, description, address, lat, lng, rating, review_count, delivery_time, delivery_fee, min_order_amount, pick_reward_rate, is_open")
+    .select("id, name, category, description, address, lat, lng, image_url, banner_url, rating, review_count, delivery_time, delivery_fee, min_order_amount, pick_reward_rate, is_open")
     .eq("is_approved", true)
     .eq("is_open", true)
     .order("rating", { ascending: false })
