@@ -9,14 +9,6 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { Eye, EyeOff } from "lucide-react";
 
-function KakaoIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="#3C1E1E">
-      <path d="M12 3C6.477 3 2 6.477 2 10.8c0 2.74 1.63 5.15 4.09 6.59L5.1 21l4.54-2.95c.77.12 1.55.18 2.36.18 5.523 0 10-3.477 10-7.8C22 6.477 17.523 3 12 3z"/>
-    </svg>
-  );
-}
-
 const schema = z.object({
   email:    z.string().email("올바른 이메일을 입력해주세요"),
   password: z.string().min(6, "비밀번호는 6자 이상이어야 해요"),
@@ -29,20 +21,6 @@ export default function LoginPage() {
   const redirectTo   = searchParams.get("redirect") ?? "/home";
   const [showPw,      setShowPw]      = useState(false);
   const [serverError, setServerError] = useState("");
-  const [kakaoLoading, setKakaoLoading] = useState(false);
-
-  const handleKakaoLogin = async () => {
-    setKakaoLoading(true);
-    const callbackUrl = `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(redirectTo)}`;
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "kakao",
-      options:  { redirectTo: callbackUrl },
-    });
-    if (error) {
-      setServerError("카카오 로그인에 실패했어요. 다시 시도해주세요.");
-      setKakaoLoading(false);
-    }
-  };
 
   const {
     register,
@@ -85,28 +63,6 @@ export default function LoginPage() {
           PICK PICK
         </h1>
         <p className="text-sm text-pick-text-sub mt-1">맛있는 음식을 PICK 하세요!</p>
-      </div>
-
-      {/* 카카오 로그인 */}
-      <button
-        type="button"
-        onClick={() => void handleKakaoLogin()}
-        disabled={kakaoLoading}
-        className="w-full flex items-center justify-center gap-3 bg-[#FEE500] text-[#3C1E1E] font-black py-3.5 rounded-full shadow-sm active:scale-95 transition-all disabled:opacity-60"
-      >
-        {kakaoLoading ? (
-          <span className="w-5 h-5 border-2 border-[#3C1E1E]/30 border-t-[#3C1E1E] rounded-full animate-spin" />
-        ) : (
-          <KakaoIcon />
-        )}
-        카카오로 로그인
-      </button>
-
-      {/* 구분선 */}
-      <div className="flex items-center gap-3">
-        <div className="flex-1 h-px bg-pick-border" />
-        <span className="text-xs text-pick-text-sub font-medium">또는</span>
-        <div className="flex-1 h-px bg-pick-border" />
       </div>
 
       {/* 폼 카드 */}
