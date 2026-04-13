@@ -26,19 +26,8 @@ export function useFcmToken(isLoggedIn: boolean) {
         const permission = await Notification.requestPermission();
         if (permission !== "granted") return;
 
-        // 서비스 워커 등록 및 Firebase 설정 전달
+        // 서비스 워커 등록 (config는 SW에 직접 하드코딩)
         const swReg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
-        swReg.active?.postMessage({
-          type: "FIREBASE_CONFIG",
-          config: {
-            apiKey:            process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-            authDomain:        process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-            projectId:         process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-            storageBucket:     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-            messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-            appId:             process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-          },
-        });
 
         const messaging = getFirebaseMessaging();
         if (!messaging) return;

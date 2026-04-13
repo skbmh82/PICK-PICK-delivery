@@ -4,33 +4,35 @@
 importScripts("https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js");
 
-// Firebase 설정 — 빌드 시 자동으로 주입되지 않으므로 직접 클라이언트 설정을 복사
-// (민감한 키가 아닌 NEXT_PUBLIC_ 값들입니다)
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "FIREBASE_CONFIG") {
-    const config = event.data.config;
-    firebase.initializeApp(config);
+// NEXT_PUBLIC_ 값은 공개값이므로 SW에 직접 하드코딩 (메시지 타이밍 문제 방지)
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyDUEnU6sMKXRE0wfxjJCDvUX8fqaXN3_Os",
+  authDomain:        "pickpick-61e41.firebaseapp.com",
+  projectId:         "pickpick-61e41",
+  storageBucket:     "pickpick-61e41.firebasestorage.app",
+  messagingSenderId: "324814684843",
+  appId:             "1:324814684843:web:f40e8f2db9e66de39b6dee",
+};
 
-    const messaging = firebase.messaging();
+firebase.initializeApp(FIREBASE_CONFIG);
+const messaging = firebase.messaging();
 
-    // 백그라운드 메시지 수신
-    messaging.onBackgroundMessage((payload) => {
-      const { title, body } = payload.notification ?? {};
-      const data = payload.data ?? {};
+// 백그라운드 메시지 수신
+messaging.onBackgroundMessage((payload) => {
+  const { title, body } = payload.notification ?? {};
+  const data = payload.data ?? {};
 
-      self.registration.showNotification(title ?? "PICK PICK", {
-        body:    body ?? "",
-        icon:    "/icons/icon-192.png",
-        badge:   "/icons/badge-72.png",
-        data:    data,
-        vibrate: [200, 100, 200],
-        actions: [
-          { action: "open",    title: "열기" },
-          { action: "dismiss", title: "닫기" },
-        ],
-      });
-    });
-  }
+  self.registration.showNotification(title ?? "PICK PICK", {
+    body:    body ?? "",
+    icon:    "/icons/icon-192.png",
+    badge:   "/icons/badge-72.png",
+    data:    data,
+    vibrate: [200, 100, 200],
+    actions: [
+      { action: "open",    title: "열기" },
+      { action: "dismiss", title: "닫기" },
+    ],
+  });
 });
 
 // 알림 클릭 처리
