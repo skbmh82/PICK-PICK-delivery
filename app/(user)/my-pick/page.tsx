@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
 import Link from "next/link";
 import {
@@ -852,6 +852,7 @@ export default function MyPickPage() {
   const user    = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
   const router  = useRouter();
+  const searchParams = useSearchParams();
   const { isDark, toggle: toggleTheme } = useTheme();
 
   const [meData,          setMeData]          = useState<MeData | null>(null);
@@ -885,6 +886,13 @@ export default function MyPickPage() {
   }, [user]);
 
   useEffect(() => { fetchMe(); }, [fetchMe]);
+
+  // ?address=1 파라미터로 진입 시 주소 관리 모달 자동 오픈
+  useEffect(() => {
+    if (searchParams.get("address") === "1") {
+      setAddressOpen(true);
+    }
+  }, [searchParams]);
 
   const handleSignOut = async () => {
     await fetch("/api/fcm/token", { method: "DELETE" }).catch(() => {});

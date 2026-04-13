@@ -22,7 +22,7 @@ export default function LocationBar() {
 
   return (
     <button
-      onClick={() => router.push("/my-pick")}
+      onClick={() => router.push("/my-pick?address=1")}
       className="flex items-center gap-1.5 px-5 py-2 w-full text-left"
     >
       <MapPin size={15} className="text-pick-purple flex-shrink-0" fill="#A855F7" fillOpacity={0.3} />
