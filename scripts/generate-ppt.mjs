@@ -64,7 +64,7 @@ const C = {
     fill: { color: C.purpleLight }, line: { color: C.purpleLight },
   });
 
-  slide.addText("2026년 4월 12일  |  MVP Phase 1 완성 + 쿠폰·PWA·주문상세 구현", {
+  slide.addText("2026년 4월 13일  |  Phase 1~3 완성 · FCM 푸시 · 관리자 5탭 · 미착수 0개", {
     x: 1, y: 3.6, w: 11.6, h: 0.5,
     fontSize: 14, color: "C4B5FD",
     align: "center",
@@ -88,7 +88,7 @@ const C = {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("📊  Phase 1 MVP 진행 현황 (4/12 기준)", {
+  slide.addText("📊  PICK PICK 진행 현황 (4/13 최종)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 26, bold: true, color: C.purpleDark,
   });
@@ -98,21 +98,22 @@ const C = {
   });
 
   const progressItems = [
-    { label: "인증 / 회원가입 + 지갑 자동생성",           pct: 100, color: C.green },
-    { label: "홈 탭 UI + 검색 + 가맹점 목록/상세",        pct: 100, color: C.green },
-    { label: "지갑 탭 (충전·보내기·거래내역)",             pct: 100, color: C.green },
-    { label: "PICK주문 탭 + 취소 + 재주문 + 리뷰",        pct: 100, color: C.green },
-    { label: "장바구니 + 메뉴 옵션 선택 + 배달 주소 연동", pct: 100, color: C.green },
-    { label: "사장님 대시보드 / 주문 / 메뉴 / 정산",      pct: 100, color: C.green },
+    { label: "인증 / 이메일 로그인 + 지갑 자동생성",       pct: 100, color: C.green },
+    { label: "카카오 소셜 로그인 + OAuth 콜백",             pct: 100, color: C.green },
+    { label: "홈 탭 + 검색(전문검색 GIN) + 가맹점",        pct: 100, color: C.green },
+    { label: "지갑 탭 (충전·보내기·거래내역)",              pct: 100, color: C.green },
+    { label: "PICK주문 탭 + 취소 + 재주문 + 리뷰(이미지)", pct: 100, color: C.green },
+    { label: "장바구니 + 메뉴 옵션 + 쿠폰 + PICK 할인",    pct: 100, color: C.green },
+    { label: "사장님 대시보드 / 주문 / 메뉴 / 정산",       pct: 100, color: C.green },
     { label: "라이더 대시보드 / 배달 / 수익 / 위치 공유",  pct: 100, color: C.green },
     { label: "관리자 대시보드 + PICK 지급 + 가게 승인",    pct: 100, color: C.green },
-    { label: "알림 시스템 + 친구 초대 레퍼럴",             pct: 100, color: C.green },
-    { label: "쿠폰 시스템 (관리자·사장님·사용자 전체)",    pct: 100, color: C.green },
-    { label: "PWA 설치 배너 + manifest + 앱 아이콘",       pct: 100, color: C.green },
-    { label: "주문 상세 페이지 + 에러/로딩/404 페이지",    pct: 100, color: C.green },
-    { label: "Supabase Realtime (주문·상태 실시간 추적)",  pct: 100, color: C.green },
-    { label: "DB RPC 함수 (상태변경·PICK적립·차감)",       pct: 100, color: C.green },
-    { label: "FCM 푸시 알림",                              pct: 0,   color: C.red },
+    { label: "미들웨어 RBAC + 비밀번호 찾기/재설정",       pct: 100, color: C.green },
+    { label: "DB 인덱스 30개+ + 운영 RLS 정책 전환",        pct: 100, color: C.green },
+    { label: "PWA + 다크모드 + 에러/404/로딩 페이지",       pct: 100, color: C.green },
+    { label: "토스페이먼츠 카드·간편결제 연동",             pct: 100, color: C.green },
+    { label: "가맹점 광고 시스템 + Sentry 모니터링",        pct: 100, color: C.green },
+    { label: "주간 영업시간 표시 + 실사 이미지 연동",       pct: 100, color: C.green },
+    { label: "FCM 푸시 알림 + 관리자 일괄 발송",             pct: 100, color: C.green },
   ];
 
   progressItems.forEach((item, i) => {
@@ -143,9 +144,9 @@ const C = {
 
   // 우측 요약 박스
   const summary = [
-    { icon: "✅", label: "완료 기능",  value: "38개+", color: C.green,  pale: C.greenPale },
+    { icon: "✅", label: "완료 기능",  value: "55개+", color: C.green,  pale: C.greenPale },
     { icon: "🚧", label: "진행 중",    value: "0개",   color: C.yellow, pale: "FFFBEB" },
-    { icon: "⏳", label: "미착수",     value: "1개",   color: C.orange, pale: C.orangePale },
+    { icon: "⏳", label: "미착수",     value: "0개",   color: C.textSub, pale: "F3F4F6" },
   ];
   summary.forEach((s, i) => {
     const y = 1.3 + i * 1.55;
@@ -525,12 +526,176 @@ const C = {
   });
 }
 
-// ── 슬라이드 8 — 완료된 기능 전체 목록 (4/12 기준) ───
+// ── 슬라이드 8 — Day 6 작업 내역 (4/12~13) ─────────────
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("✅  완료된 기능 전체 목록 (4/12 기준)", {
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 2.8, h: 0.55,
+    fill: { color: "F0FDF4" }, line: { color: "16A34A" },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 04. 12~13 (Day 6)", {
+    x: 0.4, y: 0.18, w: 2.8, h: 0.55,
+    fontSize: 11, bold: true, color: "16A34A", align: "center",
+  });
+
+  slide.addText("🔐  보안 강화 · DB 최적화 · 소셜 로그인 · 전문검색 완성", {
+    x: 3.4, y: 0.22, w: 10.2, h: 0.55,
+    fontSize: 18, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day6 = [
+    {
+      emoji: "🛡️", title: "운영 RLS 전환",
+      desc: "14개 테이블 dev_allow_all → 운영 정책\nauth_user_id / auth_user_role 헬퍼 함수\n역할별 SELECT·INSERT·UPDATE 세밀 제어",
+    },
+    {
+      emoji: "⚡", title: "DB 인덱스 30개+ 추가",
+      desc: "orders / notifications / stores / menus\nGIN 전문검색 인덱스 (menus.name)\n복합 인덱스로 쿼리 성능 대폭 개선",
+    },
+    {
+      emoji: "🔍", title: "전문검색 업그레이드",
+      desc: "search_stores RPC 함수 신규 생성\nwebsearch_to_tsquery 'simple' 딕셔너리\nts_rank 매칭 점수 기반 결과 정렬",
+    },
+    {
+      emoji: "🟡", title: "카카오 소셜 로그인",
+      desc: "/api/auth/callback OAuth 콜백 라우트\n신규 가입 시 users + wallets 자동 생성\n로그인·회원가입 페이지 버튼 추가",
+    },
+    {
+      emoji: "📅", title: "주간 영업시간 표시",
+      desc: "store_hours 7일 전체 조회·표시\n오늘 요일 퍼플 강조 + '오늘' 뱃지\n아코디언 UI (접기/펼치기)",
+    },
+    {
+      emoji: "🔒", title: "미들웨어 + 비밀번호",
+      desc: "Next.js Edge middleware RBAC\n비밀번호 찾기·재설정 페이지 신규\n검색 히스토리 + 리뷰 이미지 업로드",
+    },
+  ];
+
+  day6.forEach((item, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 2);
+    const x = 0.4 + col * 4.47;
+    const y = 1.0 + row * 2.35;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.2, h: 2.15,
+      fill: { color: "F0FDF4" }, line: { color: "86EFAC" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: y + 0.2, w: 0.58, h: 0.58,
+      fill: { color: C.white }, line: { color: "86EFAC" },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.18, y: y + 0.18, w: 0.6, h: 0.6,
+      fontSize: 18, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 0.88, y: y + 0.22, w: 3.14, h: 0.4,
+      fontSize: 12, bold: true, color: "16A34A",
+    });
+    slide.addText(item.desc, {
+      x: x + 0.22, y: y + 0.75, w: 3.8, h: 1.25,
+      fontSize: 10.5, color: C.textDark, wrap: true,
+    });
+  });
+}
+
+// ── 슬라이드 9 — Day 7 작업 내역 (4/13 최종) ───────────
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 2.8, h: 0.55,
+    fill: { color: "F0FDFA" }, line: { color: "0D9488" },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 04. 13 (Day 7)", {
+    x: 0.4, y: 0.18, w: 2.8, h: 0.55,
+    fontSize: 11, bold: true, color: "0D9488", align: "center",
+  });
+
+  slide.addText("🏁  Storage RLS · 관리자 FCM 푸시 · Phase 1~3 완전 완성", {
+    x: 3.4, y: 0.22, w: 10.2, h: 0.55,
+    fontSize: 18, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day7 = [
+    {
+      emoji: "🪣", title: "Storage RLS 수정",
+      desc: "버킷명 pick-pick-images → pick-pick-image 수정\n4개 운영 정책 신규 생성\n(공개 SELECT / 인증 INSERT·UPDATE·DELETE)",
+    },
+    {
+      emoji: "📡", title: "관리자 FCM 일괄 발송 API",
+      desc: "POST /api/admin/push 신규 API\n역할별 필터 (전체·사용자·사장님·라이더)\n500개 청크 멀티캐스트 발송",
+    },
+    {
+      emoji: "🔔", title: "관리자 대시보드 5번째 탭",
+      desc: "PushTab 컴포넌트 (Bell 아이콘)\n제목·내용·URL·역할 선택 UI\n발송 결과 카드 (전송 기기수 표시)",
+    },
+    {
+      emoji: "🏆", title: "미착수 기능 0개 달성",
+      desc: "Phase 1~3 전체 완성\n총 55개+ 기능 구현 완료\nPi Network 연동만 남은 상태",
+    },
+    {
+      emoji: "📊", title: "관리자 대시보드 5탭 완성",
+      desc: "통계 · 회원 · 가게 · 쿠폰 · FCM 푸시\nPICK 지급 + 가게 승인 + 쿠폰 CRUD\n플랫폼 전체 운영 가능 상태",
+    },
+    {
+      emoji: "🚀", title: "서비스 런칭 준비 완료",
+      desc: "46개 커밋 / API 라우트 57개\nDay 1~7 총 7일 개발\n배달앱 기본 기능 100% 완성",
+    },
+  ];
+
+  day7.forEach((item, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 2);
+    const x = 0.4 + col * 4.47;
+    const y = 1.0 + row * 2.35;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.2, h: 2.15,
+      fill: { color: "F0FDFA" }, line: { color: "5EEAD4" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: y + 0.2, w: 0.58, h: 0.58,
+      fill: { color: C.white }, line: { color: "5EEAD4" },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.18, y: y + 0.18, w: 0.6, h: 0.6,
+      fontSize: 18, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 0.88, y: y + 0.22, w: 3.14, h: 0.4,
+      fontSize: 12, bold: true, color: "0D9488",
+    });
+    slide.addText(item.desc, {
+      x: x + 0.22, y: y + 0.75, w: 3.8, h: 1.25,
+      fontSize: 10.5, color: C.textDark, wrap: true,
+    });
+  });
+}
+
+// ── 슬라이드 10 — 완료된 기능 전체 목록 (4/13 기준) ───
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addText("✅  완료된 기능 전체 목록 (4/13 최종)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 24, bold: true, color: C.purpleDark,
   });
@@ -544,40 +709,40 @@ const C = {
       title: "🔐 인증 / 사용자 관리",
       color: C.purple, pale: C.purplePale,
       items: [
-        "Supabase Auth 이메일 로그인/회원가입",
-        "서버 API 회원가입 + 지갑 자동생성",
+        "이메일 로그인/회원가입 + 지갑 자동생성",
+        "카카오 소셜 로그인 + OAuth 콜백",
         "RBAC 미들웨어 (user/owner/rider/admin)",
-        "프로필 수정 + 다중 배달 주소 관리",
-        "친구 초대 레퍼럴 (50 PICK 보상)",
+        "비밀번호 찾기·재설정 + 검색 히스토리",
+        "프로필 수정 + 다중 배달 주소 + 레퍼럴",
       ],
     },
     {
-      title: "🏠 사용자 탭 (4개) + PWA",
+      title: "🏠 사용자 탭 (4개) + UX",
       color: C.blue, pale: C.bluePale,
       items: [
-        "홈: 카테고리 그리드 + 인기가게 + 프로모션",
+        "홈: 카테고리·검색(GIN)·인기가게·광고",
         "지갑: 실잔액 + 충전 + PICK 보내기",
         "PICK주문: Realtime 추적 + 상세 + 재주문",
-        "알림 드로어 + 자동 알림 트리거",
-        "PWA manifest + 앱 설치 배너 (Android/iOS)",
+        "알림 드로어 + 딥링크 + 자동 트리거",
+        "주간 영업시간 아코디언 + 실사 이미지",
       ],
     },
     {
       title: "🛒 가맹점 / 주문 플로우",
       color: C.green, pale: C.greenPale,
       items: [
-        "가맹점 목록 (카테고리/검색 필터)",
-        "가맹점 상세 + 메뉴 + 리뷰 목록",
-        "메뉴 옵션 선택 UI (OptionSelectModal)",
-        "쿠폰 적용 + PICK 할인 + 배달 메모",
-        "주문 생성 + PICK 차감 + 완료 적립",
+        "가맹점 목록 (카테고리/전문검색 필터)",
+        "가맹점 상세 + 메뉴 옵션 + 리뷰(이미지)",
+        "쿠폰(3종) + PICK 할인 + 배달 메모",
+        "PICK 결제 + 토스페이먼츠 카드 결제",
+        "주문 생성 → PICK 차감 → 완료 적립",
       ],
     },
     {
       title: "👨‍🍳 사장님 기능",
       color: C.yellow, pale: "FFFBEB",
       items: [
-        "가게 등록 + 설정 + 쿠폰 관리",
+        "가게 등록·설정·쿠폰 관리·주간 영업시간",
         "주문 관리: 수락 ETA + 거절 확인 팝업",
         "메뉴 옵션 그룹/옵션 CRUD UI",
         "매출 통계 대시보드 + 주간 차트",
@@ -585,25 +750,25 @@ const C = {
       ],
     },
     {
-      title: "🛵 라이더 기능",
+      title: "🛵 라이더 / PWA / 인프라",
       color: "0891B2", pale: "ECFEFF",
       items: [
-        "배달 수락 버튼 → PICK 자동 지급",
-        "실시간 위치 공유 (rider_locations)",
+        "배달 수락 → PICK 자동 지급 + 위치 공유",
         "수익 내역 실DB + 주간/월간 차트",
-        "배달 완료 → 라이더 PICK 정산",
-        "활성 라이더 배달 요청 알림",
+        "FCM 푸시 알림 + 관리자 일괄 발송",
+        "PWA 오프라인 캐싱 (Serwist)",
+        "Sentry 모니터링 + 가맹점 광고 시스템",
       ],
     },
     {
-      title: "🛡️ 관리자 / UX 인프라",
+      title: "🛡️ DB / 보안 / 관리자",
       color: C.orange, pale: C.orangePale,
       items: [
-        "관리자: 유저 목록 + PICK 직접 지급",
-        "관리자: 가게 승인 + 쿠폰 전체 관리",
+        "DB 인덱스 30개+ (GIN 전문검색 포함)",
+        "운영 RLS 정책 + Storage 버킷 정책",
+        "관리자 5탭: 통계·회원·가게·쿠폰·FCM 푸시",
         "404·에러·로딩·스플래시 페이지",
-        "setup-functions.sql (RPC 3개)",
-        "add-coupons.sql 쿠폰 테이블 마이그레이션",
+        "다크모드 + Tailwind dark: 클래스 전면 적용",
       ],
     },
   ];
@@ -642,7 +807,7 @@ const C = {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("🚀  Phase 1 완성 · 다음 단계 로드맵", {
+  slide.addText("🚀  Phase 1~3 완성 · 다음 단계 로드맵", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 26, bold: true, color: C.purpleDark,
   });
@@ -657,37 +822,37 @@ const C = {
     fill: { color: C.greenPale }, line: { color: C.green },
     rectRadius: 0.12,
   });
-  slide.addText("🎉  Phase 1 MVP 완성! 쿠폰·PWA·주문상세·에러/로딩까지 전체 구현 완료", {
+  slide.addText("🎉  Phase 1~3 완성! 55개+ 기능 구현 · 미착수 기능 0개 · Pi Network 연동만 남음", {
     x: 0.4, y: 1.0, w: 13.2, h: 0.6,
     fontSize: 14, bold: true, color: C.green, align: "center",
   });
 
   const todos = [
     {
-      priority: "🔴 즉시",
-      pColor: C.red, pPale: C.redPale,
-      items: [
-        { title: "DB 마이그레이션 실행", desc: "add-coupons.sql 실행 (쿠폰 테이블)\nsetup-functions.sql (RPC 3개)\nRealtime 테이블 등록 확인" },
-        { title: "샘플 데이터 투입", desc: "seed-stores.sql 실행\n6개 가맹점 + 메뉴 데이터\nowner_id 실계정 연결" },
-        { title: "관리자 계정 설정", desc: "Supabase에서 role='admin' 설정\nUPDATE users SET role='admin'\n/admin/dashboard 접근 확인" },
-      ],
-    },
-    {
-      priority: "🟡 Phase 2",
-      pColor: C.yellow, pPale: "FFFBEB",
-      items: [
-        { title: "FCM 푸시 알림", desc: "Firebase Admin SDK 설정\n주문 상태 변경 푸시\n사장님 신규 주문 알림" },
-        { title: "카카오맵 내비 연동", desc: "라이더 배달 현황 지도\n픽업지·배달지 경로 안내\nuseKakaoMap 훅 실동작" },
-        { title: "다크모드 지원", desc: "Tailwind dark: 클래스 적용\n시스템 다크모드 자동 감지\n로컬스토리지 테마 설정 저장" },
-      ],
-    },
-    {
-      priority: "🟢 Phase 3",
+      priority: "✅ Phase 1~3",
       pColor: C.green, pPale: C.greenPale,
       items: [
-        { title: "카카오페이 / 토스페이", desc: "결제 모듈 연동\nPICK + 현금 혼합 결제\n환불 플로우 구현" },
-        { title: "PWA 오프라인 지원", desc: "서비스 워커 캐싱 전략\n오프라인 주문 내역 조회\nBackground Sync 활용" },
-        { title: "가맹점 광고 시스템", desc: "가맹점 상단 노출 광고\n광고 단가 PICK 결제\n관리자 광고 승인 관리" },
+        { title: "인증 · 지갑 · 주문 플로우", desc: "이메일 + 카카오 소셜 로그인\nPICK 토큰 지갑 + 토스페이먼츠\nRealtime 주문 추적 완성" },
+        { title: "사장님 · 라이더 · 관리자", desc: "사장님 주문/메뉴/정산/통계\n라이더 수락/위치공유/수익\n관리자 5탭 대시보드" },
+        { title: "PWA · 보안 · DB 최적화", desc: "Serwist 오프라인 캐싱\nRLS + 인덱스 30개+ + FCM 푸시\nSentry + Storage 정책 완성" },
+      ],
+    },
+    {
+      priority: "🟡 런칭 준비",
+      pColor: C.yellow, pPale: "FFFBEB",
+      items: [
+        { title: "Firebase 환경변수 설정", desc: "FIREBASE_ADMIN_SDK_JSON 주입\nVAPID 키 발급 및 설정\nFCM 실제 발송 테스트" },
+        { title: "카카오 OAuth 키 설정", desc: "Supabase → Kakao provider 활성화\nRedirect URI 등록\n실계정 로그인 테스트" },
+        { title: "샘플 데이터 투입", desc: "실 가맹점 + 메뉴 데이터 추가\n관리자 계정 role='admin' 설정\nVercel 프로덕션 배포 확인" },
+      ],
+    },
+    {
+      priority: "⏳ Phase 4",
+      pColor: C.orange, pPale: C.orangePale,
+      items: [
+        { title: "Pi Network SDK 인증", desc: "Pi SDK 연동 (Mainnet 개방 후)\npi_uid / pi_username 필드 활성화\nPi 기반 로그인 플로우" },
+        { title: "Pi 코인 결제 연동", desc: "Pi 결제 API 연동\nPICK ↔ Pi 토큰 전환\nPi 기반 정산 시스템" },
+        { title: "Pi 생태계 확장", desc: "Pi 마이닝 연동 혜택\nPi 홀더 전용 할인 쿠폰\nPi Network 커뮤니티 마케팅" },
       ],
     },
   ];
@@ -748,51 +913,51 @@ const C = {
     {
       phase: "Phase 1",
       label: "MVP",
-      period: "1~2개월",
+      period: "완료",
       color: C.purple, pale: C.purplePale,
       status: "완료 ✅",
       statusColor: C.green,
       items: [
-        "✅ 로그인 / 회원가입 + 지갑 자동생성",
-        "✅ 홈 탭 + 검색 + 인기가게 + 프로모션",
-        "✅ 지갑·주문·리뷰·레퍼럴·알림 시스템",
+        "✅ 로그인/회원가입 + 카카오 소셜 로그인",
+        "✅ 홈 탭 + 전문검색(GIN) + 광고",
+        "✅ 지갑·주문·리뷰(이미지)·레퍼럴·알림",
         "✅ 사장님 / 라이더 / 관리자 전체",
-        "✅ 쿠폰 시스템 (3종) + 관리자 탭",
-        "✅ PWA 설치 배너 + 에러/404/로딩",
-        "✅ 주문 상세 실시간 추적 페이지",
-        "⏳ FCM 푸시 알림",
+        "✅ 쿠폰 (3종) + 토스페이먼츠 카드결제",
+        "✅ RBAC 미들웨어 + 운영 RLS",
+        "✅ DB 인덱스 30개+ 최적화",
+        "✅ FCM 푸시 알림 + 관리자 일괄 발송",
       ],
     },
     {
       phase: "Phase 2",
       label: "완성도",
-      period: "~3개월",
+      period: "완료 🎉",
       color: C.blue, pale: C.bluePale,
-      status: "진행 예정",
-      statusColor: C.textSub,
+      status: "완료 ✅",
+      statusColor: C.green,
       items: [
-        "⏳ FCM 푸시 알림",
-        "⏳ 카카오맵 내비 연동 (라이더)",
-        "⏳ PICK 등급 혜택 적용",
-        "⏳ 다크모드 지원",
-        "⏳ 매출 고급 통계",
-        "⏳ 가맹점 광고 노출 시스템",
+        "✅ 다크모드 (Tailwind dark: 전면 적용)",
+        "✅ 다중 배달 주소 + 카카오 주소검색",
+        "✅ PICK 등급 적립 배율 적용",
+        "✅ 가맹점 광고·노출 시스템",
+        "✅ 주간 영업시간 표시 + 실사 이미지",
+        "✅ FCM 푸시 알림 완성",
       ],
     },
     {
       phase: "Phase 3",
       label: "성장",
-      period: "4~6개월",
+      period: "완료 🎉",
       color: C.green, pale: C.greenPale,
-      status: "예정",
-      statusColor: C.textSub,
+      status: "완료 ✅",
+      statusColor: C.green,
       items: [
-        "⏳ 카카오페이 / 토스페이",
-        "⏳ PWA 오프라인 (서비스 워커)",
-        "⏳ 가맹점 광고 시스템",
-        "⏳ Sentry 모니터링 연동",
-        "⏳ Redis 캐싱 레이어",
-        "⏳ 성능 최적화 (Lighthouse)",
+        "✅ 토스페이먼츠 카드·간편결제",
+        "✅ PWA 오프라인 (Serwist 캐싱)",
+        "✅ 가맹점 광고 시스템",
+        "✅ Sentry 모니터링 설정",
+        "✅ 카카오 소셜 로그인",
+        "✅ 전문검색 GIN + RPC 함수",
       ],
     },
     {
@@ -835,13 +1000,13 @@ const C = {
 
     slide.addShape(prs.ShapeType.roundRect, {
       x: x + 0.6, y: 2.12, w: 2.0, h: 0.35,
-      fill: { color: i === 0 ? C.greenPale : "F3F4F6" },
-      line: { color: i === 0 ? C.green : ph.color },
+      fill: { color: i < 3 ? C.greenPale : "F3F4F6" },
+      line: { color: i < 3 ? C.green : ph.color },
       rectRadius: 0.1,
     });
     slide.addText(ph.status, {
       x: x + 0.6, y: 2.12, w: 2.0, h: 0.35,
-      fontSize: 10, bold: true, color: i === 0 ? C.green : C.textSub,
+      fontSize: 10, bold: true, color: i < 3 ? C.green : C.textSub,
       align: "center",
     });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Users, Coins, RefreshCw, Search, X, Check, ChevronDown, Store, MapPin, Phone, Clock, XCircle, CheckCircle, BarChart2, ShoppingBag, Ticket, Plus, Tag, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
+import { Users, Coins, RefreshCw, Search, X, Check, ChevronDown, Store, MapPin, Phone, Clock, XCircle, CheckCircle, BarChart2, ShoppingBag, Ticket, Plus, Tag, ToggleLeft, ToggleRight, Trash2, Bell, Send } from "lucide-react";
 
 // ── 타입 ──────────────────────────────────────────────
 interface UserRow {
@@ -856,9 +856,181 @@ function CouponsTab() {
   );
 }
 
+// ── 푸시 알림 탭 ──────────────────────────────────────
+const ROLE_TARGETS = [
+  { value: "user",  label: "일반 사용자" },
+  { value: "owner", label: "사장님" },
+  { value: "rider", label: "라이더" },
+] as const;
+
+function PushTab() {
+  const [title,    setTitle]    = useState("");
+  const [body,     setBody]     = useState("");
+  const [url,      setUrl]      = useState("");
+  const [roles,    setRoles]    = useState<string[]>([]);
+  const [sending,  setSending]  = useState(false);
+  const [result,   setResult]   = useState<{ sent: number; total: number; message: string } | null>(null);
+  const [error,    setError]    = useState("");
+
+  const toggleRole = (role: string) => {
+    setRoles((prev) =>
+      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]
+    );
+  };
+
+  const handleSend = async () => {
+    if (!title.trim() || !body.trim()) {
+      setError("제목과 내용을 입력해주세요");
+      return;
+    }
+    setSending(true);
+    setError("");
+    setResult(null);
+    try {
+      const res = await fetch("/api/admin/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          body:  body.trim(),
+          url:   url.trim() || undefined,
+          roles: roles.length > 0 ? roles : undefined,
+        }),
+      });
+      const json = await res.json() as { sent?: number; total?: number; message?: string; error?: string };
+      if (res.ok) {
+        setResult({ sent: json.sent ?? 0, total: json.total ?? 0, message: json.message ?? "" });
+        setTitle(""); setBody(""); setUrl(""); setRoles([]);
+      } else {
+        setError(json.error ?? "발송에 실패했습니다");
+      }
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="px-4 py-4 flex flex-col gap-4">
+      {/* 헤더 */}
+      <div className="bg-gradient-to-br from-pick-purple to-pick-purple-light rounded-3xl p-5 text-white">
+        <div className="flex items-center gap-2 mb-1">
+          <Bell size={18} />
+          <p className="font-black text-base">일괄 푸시 알림 발송</p>
+        </div>
+        <p className="text-xs text-white/70">등록된 모든 기기(또는 선택한 역할)에 푸시 알림을 보냅니다</p>
+      </div>
+
+      {/* 발송 성공 결과 */}
+      {result && (
+        <div className="bg-green-50 border-2 border-green-200 rounded-3xl p-4 flex flex-col gap-1">
+          <p className="font-black text-green-700 text-sm flex items-center gap-1.5">
+            <Check size={16} /> 발송 완료!
+          </p>
+          <p className="text-xs text-green-600">{result.message}</p>
+          <div className="flex gap-3 mt-1">
+            <div className="bg-white rounded-2xl px-3 py-1.5 text-center">
+              <p className="text-sm font-black text-green-700">{result.sent}</p>
+              <p className="text-[10px] text-green-600">전송된 기기</p>
+            </div>
+            <div className="bg-white rounded-2xl px-3 py-1.5 text-center">
+              <p className="text-sm font-black text-pick-text">{result.total}</p>
+              <p className="text-[10px] text-pick-text-sub">대상 사용자</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 폼 */}
+      <div className="bg-white rounded-3xl border-2 border-pick-border p-5 flex flex-col gap-4">
+        {/* 제목 */}
+        <div>
+          <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">알림 제목 *</label>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="예: 🎉 이벤트 안내"
+            maxLength={100}
+            className="w-full border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text focus:outline-none focus:border-pick-purple transition-colors"
+          />
+        </div>
+
+        {/* 내용 */}
+        <div>
+          <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">알림 내용 *</label>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="알림 본문을 입력하세요"
+            maxLength={500}
+            rows={3}
+            className="w-full border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text focus:outline-none focus:border-pick-purple transition-colors resize-none"
+          />
+          <p className="text-[10px] text-pick-text-sub text-right mt-0.5">{body.length}/500</p>
+        </div>
+
+        {/* URL */}
+        <div>
+          <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">클릭 시 이동 URL (선택)</label>
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="/home 또는 /orders"
+            className="w-full border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text focus:outline-none focus:border-pick-purple transition-colors"
+          />
+        </div>
+
+        {/* 역할 선택 */}
+        <div>
+          <label className="text-xs font-bold text-pick-text-sub mb-2 block">
+            발송 대상 역할 (선택 없으면 전체)
+          </label>
+          <div className="flex gap-2 flex-wrap">
+            {ROLE_TARGETS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => toggleRole(value)}
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all border-2 ${
+                  roles.includes(value)
+                    ? "bg-pick-purple text-white border-pick-purple"
+                    : "bg-white text-pick-text-sub border-pick-border"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {roles.length === 0 && (
+            <p className="text-[10px] text-pick-text-sub mt-1.5">선택하지 않으면 전체 사용자에게 발송됩니다</p>
+          )}
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-3">
+            <p className="text-xs text-red-600 font-bold">⚠️ {error}</p>
+          </div>
+        )}
+      </div>
+
+      {/* 발송 버튼 */}
+      <button
+        onClick={() => void handleSend()}
+        disabled={sending || !title.trim() || !body.trim()}
+        className="w-full bg-gradient-to-r from-pick-purple to-pick-purple-light text-white font-black py-4 rounded-full shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+      >
+        {sending ? (
+          <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+        ) : (
+          <><Send size={18} /> 푸시 알림 발송</>
+        )}
+      </button>
+    </div>
+  );
+}
+
 // ── 메인 페이지 ───────────────────────────────────────
 export default function AdminDashboardPage() {
-  const [activeTab,    setActiveTab]    = useState<"stats" | "users" | "stores" | "coupons">("stats");
+  const [activeTab,    setActiveTab]    = useState<"stats" | "users" | "stores" | "coupons" | "push">("stats");
   const [users,        setUsers]        = useState<UserRow[]>([]);
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
   const [loading,      setLoading]      = useState(true);
@@ -938,7 +1110,8 @@ export default function AdminDashboardPage() {
             <p className="text-xs text-pick-text-sub mt-0.5">
               {activeTab === "stats"   ? "플랫폼 통계" :
                activeTab === "users"   ? `전체 ${users.length}명` :
-               activeTab === "stores"  ? "가게 승인 관리" : "쿠폰 생성 및 관리"}
+               activeTab === "stores"  ? "가게 승인 관리" :
+               activeTab === "coupons" ? "쿠폰 생성 및 관리" : "일괄 푸시 알림 발송"}
             </p>
           </div>
           <button
@@ -955,6 +1128,7 @@ export default function AdminDashboardPage() {
             { key: "users"   as const, label: "회원 관리", icon: <Users    size={13} />, badge: undefined as number | undefined },
             { key: "stores"  as const, label: "가게 승인", icon: <Store    size={13} />, badge: pendingCount as number | undefined },
             { key: "coupons" as const, label: "쿠폰 관리", icon: <Ticket   size={13} />, badge: undefined as number | undefined },
+            { key: "push"    as const, label: "푸시 알림", icon: <Bell     size={13} />, badge: undefined as number | undefined },
           ]).map(({ key, label, icon, badge }) => (
             <button
               key={key}
@@ -1073,6 +1247,7 @@ export default function AdminDashboardPage() {
 
       {activeTab === "stores"  && <StoresTab />}
       {activeTab === "coupons" && <CouponsTab />}
+      {activeTab === "push"    && <PushTab />}
     </div>
   );
 }
