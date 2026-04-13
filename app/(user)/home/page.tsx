@@ -1,4 +1,4 @@
-import { MapPin, ChevronRight, Star, Clock, Bike, ArrowLeft, Frown, Search, Zap, Gift, Flame, Megaphone } from "lucide-react";
+import { Star, Clock, Bike, ArrowLeft, Frown, Search, Zap, Gift, Flame, Megaphone } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { fetchStoresByCategory, searchStores, fetchTopStores, fetchSponsoredStores, type StoreRow, type AdStore } from "@/lib/supabase/stores";
@@ -6,6 +6,7 @@ import { CATEGORY_META, getCategoryEmoji } from "@/lib/utils/categoryEmoji";
 import SearchBar from "./SearchBar";
 import FilterSortBar, { type SortKey } from "./FilterSortBar";
 import LoadMoreStores from "./LoadMoreStores";
+import LocationBar from "./LocationBar";
 
 /* ────────────── 검색 결과 뷰 ────────────── */
 async function SearchResultsView({ query, sort }: { query: string; sort: SortKey }) {
@@ -295,16 +296,6 @@ async function HotStoresSection() {
   );
 }
 
-/* ────────────── 위치 바 ────────────── */
-function LocationBar() {
-  return (
-    <div className="flex items-center gap-1.5 px-5 py-2">
-      <MapPin size={15} className="text-pick-purple" fill="#A855F7" fillOpacity={0.3} />
-      <span className="text-pick-text text-sm font-semibold">서울 강남구 역삼동</span>
-      <ChevronRight size={14} className="text-pick-text-sub" />
-    </div>
-  );
-}
 
 function CategoryGrid() {
   return (

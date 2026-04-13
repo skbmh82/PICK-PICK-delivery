@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 
-// Kakao SDK 타입 (전역 window 확장)
 declare global {
   interface Window {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -13,9 +12,7 @@ declare global {
 interface KakaoMapProps {
   lat: number;
   lng: number;
-  /** 마커 위에 표시할 라벨 */
   label?: string;
-  /** 추가 마커 (라이더 위치 등) */
   riderLat?: number;
   riderLng?: number;
   className?: string;
@@ -29,30 +26,28 @@ export default function KakaoMap({
   riderLng,
   className = "",
 }: KakaoMapProps) {
-  const containerRef  = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mapRef        = useRef<any>(null);
+  const mapRef       = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const riderMarker   = useRef<any>(null);
-  const apiKey        = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
+  const riderMarker  = useRef<any>(null);
+  const apiKey       = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
 
-  // 최초 지도 초기화
   useEffect(() => {
     if (!apiKey || !containerRef.current) return;
 
-    const init = () => {
-      if (!window.kakao?.maps || !containerRef.current) return;
+    const drawMap = () => {
+      if (!containerRef.current) return;
       window.kakao.maps.load(() => {
+        if (!containerRef.current) return;
         const center = new window.kakao.maps.LatLng(lat, lng);
-        const map = new window.kakao.maps.Map(containerRef.current, {
+        const map    = new window.kakao.maps.Map(containerRef.current, {
           center,
           level: 4,
         });
         mapRef.current = map;
 
-        // 가게 / 목적지 마커
         const marker = new window.kakao.maps.Marker({ position: center, map });
-
         if (label) {
           const info = new window.kakao.maps.InfoWindow({
             content: `<div style="padding:4px 10px;font-size:12px;font-weight:bold;white-space:nowrap;">${label}</div>`,
@@ -63,26 +58,30 @@ export default function KakaoMap({
       });
     };
 
+    // 이미 SDK 로드 완료된 경우
     if (window.kakao?.maps) {
-      init();
+      drawMap();
       return;
     }
 
-    // SDK 동적 로드
-    if (!document.getElementById("kakao-map-sdk")) {
-      const script = document.createElement("script");
-      script.id    = "kakao-map-sdk";
-      script.src   = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${apiKey}&autoload=false`;
-      script.async = true;
-      script.onload = init;
-      document.head.appendChild(script);
+    const SCRIPT_ID = "kakao-map-sdk";
+    const existing  = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
+
+    if (existing) {
+      // 스크립트 태그는 있지만 아직 로딩 중인 경우
+      existing.addEventListener("load", drawMap, { once: true });
     } else {
-      // 이미 스크립트 태그는 있지만 아직 로드 안 된 경우
-      const existing = document.getElementById("kakao-map-sdk") as HTMLScriptElement;
-      existing.addEventListener("load", init, { once: true });
+      // 처음 로드
+      const script   = document.createElement("script");
+      script.id      = SCRIPT_ID;
+      script.src     = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${apiKey}&autoload=false&libraries=services`;
+      script.async   = true;
+      script.onload  = drawMap;
+      script.onerror = () => console.error("Kakao Maps SDK 로드 실패 — API 키 또는 도메인 등록을 확인하세요");
+      document.head.appendChild(script);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey]);  // 최초 1회만
+  }, [apiKey, lat, lng]);
 
   // 라이더 마커 업데이트
   useEffect(() => {
@@ -91,9 +90,7 @@ export default function KakaoMap({
 
     window.kakao.maps.load(() => {
       const pos = new window.kakao.maps.LatLng(riderLat, riderLng);
-
       if (!riderMarker.current) {
-        // 라이더 마커 최초 생성 (다른 색 이미지 사용)
         const image = new window.kakao.maps.MarkerImage(
           "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png",
           new window.kakao.maps.Size(24, 35)
@@ -108,7 +105,6 @@ export default function KakaoMap({
         riderMarker.current.setPosition(pos);
       }
 
-      // 두 마커가 모두 보이도록 범위 조정
       const bounds = new window.kakao.maps.LatLngBounds();
       bounds.extend(new window.kakao.maps.LatLng(lat, lng));
       bounds.extend(pos);
@@ -116,10 +112,7 @@ export default function KakaoMap({
     });
   }, [riderLat, riderLng, lat, lng]);
 
-  if (!apiKey) {
-    // API 키 없으면 주소 텍스트만 노출
-    return null;
-  }
+  if (!apiKey) return null;
 
-  return <div ref={containerRef} className={`${className}`} />;
+  return <div ref={containerRef} className={className} />;
 }

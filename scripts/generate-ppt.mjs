@@ -64,7 +64,7 @@ const C = {
     fill: { color: C.purpleLight }, line: { color: C.purpleLight },
   });
 
-  slide.addText("2026년 4월 13일  |  Phase 1~3 완성 · FCM 푸시 · 관리자 5탭 · 미착수 0개", {
+  slide.addText("2026년 4월 13일  |  Firebase 완성 · 지도/주소 수정 · 카카오 키 확인 중", {
     x: 1, y: 3.6, w: 11.6, h: 0.5,
     fontSize: 14, color: "C4B5FD",
     align: "center",
@@ -205,12 +205,12 @@ const C = {
 
   day1.forEach((item, i) => {
     const col = i % 3;
-    const row = Math.floor(i / 2);
-    const x = 0.4 + col * 4.47;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
     const y = 1.0 + row * 2.35;
 
     slide.addShape(prs.ShapeType.roundRect, {
-      x, y, w: 4.2, h: 2.15,
+      x, y, w: 4.1, h: 2.15,
       fill: { color: C.purplePale }, line: { color: C.borderPurple },
       rectRadius: 0.15,
     });
@@ -224,11 +224,11 @@ const C = {
       fontSize: 18, align: "center",
     });
     slide.addText(item.title, {
-      x: x + 0.88, y: y + 0.22, w: 3.14, h: 0.4,
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
       fontSize: 12, bold: true, color: C.purple,
     });
     slide.addText(item.desc, {
-      x: x + 0.22, y: y + 0.75, w: 3.8, h: 1.25,
+      x: x + 0.22, y: y + 0.75, w: 3.65, h: 1.25,
       fontSize: 10.5, color: C.textDark, wrap: true,
     });
   });
@@ -269,12 +269,12 @@ const C = {
 
   day2.forEach((item, i) => {
     const col = i % 3;
-    const row = Math.floor(i / 2);
-    const x = 0.4 + col * 4.47;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
     const y = 1.0 + row * 2.35;
 
     slide.addShape(prs.ShapeType.roundRect, {
-      x, y, w: 4.2, h: 2.15,
+      x, y, w: 4.1, h: 2.15,
       fill: { color: C.greenPale }, line: { color: "86EFAC" },
       rectRadius: 0.15,
     });
@@ -288,11 +288,11 @@ const C = {
       fontSize: 18, align: "center",
     });
     slide.addText(item.title, {
-      x: x + 0.88, y: y + 0.22, w: 3.14, h: 0.4,
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
       fontSize: 12, bold: true, color: C.green,
     });
     slide.addText(item.desc, {
-      x: x + 0.22, y: y + 0.75, w: 3.8, h: 1.25,
+      x: x + 0.22, y: y + 0.75, w: 3.65, h: 1.25,
       fontSize: 10.5, color: C.textDark, wrap: true,
     });
   });
@@ -333,12 +333,12 @@ const C = {
 
   day3.forEach((item, i) => {
     const col = i % 3;
-    const row = Math.floor(i / 2);
-    const x = 0.4 + col * 4.47;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
     const y = 1.0 + row * 2.35;
 
     slide.addShape(prs.ShapeType.roundRect, {
-      x, y, w: 4.2, h: 2.15,
+      x, y, w: 4.1, h: 2.15,
       fill: { color: "FFFBEB" }, line: { color: "FCD34D" },
       rectRadius: 0.15,
     });
@@ -352,11 +352,11 @@ const C = {
       fontSize: 18, align: "center",
     });
     slide.addText(item.title, {
-      x: x + 0.88, y: y + 0.22, w: 3.14, h: 0.4,
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
       fontSize: 12, bold: true, color: C.yellow,
     });
     slide.addText(item.desc, {
-      x: x + 0.22, y: y + 0.75, w: 3.8, h: 1.25,
+      x: x + 0.22, y: y + 0.75, w: 3.65, h: 1.25,
       fontSize: 10.5, color: C.textDark, wrap: true,
     });
   });
@@ -415,12 +415,12 @@ const C = {
 
   day4.forEach((item, i) => {
     const col = i % 3;
-    const row = Math.floor(i / 2);
-    const x = 0.4 + col * 4.47;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
     const y = 1.0 + row * 2.35;
 
     slide.addShape(prs.ShapeType.roundRect, {
-      x, y, w: 4.2, h: 2.15,
+      x, y, w: 4.1, h: 2.15,
       fill: { color: C.bluePale }, line: { color: "7DD3FC" },
       rectRadius: 0.15,
     });
@@ -434,11 +434,11 @@ const C = {
       fontSize: 18, align: "center",
     });
     slide.addText(item.title, {
-      x: x + 0.88, y: y + 0.22, w: 3.14, h: 0.4,
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
       fontSize: 12, bold: true, color: C.blue,
     });
     slide.addText(item.desc, {
-      x: x + 0.22, y: y + 0.75, w: 3.8, h: 1.25,
+      x: x + 0.22, y: y + 0.75, w: 3.65, h: 1.25,
       fontSize: 10.5, color: C.textDark, wrap: true,
     });
   });
@@ -497,12 +497,12 @@ const C = {
 
   day5.forEach((item, i) => {
     const col = i % 3;
-    const row = Math.floor(i / 2);
-    const x = 0.4 + col * 4.47;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
     const y = 1.0 + row * 2.35;
 
     slide.addShape(prs.ShapeType.roundRect, {
-      x, y, w: 4.2, h: 2.15,
+      x, y, w: 4.1, h: 2.15,
       fill: { color: "FCE7F3" }, line: { color: "F9A8D4" },
       rectRadius: 0.15,
     });
@@ -516,11 +516,11 @@ const C = {
       fontSize: 18, align: "center",
     });
     slide.addText(item.title, {
-      x: x + 0.88, y: y + 0.22, w: 3.14, h: 0.4,
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
       fontSize: 12, bold: true, color: "DB2777",
     });
     slide.addText(item.desc, {
-      x: x + 0.22, y: y + 0.75, w: 3.8, h: 1.25,
+      x: x + 0.22, y: y + 0.75, w: 3.65, h: 1.25,
       fontSize: 10.5, color: C.textDark, wrap: true,
     });
   });
@@ -579,12 +579,12 @@ const C = {
 
   day6.forEach((item, i) => {
     const col = i % 3;
-    const row = Math.floor(i / 2);
-    const x = 0.4 + col * 4.47;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
     const y = 1.0 + row * 2.35;
 
     slide.addShape(prs.ShapeType.roundRect, {
-      x, y, w: 4.2, h: 2.15,
+      x, y, w: 4.1, h: 2.15,
       fill: { color: "F0FDF4" }, line: { color: "86EFAC" },
       rectRadius: 0.15,
     });
@@ -598,11 +598,11 @@ const C = {
       fontSize: 18, align: "center",
     });
     slide.addText(item.title, {
-      x: x + 0.88, y: y + 0.22, w: 3.14, h: 0.4,
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
       fontSize: 12, bold: true, color: "16A34A",
     });
     slide.addText(item.desc, {
-      x: x + 0.22, y: y + 0.75, w: 3.8, h: 1.25,
+      x: x + 0.22, y: y + 0.75, w: 3.65, h: 1.25,
       fontSize: 10.5, color: C.textDark, wrap: true,
     });
   });
@@ -623,7 +623,7 @@ const C = {
     fontSize: 11, bold: true, color: "0D9488", align: "center",
   });
 
-  slide.addText("🏁  Storage RLS · 관리자 FCM 푸시 · Phase 1~3 완전 완성", {
+  slide.addText("🏁  FCM 푸시 · 지도 수정 · 주소 검색 버그 · .env 완성", {
     x: 3.4, y: 0.22, w: 10.2, h: 0.55,
     fontSize: 18, bold: true, color: C.purpleDark,
   });
@@ -634,39 +634,39 @@ const C = {
 
   const day7 = [
     {
-      emoji: "🪣", title: "Storage RLS 수정",
-      desc: "버킷명 pick-pick-images → pick-pick-image 수정\n4개 운영 정책 신규 생성\n(공개 SELECT / 인증 INSERT·UPDATE·DELETE)",
+      emoji: "🗺️", title: "KakaoMap SDK 수정",
+      desc: "libraries=services 누락 수정\nonerror 핸들러 + 디버그 로깅 추가\n스크립트 재로드 충돌 방지 로직",
     },
     {
-      emoji: "📡", title: "관리자 FCM 일괄 발송 API",
-      desc: "POST /api/admin/push 신규 API\n역할별 필터 (전체·사용자·사장님·라이더)\n500개 청크 멀티캐스트 발송",
+      emoji: "📍", title: "홈 위치 바 동적화",
+      desc: "하드코딩 '역삼동' 제거\nLocationBar.tsx 클라이언트 컴포넌트\n기본 배달 주소 API 연동 표시",
     },
     {
-      emoji: "🔔", title: "관리자 대시보드 5번째 탭",
-      desc: "PushTab 컴포넌트 (Bell 아이콘)\n제목·내용·URL·역할 선택 UI\n발송 결과 카드 (전송 기기수 표시)",
+      emoji: "🔍", title: "주소 검색 버그 수정",
+      desc: "Daum Postcode embed 타이밍 버그\nsetSearchOpen → useEffect 패턴 변경\nDOM 마운트 후 embed 실행 보장",
     },
     {
-      emoji: "🏆", title: "미착수 기능 0개 달성",
-      desc: "Phase 1~3 전체 완성\n총 55개+ 기능 구현 완료\nPi Network 연동만 남은 상태",
+      emoji: "🔥", title: "Firebase 환경변수 완성",
+      desc: "API Key ~ App ID 6개 설정\nVAPID 키 (웹 푸시 인증서)\nAdmin SDK JSON 서버 전용 키",
     },
     {
-      emoji: "📊", title: "관리자 대시보드 5탭 완성",
-      desc: "통계 · 회원 · 가게 · 쿠폰 · FCM 푸시\nPICK 지급 + 가게 승인 + 쿠폰 CRUD\n플랫폼 전체 운영 가능 상태",
+      emoji: "🔑", title: "카카오 도메인 등록",
+      desc: "JS Key → JavaScript SDK 도메인\nhttp/https localhost:3000 등록\n기존 '사이트 도메인' → 이름 변경됨",
     },
     {
-      emoji: "🚀", title: "서비스 런칭 준비 완료",
-      desc: "46개 커밋 / API 라우트 57개\nDay 1~7 총 7일 개발\n배달앱 기본 기능 100% 완성",
+      emoji: "🚀", title: "런칭 준비 진행 중",
+      desc: "Kakao API 키 타입 확인 필요\n앱 키 JavaScript 키 재확인\nVercel 배포 전 최종 점검 단계",
     },
   ];
 
   day7.forEach((item, i) => {
     const col = i % 3;
-    const row = Math.floor(i / 2);
-    const x = 0.4 + col * 4.47;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
     const y = 1.0 + row * 2.35;
 
     slide.addShape(prs.ShapeType.roundRect, {
-      x, y, w: 4.2, h: 2.15,
+      x, y, w: 4.1, h: 2.15,
       fill: { color: "F0FDFA" }, line: { color: "5EEAD4" },
       rectRadius: 0.15,
     });
@@ -680,11 +680,11 @@ const C = {
       fontSize: 18, align: "center",
     });
     slide.addText(item.title, {
-      x: x + 0.88, y: y + 0.22, w: 3.14, h: 0.4,
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
       fontSize: 12, bold: true, color: "0D9488",
     });
     slide.addText(item.desc, {
-      x: x + 0.22, y: y + 0.75, w: 3.8, h: 1.25,
+      x: x + 0.22, y: y + 0.75, w: 3.65, h: 1.25,
       fontSize: 10.5, color: C.textDark, wrap: true,
     });
   });
@@ -775,28 +775,28 @@ const C = {
 
   categories.forEach((cat, i) => {
     const col = i % 3;
-    const row = Math.floor(i / 2);
-    const x = 0.35 + col * 4.45;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
     const y = 1.05 + row * 2.85;
 
     slide.addShape(prs.ShapeType.roundRect, {
-      x, y, w: 4.2, h: 2.65,
+      x, y, w: 4.1, h: 2.65,
       fill: { color: cat.pale }, line: { color: cat.color },
       rectRadius: 0.15,
     });
     slide.addShape(prs.ShapeType.roundRect, {
-      x: x + 0.15, y: y + 0.12, w: 3.9, h: 0.42,
+      x: x + 0.12, y: y + 0.12, w: 3.86, h: 0.42,
       fill: { color: cat.color }, line: { color: cat.color },
       rectRadius: 0.08,
     });
     slide.addText(cat.title, {
-      x: x + 0.15, y: y + 0.12, w: 3.9, h: 0.42,
+      x: x + 0.12, y: y + 0.12, w: 3.86, h: 0.42,
       fontSize: 12, bold: true, color: C.white, align: "center",
     });
     cat.items.forEach((item, j) => {
       slide.addText(`✓  ${item}`, {
-        x: x + 0.22, y: y + 0.65 + j * 0.39, w: 3.76, h: 0.37,
-        fontSize: 10.5, color: C.textDark,
+        x: x + 0.18, y: y + 0.65 + j * 0.38, w: 3.72, h: 0.37,
+        fontSize: 10, color: C.textDark,
       });
     });
   });
@@ -841,9 +841,9 @@ const C = {
       priority: "🟡 런칭 준비",
       pColor: C.yellow, pPale: "FFFBEB",
       items: [
-        { title: "Firebase 환경변수 설정", desc: "FIREBASE_ADMIN_SDK_JSON 주입\nVAPID 키 발급 및 설정\nFCM 실제 발송 테스트" },
-        { title: "카카오 OAuth 키 설정", desc: "Supabase → Kakao provider 활성화\nRedirect URI 등록\n실계정 로그인 테스트" },
-        { title: "샘플 데이터 투입", desc: "실 가맹점 + 메뉴 데이터 추가\n관리자 계정 role='admin' 설정\nVercel 프로덕션 배포 확인" },
+        { title: "Firebase 환경변수 ✅", desc: "API Key ~ App ID 완성\nVAPID 키 완성\nAdmin SDK JSON 완성" },
+        { title: "카카오 API 키 확인", desc: "앱 키 → JavaScript 키 재확인\nNEXT_PUBLIC_KAKAO_MAP_KEY 검증\nKakao Map 지도 표시 테스트" },
+        { title: "샘플 데이터 + 배포", desc: "실 가맹점 + 메뉴 데이터 추가\n관리자 계정 role='admin' 설정\nVercel 프로덕션 배포 확인" },
       ],
     },
     {
@@ -871,24 +871,24 @@ const C = {
     });
 
     group.items.forEach((item, ii) => {
-      const x = 0.4 + ii * 4.6;
+      const x = 0.25 + ii * 4.27;
 
       slide.addShape(prs.ShapeType.roundRect, {
-        x, y: y + 0.5, w: 4.3, h: 1.4,
+        x, y: y + 0.5, w: 4.1, h: 1.4,
         fill: { color: C.white }, line: { color: C.borderPurple },
         rectRadius: 0.13,
       });
       slide.addShape(prs.ShapeType.roundRect, {
-        x: x + 0.18, y: y + 0.63, w: 3.9, h: 0.36,
+        x: x + 0.15, y: y + 0.63, w: 3.8, h: 0.36,
         fill: { color: group.pPale }, line: { color: group.pPale },
         rectRadius: 0.08,
       });
       slide.addText(item.title, {
-        x: x + 0.18, y: y + 0.63, w: 3.9, h: 0.36,
+        x: x + 0.15, y: y + 0.63, w: 3.8, h: 0.36,
         fontSize: 12, bold: true, color: group.pColor, align: "center",
       });
       slide.addText(item.desc, {
-        x: x + 0.22, y: y + 1.06, w: 3.86, h: 0.76,
+        x: x + 0.18, y: y + 1.06, w: 3.74, h: 0.76,
         fontSize: 10.5, color: C.textSub, wrap: true,
       });
     });
@@ -977,20 +977,20 @@ const C = {
   ];
 
   phases.forEach((ph, i) => {
-    const x = 0.3 + i * 3.45;
+    const x = 0.2 + i * 3.23;
 
     slide.addShape(prs.ShapeType.roundRect, {
-      x, y: 1.0, w: 3.2, h: 5.45,
+      x, y: 1.0, w: 3.0, h: 5.45,
       fill: { color: ph.pale }, line: { color: ph.color },
       rectRadius: 0.18,
     });
     slide.addShape(prs.ShapeType.roundRect, {
-      x: x + 0.15, y: 1.12, w: 2.9, h: 0.9,
+      x: x + 0.12, y: 1.12, w: 2.76, h: 0.9,
       fill: { color: ph.color }, line: { color: ph.color },
       rectRadius: 0.12,
     });
     slide.addText(ph.phase, {
-      x: x + 0.15, y: 1.12, w: 2.9, h: 0.44,
+      x: x + 0.12, y: 1.12, w: 2.76, h: 0.44,
       fontSize: 13, bold: true, color: C.white, align: "center",
     });
     slide.addText(`${ph.label}  |  ${ph.period}`, {
@@ -999,21 +999,21 @@ const C = {
     });
 
     slide.addShape(prs.ShapeType.roundRect, {
-      x: x + 0.6, y: 2.12, w: 2.0, h: 0.35,
+      x: x + 0.5, y: 2.12, w: 2.0, h: 0.35,
       fill: { color: i < 3 ? C.greenPale : "F3F4F6" },
       line: { color: i < 3 ? C.green : ph.color },
       rectRadius: 0.1,
     });
     slide.addText(ph.status, {
-      x: x + 0.6, y: 2.12, w: 2.0, h: 0.35,
+      x: x + 0.5, y: 2.12, w: 2.0, h: 0.35,
       fontSize: 10, bold: true, color: i < 3 ? C.green : C.textSub,
       align: "center",
     });
 
     ph.items.forEach((item, j) => {
       slide.addText(item, {
-        x: x + 0.18, y: 2.6 + j * 0.52, w: 2.85, h: 0.46,
-        fontSize: 10.5, color: C.textDark,
+        x: x + 0.15, y: 2.6 + j * 0.48, w: 2.7, h: 0.44,
+        fontSize: 10, color: C.textDark,
       });
     });
   });

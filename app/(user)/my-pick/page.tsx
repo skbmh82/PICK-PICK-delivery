@@ -506,12 +506,17 @@ function AddressManagerModal({ onClose }: { onClose: () => void }) {
     }
   }, []);
 
-  /* Daum Postcode 스크립트 로드 + 주소 검색 레이어 열기 */
+  /* searchOpen이 true가 된 후 DOM에 레이어가 마운트되면 embed */
   const openPostcodeSearch = useCallback(() => {
-    const load = () => {
+    setSearchOpen(true);
+  }, []);
+
+  useEffect(() => {
+    if (!searchOpen || !searchLayerRef.current) return;
+
+    const embed = () => {
       if (!window.daum?.Postcode || !searchLayerRef.current) return;
       searchLayerRef.current.innerHTML = "";
-      setSearchOpen(true);
       new window.daum.Postcode({
         oncomplete: (data) => {
           setAddress(data.roadAddress || data.jibunAddress);
@@ -524,14 +529,14 @@ function AddressManagerModal({ onClose }: { onClose: () => void }) {
     };
 
     if (window.daum?.Postcode) {
-      load();
+      embed();
     } else {
       const script = document.createElement("script");
       script.src = "//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
-      script.onload = load;
+      script.onload = embed;
       document.head.appendChild(script);
     }
-  }, []);
+  }, [searchOpen]);
 
   useEffect(() => { fetchAddresses(); }, [fetchAddresses]);
 
