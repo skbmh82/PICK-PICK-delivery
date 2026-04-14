@@ -27,6 +27,18 @@ export async function POST(
     return NextResponse.json({ error: "라이더 권한이 필요합니다" }, { status: 403 });
   }
 
+  // 오프라인 라이더는 수락 불가
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: location } = await (admin as any)
+    .from("rider_locations")
+    .select("is_active")
+    .eq("rider_id", profile.id)
+    .single();
+
+  if (!location?.is_active) {
+    return NextResponse.json({ error: "온라인 상태일 때만 배달을 수락할 수 있습니다" }, { status: 400 });
+  }
+
   // 주문이 아직 ready 상태이고 rider 미배정인지 확인
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: order } = await (admin as any)

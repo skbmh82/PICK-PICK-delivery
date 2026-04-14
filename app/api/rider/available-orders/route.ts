@@ -23,6 +23,18 @@ export async function GET() {
     return NextResponse.json({ error: "라이더 권한이 필요합니다" }, { status: 403 });
   }
 
+  // 오프라인 라이더는 빈 목록 반환
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: location } = await (admin as any)
+    .from("rider_locations")
+    .select("is_active")
+    .eq("rider_id", profile.id)
+    .single();
+
+  if (!location?.is_active) {
+    return NextResponse.json({ orders: [] });
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: orders, error } = await (admin as any)
     .from("orders")
