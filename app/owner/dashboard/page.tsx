@@ -825,7 +825,7 @@ export default function OwnerDashboardPage() {
   const [hasStore,      setHasStore]      = useState<boolean | null>(null);
   const [isApproved,    setIsApproved]    = useState<boolean | null>(null);
   const [registerOpen,  setRegisterOpen]  = useState(false);
-  const { play: playOrderSound, unlock: unlockSound } = useOrderSound();
+  const { play: playOrderSound, stop: stopOrderSound, unlock: unlockSound } = useOrderSound();
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
@@ -853,11 +853,17 @@ export default function OwnerDashboardPage() {
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
-  // 신규 주문 실시간 알림 → 대시보드 자동 갱신 + 음성 알림
+  // 신규 주문 실시간 알림 → 대시보드 자동 갱신 + 음성 반복 시작
   useStoreOrderRealtime(storeId, () => {
     playOrderSound();
     fetchDashboard();
   });
+
+  // 신규 주문이 모두 처리되면 알림음 중단
+  const pendingCount = data?.pendingOrders?.length ?? 0;
+  useEffect(() => {
+    if (pendingCount === 0) stopOrderSound();
+  }, [pendingCount, stopOrderSound]);
 
   if (loading) return <DashboardSkeleton />;
 

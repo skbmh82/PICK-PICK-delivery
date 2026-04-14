@@ -5,14 +5,12 @@ import { useCallback, useRef } from "react";
 /**
  * 새 주문 알림 사운드
  * - unlock(): 🔔 버튼 클릭 시 → AudioContext 잠금 해제 + 음성 확인
- * - play():   신규 주문 Realtime 이벤트 시 → "픽픽!" 비프 패턴 재생
- *
- * speechSynthesis은 브라우저 autoplay 정책상 비사용자-제스처 컨텍스트
- * (WebSocket 콜백 등)에서 차단되므로 play()는 Web Audio API 비프음 사용.
+ * - play():   신규 주문 도착 시 → "픽픽-딩동" 비프 3초마다 반복
+ * - stop():   주문 수락/취소 시 → 반복 중단
  */
 export function useOrderSound() {
-  const ctxRef     = useRef<AudioContext | null>(null);
-  const unlockedRef = useRef(false);
+  const ctxRef      = useRef<AudioContext | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const getCtx = useCallback((): AudioContext | null => {
     try {
@@ -24,16 +22,13 @@ export function useOrderSound() {
     }
   }, []);
 
-  /**
-   * "픽픽! 새 주문 알림" 비프 패턴
-   * 픽(880Hz) - 픽(880Hz) - 딩동(523→784Hz)
-   */
-  const playBeep = useCallback(() => {
+  /** "픽-픽-딩↗동" 한 번 재생 */
+  const playOnce = useCallback(() => {
     const ctx = getCtx();
     if (!ctx) return;
     const now = ctx.currentTime;
 
-    const schedule = (freq: number, start: number, dur: number, vol = 0.45) => {
+    const note = (freq: number, start: number, dur: number, vol = 0.45) => {
       const osc  = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "sine";
@@ -44,24 +39,38 @@ export function useOrderSound() {
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now + start);
-      osc.stop(now + start + dur + 0.01);
+      osc.stop(now + start + dur + 0.02);
     };
 
-    // 픽(짧게) - 픽(짧게) - 딩↗동(상승)
-    schedule(880, 0.00, 0.10);   // 픽
-    schedule(880, 0.18, 0.10);   // 픽
-    schedule(523, 0.38, 0.20);   // 딩
-    schedule(784, 0.55, 0.25);   // ↗동
-
+    note(880, 0.00, 0.10);  // 픽
+    note(880, 0.18, 0.10);  // 픽
+    note(523, 0.38, 0.20);  // 딩
+    note(784, 0.55, 0.28);  // ↗동
   }, [getCtx]);
 
-  /** 🔔 버튼 클릭 시 → 잠금 해제 + TTS 확인 메시지 */
-  const unlock = useCallback(() => {
-    // AudioContext 잠금 해제 (사용자 제스처 컨텍스트에서 실행)
-    getCtx();
-    unlockedRef.current = true;
+  /** 수락 전까지 3초마다 반복 재생 */
+  const play = useCallback(() => {
+    if (typeof window === "undefined") return;
+    // 이미 울리고 있으면 중복 방지
+    if (intervalRef.current) return;
 
-    // 음성 확인 (user gesture이므로 speechSynthesis 가능)
+    playOnce(); // 즉시 1회
+    intervalRef.current = setInterval(() => {
+      playOnce();
+    }, 3000);
+  }, [playOnce]);
+
+  /** 주문 수락/취소 시 반복 중단 */
+  const stop = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  /** 🔔 버튼 클릭 — AudioContext 잠금 해제 + TTS 확인 */
+  const unlock = useCallback(() => {
+    getCtx();
     try {
       if ("speechSynthesis" in window) {
         window.speechSynthesis.cancel();
@@ -72,18 +81,12 @@ export function useOrderSound() {
         if (koVoice) u.voice = koVoice;
         window.speechSynthesis.speak(u);
       } else {
-        playBeep();
+        playOnce();
       }
     } catch {
-      playBeep();
+      playOnce();
     }
-  }, [getCtx, playBeep]);
+  }, [getCtx, playOnce]);
 
-  /** 신규 주문 Realtime 이벤트 → 비프 패턴 재생 */
-  const play = useCallback(() => {
-    if (typeof window === "undefined") return;
-    playBeep();
-  }, [playBeep]);
-
-  return { play, unlock };
+  return { play, stop, unlock };
 }

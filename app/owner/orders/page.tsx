@@ -324,7 +324,7 @@ export default function OwnerOrdersPage() {
   const [loading,  setLoading]  = useState(true);
   const [newAlert, setNewAlert] = useState(0);   // 신규 주문 건수
   const [soundOn,  setSoundOn]  = useState(true);
-  const { play: playOrderSound, unlock: unlockSound } = useOrderSound();
+  const { play: playOrderSound, stop: stopOrderSound, unlock: unlockSound } = useOrderSound();
   const alertRef = useRef(newAlert);
 
   const fetchOrders = useCallback(async (t: Tab = tab) => {
@@ -368,6 +368,8 @@ export default function OwnerOrdersPage() {
       body:    JSON.stringify({ status, ...(estimatedTime ? { estimatedTime } : {}) }),
     });
     if (res.ok) {
+      // 수락(preparing) 또는 취소 시 알림음 중단
+      if (status === "preparing" || status === "cancelled") stopOrderSound();
       setOrders((prev) =>
         prev.map((o) =>
           o.id === id
