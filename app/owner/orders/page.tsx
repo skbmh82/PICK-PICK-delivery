@@ -263,21 +263,35 @@ function OrderCard({
           )}
 
           {order.status === "preparing" && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Clock size={14} className="text-amber-500 animate-spin" style={{ animationDuration: "3s" }} />
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-3 py-2">
+                <Clock size={14} className="text-amber-500 animate-spin flex-shrink-0" style={{ animationDuration: "3s" }} />
                 <span className="text-xs text-amber-600 font-bold">조리 중...</span>
               </div>
-              <button
-                disabled={loading}
-                onClick={() => handleStatus("ready")}
-                className="flex items-center gap-2 py-2.5 px-5 rounded-2xl bg-green-500 text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
-              >
-                {loading
-                  ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  : <ChefHat size={14} />}
-                조리 완료
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                {/* 조리 중에 라이더를 미리 호출 → ready 상태로 변경해 라이더에게 노출 */}
+                <button
+                  disabled={loading}
+                  onClick={() => handleStatus("ready")}
+                  className="flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-gradient-to-r from-purple-500 to-pick-purple text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
+                >
+                  {loading
+                    ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    : <Bike size={14} />}
+                  라이더 호출
+                </button>
+                {/* 조리 완료 후 라이더 호출 (기존 흐름) */}
+                <button
+                  disabled={loading}
+                  onClick={() => handleStatus("ready")}
+                  className="flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-green-500 text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
+                >
+                  {loading
+                    ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    : <ChefHat size={14} />}
+                  조리 완료
+                </button>
+              </div>
             </div>
           )}
 
