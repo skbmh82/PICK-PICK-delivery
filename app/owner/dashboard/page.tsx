@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { ClipboardList, TrendingUp, Bell, CheckCircle, XCircle, Clock, RefreshCw, Store, ChevronDown, X, Check, BarChart2, Utensils, Zap, ArrowUp, ArrowDown, Settings } from "lucide-react";
+import { ClipboardList, TrendingUp, Bell, CheckCircle, XCircle, Clock, RefreshCw, Store, ChevronDown, X, Check, BarChart2, Utensils, Zap, ArrowUp, ArrowDown, Settings, MapPin, Navigation } from "lucide-react";
+
 import { useStoreOrderRealtime } from "@/hooks/useRealtime";
+import { useOrderSound } from "@/lib/useOrderSound";
 
 // ── 타입 ──────────────────────────────────────────────
 interface PendingOrder {
@@ -429,11 +431,24 @@ function NewOrderAlerts({ pendingOrders }: { pendingOrders: PendingOrder[] }) {
 }
 
 // ── 카테고리 목록 ──────────────────────────────────────
-const CATEGORIES = ["한식","중식","일식","치킨","피자","분식","카페·디저트","양식"] as const;
-const CATEGORY_EMOJI: Record<string, string> = {
-  "한식":"🍚","중식":"🥟","일식":"🍱","치킨":"🍗",
-  "피자":"🍕","분식":"🍜","카페·디저트":"☕","양식":"🥩",
-};
+const CATEGORIES: { id: string; label: string; emoji: string }[] = [
+  { id: "burger",   label: "버거",      emoji: "🍔" },
+  { id: "korean",   label: "한식",      emoji: "🍚" },
+  { id: "chicken",  label: "치킨",      emoji: "🍗" },
+  { id: "snack",    label: "분식",      emoji: "🍜" },
+  { id: "pork",     label: "돈까스",    emoji: "🥩" },
+  { id: "jokbal",   label: "족발/보쌈", emoji: "🐷" },
+  { id: "stew",     label: "찜/탕",     emoji: "🍲" },
+  { id: "grill",    label: "구이",      emoji: "🔥" },
+  { id: "pizza",    label: "피자",      emoji: "🍕" },
+  { id: "chinese",  label: "중식",      emoji: "🥟" },
+  { id: "japanese", label: "일식",      emoji: "🍱" },
+  { id: "seafood",  label: "회/해물",   emoji: "🦐" },
+  { id: "western",  label: "양식",      emoji: "🥗" },
+  { id: "coffee",   label: "커피/차",   emoji: "☕" },
+  { id: "dessert",  label: "디저트",    emoji: "🍰" },
+  { id: "snacks",   label: "간식",      emoji: "🍿" },
+];
 
 // ── 가게 등록 모달 ─────────────────────────────────────
 function RegisterStoreModal({ onClose, onRegistered }: {
@@ -442,19 +457,50 @@ function RegisterStoreModal({ onClose, onRegistered }: {
 }) {
   const [form, setForm] = useState({
     name: "", category: "", description: "", phone: "",
-    address: "", deliveryFee: "3000", minOrderAmount: "15000", deliveryTime: "30",
+    address: "", deliveryFee: "3000", minOrderAmount: "15000",
+    deliveryTime: "30", deliveryRadiusKm: "5",
   });
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState("");
-  const [done,    setDone]    = useState(false);
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState("");
+  const [done,       setDone]       = useState(false);
+  const [addrSearch, setAddrSearch] = useState(false);
+  const searchLayerRef = useRef<HTMLDivElement>(null);
 
   const set = (key: string, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
+  // Daum Postcode 열기
+  const openPostcode = useCallback(() => setAddrSearch(true), []);
+
+  useEffect(() => {
+    if (!addrSearch || !searchLayerRef.current) return;
+    const embed = () => {
+      if (!window.daum?.Postcode || !searchLayerRef.current) return;
+      searchLayerRef.current.innerHTML = "";
+      new window.daum.Postcode({
+        oncomplete: (data) => {
+          set("address", data.roadAddress || data.jibunAddress);
+          setAddrSearch(false);
+        },
+      }).embed(searchLayerRef.current);
+    };
+    if (window.daum?.Postcode) {
+      embed();
+    } else {
+      const script = document.createElement("script");
+      script.src = "//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
+      script.onload = embed;
+      document.head.appendChild(script);
+    }
+  }, [addrSearch]);
+
   const handleSubmit = async () => {
-    if (!form.name.trim())     return setError("가게 이름을 입력해주세요");
-    if (!form.category)        return setError("카테고리를 선택해주세요");
-    if (!form.address.trim())  return setError("주소를 입력해주세요");
+    if (!form.name.trim())    return setError("가게 이름을 입력해주세요");
+    if (!form.category)       return setError("카테고리를 선택해주세요");
+    if (!form.address.trim()) return setError("주소를 입력해주세요");
+    const radius = parseFloat(form.deliveryRadiusKm);
+    if (isNaN(radius) || radius < 1 || radius > 30) return setError("배달 반경은 1~30km 사이로 입력해주세요");
+
     setLoading(true);
     setError("");
     try {
@@ -462,14 +508,15 @@ function RegisterStoreModal({ onClose, onRegistered }: {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name:           form.name.trim(),
-          category:       form.category,
-          description:    form.description.trim() || undefined,
-          phone:          form.phone.trim() || undefined,
-          address:        form.address.trim(),
-          deliveryFee:    Number(form.deliveryFee)    || 0,
-          minOrderAmount: Number(form.minOrderAmount) || 0,
-          deliveryTime:   Number(form.deliveryTime)   || 30,
+          name:             form.name.trim(),
+          category:         form.category,
+          description:      form.description.trim() || undefined,
+          phone:            form.phone.trim() || undefined,
+          address:          form.address.trim(),
+          deliveryFee:      Number(form.deliveryFee)      || 0,
+          minOrderAmount:   Number(form.minOrderAmount)   || 0,
+          deliveryTime:     Number(form.deliveryTime)     || 30,
+          deliveryRadiusKm: radius,
         }),
       });
       const json = await res.json();
@@ -495,6 +542,22 @@ function RegisterStoreModal({ onClose, onRegistered }: {
             <X size={16} className="text-pick-text-sub" />
           </button>
         </div>
+
+        {/* 주소 검색 레이어 */}
+        {addrSearch && (
+          <div className="fixed inset-0 z-[70] flex flex-col bg-white">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-pick-border flex-shrink-0">
+              <p className="font-black text-pick-text text-sm">주소 검색 🔍</p>
+              <button
+                onClick={() => setAddrSearch(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-pick-bg"
+              >
+                <X size={16} className="text-pick-text-sub" />
+              </button>
+            </div>
+            <div ref={searchLayerRef} className="flex-1" />
+          </div>
+        )}
 
         {done ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 py-12">
@@ -532,23 +595,38 @@ function RegisterStoreModal({ onClose, onRegistered }: {
                 >
                   <option value="">카테고리 선택</option>
                   {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{CATEGORY_EMOJI[c]} {c}</option>
+                    <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>
                   ))}
                 </select>
                 <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-pick-text-sub pointer-events-none" />
               </div>
             </div>
 
-            {/* 주소 */}
+            {/* 가게 주소 — 카카오 주소 검색 */}
             <div>
               <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">가게 주소 *</label>
-              <input
-                type="text"
-                value={form.address}
-                onChange={(e) => set("address", e.target.value)}
-                placeholder="예) 서울시 강남구 테헤란로 123"
-                className="w-full border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text focus:outline-none focus:border-pick-purple"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={form.address}
+                  readOnly
+                  placeholder="주소 검색 버튼을 눌러주세요"
+                  className="flex-1 border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text bg-pick-bg cursor-pointer focus:outline-none"
+                  onClick={openPostcode}
+                />
+                <button
+                  type="button"
+                  onClick={openPostcode}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-4 py-3 rounded-2xl bg-pick-purple text-white text-xs font-black whitespace-nowrap active:scale-95 transition-transform"
+                >
+                  <MapPin size={13} /> 검색
+                </button>
+              </div>
+              {form.address && (
+                <p className="text-[11px] text-pick-purple font-semibold mt-1.5 flex items-center gap-1">
+                  <Navigation size={10} /> 좌표는 등록 시 자동으로 저장됩니다
+                </p>
+              )}
             </div>
 
             {/* 전화번호 */}
@@ -595,6 +673,40 @@ function RegisterStoreModal({ onClose, onRegistered }: {
                   />
                 </div>
               ))}
+            </div>
+
+            {/* 배달 반경 */}
+            <div>
+              <label className="text-xs font-bold text-pick-text-sub mb-1.5 flex items-center gap-1.5 block">
+                <MapPin size={11} /> 배달 반경 (km) *
+              </label>
+              <p className="text-[11px] text-pick-text-sub mb-2">이 반경 내 고객에게만 가게가 노출돼요</p>
+              <div className="flex gap-2 mb-2">
+                {[3, 5, 7, 10].map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => set("deliveryRadiusKm", String(r))}
+                    className={`flex-1 py-2.5 rounded-2xl text-xs font-bold transition-all active:scale-95 ${
+                      form.deliveryRadiusKm === String(r)
+                        ? "bg-pick-purple text-white"
+                        : "bg-pick-bg border-2 border-pick-border text-pick-text-sub"
+                    }`}
+                  >
+                    {r}km
+                  </button>
+                ))}
+              </div>
+              <input
+                type="number"
+                value={form.deliveryRadiusKm}
+                onChange={(e) => set("deliveryRadiusKm", e.target.value)}
+                placeholder="직접 입력 (1~30)"
+                min="1"
+                max="30"
+                step="0.5"
+                className="w-full border-2 border-pick-border rounded-2xl px-4 py-2.5 text-sm text-pick-text text-right focus:outline-none focus:border-pick-purple"
+              />
             </div>
 
             {error && <p className="text-xs text-red-500 font-bold text-center">{error}</p>}
@@ -711,7 +823,9 @@ export default function OwnerDashboardPage() {
   const [loading,       setLoading]       = useState(true);
   const [storeId,       setStoreId]       = useState<string | null>(null);
   const [hasStore,      setHasStore]      = useState<boolean | null>(null);
+  const [isApproved,    setIsApproved]    = useState<boolean | null>(null);
   const [registerOpen,  setRegisterOpen]  = useState(false);
+  const playOrderSound = useOrderSound();
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
@@ -723,7 +837,10 @@ export default function OwnerDashboardPage() {
       if (storeRes.ok) {
         const { store } = await storeRes.json();
         setHasStore(!!store?.id);
-        if (store?.id) setStoreId(store.id);
+        if (store?.id) {
+          setStoreId(store.id);
+          setIsApproved(!!store.is_approved);
+        }
       }
       if (statsRes.ok) {
         const stats: DashboardData = await statsRes.json();
@@ -736,8 +853,9 @@ export default function OwnerDashboardPage() {
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
-  // 신규 주문 실시간 알림 → 대시보드 자동 갱신
+  // 신규 주문 실시간 알림 → 대시보드 자동 갱신 + 음성 알림
   useStoreOrderRealtime(storeId, () => {
+    playOrderSound();
     fetchDashboard();
   });
 
@@ -785,6 +903,19 @@ export default function OwnerDashboardPage() {
           <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
         </button>
       </div>
+
+      {/* 승인 대기 배너 */}
+      {isApproved === false && (
+        <div className="mx-4 mb-4 bg-amber-50 border-2 border-amber-200 rounded-3xl p-4 flex items-start gap-3">
+          <span className="text-2xl flex-shrink-0">⏳</span>
+          <div>
+            <p className="font-black text-amber-800 text-sm">관리자 승인 대기 중입니다</p>
+            <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+              가게 등록 신청이 완료됐어요! 관리자 검토 후 승인되면 고객에게 가게가 노출됩니다. 보통 1~2 영업일 내 처리됩니다.
+            </p>
+          </div>
+        </div>
+      )}
 
       <NewOrderAlerts pendingOrders={pending} />
       <SummaryCards today={today} />
