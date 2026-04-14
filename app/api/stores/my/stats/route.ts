@@ -47,7 +47,7 @@ export async function GET() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: todayOrders } = await (admin as any)
     .from("orders")
-    .select("id, status, total_amount, pick_reward, created_at, users(id, name, phone), order_items(id, menu_name, price, quantity)")
+    .select("id, status, total_amount, pick_reward, created_at, users!orders_user_id_fkey(id, name, phone), order_items(id, menu_name, price, quantity)")
     .eq("store_id", store.id)
     .gte("created_at", todayStart)
     .order("created_at", { ascending: false });

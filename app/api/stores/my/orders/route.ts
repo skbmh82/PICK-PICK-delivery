@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     .select(`
       id, status, total_amount, delivery_fee, pick_used,
       delivery_address, delivery_note, estimated_time, created_at,
-      users ( id, name, phone ),
+      users!orders_user_id_fkey ( id, name, phone ),
       order_items ( id, menu_name, price, quantity )
     `)
     .eq("store_id", store.id)

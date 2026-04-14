@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     .select(`
       id, status, total_amount, delivery_fee, delivery_address, delivery_lat, delivery_lng, created_at,
       stores ( id, name, address, lat, lng ),
-      users ( id, name, phone ),
+      users!orders_user_id_fkey ( id, name, phone ),
       order_items ( id, menu_name, quantity ),
       rider_earnings ( amount_pick, status )
     `)
