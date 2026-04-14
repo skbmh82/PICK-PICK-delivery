@@ -148,7 +148,9 @@ export async function POST(request: NextRequest) {
     .insert({
       user_id:          profile.id,
       store_id:         storeId,
-      status:           "pending",
+      // PICK 결제는 즉시 처리 → confirmed, TOSS/KAKAO는 결제 승인 대기 → pending
+      status:           paymentMethod === "PICK" ? "confirmed" : "pending",
+      confirmed_at:     paymentMethod === "PICK" ? new Date().toISOString() : null,
       payment_method:   paymentMethod,
       total_amount:     totalAmount + deliveryFee - pickUsed,
       delivery_fee:     deliveryFee,
