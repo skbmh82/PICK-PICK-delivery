@@ -64,7 +64,7 @@ const C = {
     fill: { color: C.purpleLight }, line: { color: C.purpleLight },
   });
 
-  slide.addText("2026년 4월 13일  |  Firebase 완성 · 지도/주소 수정 · 카카오 키 확인 중", {
+  slide.addText("2026년 4월 14일  |  알림음 TTS 완성 · 라이더 실시간 알림 · 주문 플로우 버그 수정", {
     x: 1, y: 3.6, w: 11.6, h: 0.5,
     fontSize: 14, color: "C4B5FD",
     align: "center",
@@ -88,7 +88,7 @@ const C = {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("📊  PICK PICK 진행 현황 (4/13 최종)", {
+  slide.addText("📊  PICK PICK 진행 현황 (4/14 최종)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 26, bold: true, color: C.purpleDark,
   });
@@ -608,7 +608,7 @@ const C = {
   });
 }
 
-// ── 슬라이드 9 — Day 7 작업 내역 (4/13 최종) ───────────
+// ── 슬라이드 9 — Day 8 작업 내역 (4/14 최종) ───────────
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
@@ -618,12 +618,12 @@ const C = {
     fill: { color: "F0FDFA" }, line: { color: "0D9488" },
     rectRadius: 0.1,
   });
-  slide.addText("📅  2026. 04. 13 (Day 7)", {
+  slide.addText("📅  2026. 04. 14 (Day 8)", {
     x: 0.4, y: 0.18, w: 2.8, h: 0.55,
     fontSize: 11, bold: true, color: "0D9488", align: "center",
   });
 
-  slide.addText("🏁  FCM 푸시 · 지도 수정 · 주소 검색 버그 · .env 완성", {
+  slide.addText("🔐  카카오 로그인 설정 · KOE205 원인 분석 · 이메일 로그인 단독 운영 확정", {
     x: 3.4, y: 0.22, w: 10.2, h: 0.55,
     fontSize: 18, bold: true, color: C.purpleDark,
   });
@@ -634,28 +634,28 @@ const C = {
 
   const day7 = [
     {
-      emoji: "🗺️", title: "KakaoMap SDK 수정",
-      desc: "libraries=services 누락 수정\nonerror 핸들러 + 디버그 로깅 추가\n스크립트 재로드 충돌 방지 로직",
+      emoji: "🔐", title: "카카오 소셜 로그인 설정 시도",
+      desc: "Supabase Kakao Provider 설정\nREST API 키 + Client Secret 입력\nRedirect URI 등록 (플랫폼 키 페이지)",
     },
     {
-      emoji: "📍", title: "홈 위치 바 동적화",
-      desc: "하드코딩 '역삼동' 제거\nLocationBar.tsx 클라이언트 컴포넌트\n기본 배달 주소 API 연동 표시",
+      emoji: "❌", title: "KOE205 에러 원인 분석",
+      desc: "account_email 스코프 요청 거부\nSupabase가 내부적으로 이메일 요청\n비즈니스 인증 없이 이메일 스코프 불가",
     },
     {
-      emoji: "🔍", title: "주소 검색 버그 수정",
-      desc: "Daum Postcode embed 타이밍 버그\nsetSearchOpen → useEffect 패턴 변경\nDOM 마운트 후 embed 실행 보장",
+      emoji: "🔍", title: "해결책 탐색",
+      desc: "scopes 옵션 수정 시도 (효과 없음)\nAllow users without email 토글 ON\nSupabase 하드코딩 scope 문제 확인",
     },
     {
-      emoji: "🔥", title: "Firebase 환경변수 완성",
-      desc: "API Key ~ App ID 6개 설정\nVAPID 키 (웹 푸시 인증서)\nAdmin SDK JSON 서버 전용 키",
+      emoji: "✅", title: "카카오 로그인 제거 결정",
+      desc: "비즈니스 인증 후 재추가 예정\n로그인 페이지 카카오 버튼 제거\n이메일/비밀번호 로그인만 운영",
     },
     {
-      emoji: "🔑", title: "카카오 도메인 등록",
-      desc: "JS Key → JavaScript SDK 도메인\nhttp/https localhost:3000 등록\n기존 '사이트 도메인' → 이름 변경됨",
+      emoji: "🗺️", title: "카카오맵은 정상 유지",
+      desc: "지도 SDK (JS Key) 정상 작동\n주소 검색 Daum Postcode 정상\n소셜 로그인만 제거, 지도 무관",
     },
     {
-      emoji: "🚀", title: "런칭 준비 진행 중",
-      desc: "Kakao API 키 타입 확인 필요\n앱 키 JavaScript 키 재확인\nVercel 배포 전 최종 점검 단계",
+      emoji: "🚀", title: "다음 단계: Vercel 배포",
+      desc: "이메일 로그인 단독 운영 확정\n샘플 데이터 추가 후 배포 예정\n카카오 비즈니스 인증 별도 진행",
     },
   ];
 
@@ -690,12 +690,94 @@ const C = {
   });
 }
 
-// ── 슬라이드 10 — 완료된 기능 전체 목록 (4/13 기준) ───
+// ── 슬라이드 10 — Day 9 작업 내역 (4/14 추가) ──────────
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("✅  완료된 기능 전체 목록 (4/13 최종)", {
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 2.8, h: 0.55,
+    fill: { color: C.orangePale }, line: { color: C.orange },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 04. 14 (Day 9)", {
+    x: 0.4, y: 0.18, w: 2.8, h: 0.55,
+    fontSize: 11, bold: true, color: C.orange, align: "center",
+  });
+
+  slide.addText("🔔  알림음 TTS 완성 · 라이더 실시간 알림 · 주문 플로우 개선", {
+    x: 3.4, y: 0.22, w: 10.2, h: 0.55,
+    fontSize: 19, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day9 = [
+    {
+      emoji: "🔔", title: "사장님 알림음 완성",
+      desc: "HTMLAudioElement 사전 렌더링 방식\nTTS '픽픽 주문이 들어왔습니다'\n3초 반복 · 수락 시 자동 중단",
+    },
+    {
+      emoji: "🛵", title: "라이더 알림음 + Realtime",
+      desc: "TTS '픽픽 라이더 요청이 왔습니다'\nSupabase Realtime orders.status=ready\n수락 시 알림 자동 중단",
+    },
+    {
+      emoji: "👨‍🍳", title: "조리 중 라이더 호출 분리",
+      desc: "조리 중 '라이더 호출' 버튼 독립\n조리 전 미리 라이더 출발 가능\n'조리 완료' 버튼 병행 유지",
+    },
+    {
+      emoji: "✅", title: "PICK 주문 즉시 confirmed",
+      desc: "PICK 결제 시 pending 대신 confirmed\nconfirmed_at 자동 기록\n'결제 확인 중' 대기 없이 즉시 수락",
+    },
+    {
+      emoji: "🔧", title: "FK 모호성 버그 수정",
+      desc: "PGRST201 오류 (orders→users FK 2개)\nusers!orders_user_id_fkey 힌트 적용\n통계·주문·라이더 API 4곳 수정",
+    },
+    {
+      emoji: "🏷️", title: "메뉴 카테고리 정리",
+      desc: "업종 중복 항목 제거 (치킨·피자 등)\n메뉴 섹션 전용 7개로 정리\n메인·사이드·음료·세트·디저트·스낵·기타",
+    },
+  ];
+
+  day9.forEach((item, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
+    const y = 1.0 + row * 2.35;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.1, h: 2.15,
+      fill: { color: C.orangePale }, line: { color: "FDBA74" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: y + 0.2, w: 0.58, h: 0.58,
+      fill: { color: C.white }, line: { color: "FDBA74" },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.18, y: y + 0.18, w: 0.6, h: 0.6,
+      fontSize: 18, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
+      fontSize: 12, bold: true, color: C.orange,
+    });
+    slide.addText(item.desc, {
+      x: x + 0.22, y: y + 0.75, w: 3.65, h: 1.25,
+      fontSize: 10.5, color: C.textDark, wrap: true,
+    });
+  });
+}
+
+// ── 슬라이드 11 — 완료된 기능 전체 목록 (4/14 기준) ───
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addText("✅  완료된 기능 전체 목록 (4/14 최종)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 24, bold: true, color: C.purpleDark,
   });
@@ -710,7 +792,7 @@ const C = {
       color: C.purple, pale: C.purplePale,
       items: [
         "이메일 로그인/회원가입 + 지갑 자동생성",
-        "카카오 소셜 로그인 + OAuth 콜백",
+        "카카오 소셜 로그인 (비즈니스 인증 후 재추가)",
         "RBAC 미들웨어 (user/owner/rider/admin)",
         "비밀번호 찾기·재설정 + 검색 히스토리",
         "프로필 수정 + 다중 배달 주소 + 레퍼럴",
@@ -746,7 +828,8 @@ const C = {
         "주문 관리: 수락 ETA + 거절 확인 팝업",
         "메뉴 옵션 그룹/옵션 CRUD UI",
         "매출 통계 대시보드 + 주간 차트",
-        "신규 주문 소리 알림 (Web Audio API)",
+        "신규주문 TTS 알림 '픽픽 주문이 들어왔습니다'",
+        "조리 중 라이더 호출 버튼 분리",
       ],
     },
     {
@@ -754,7 +837,7 @@ const C = {
       color: "0891B2", pale: "ECFEFF",
       items: [
         "배달 수락 → PICK 자동 지급 + 위치 공유",
-        "수익 내역 실DB + 주간/월간 차트",
+        "라이더 TTS 알림 '픽픽 라이더 요청이 왔습니다'",
         "FCM 푸시 알림 + 관리자 일괄 발송",
         "PWA 오프라인 캐싱 (Serwist)",
         "Sentry 모니터링 + 가맹점 광고 시스템",
@@ -832,7 +915,7 @@ const C = {
       priority: "✅ Phase 1~3",
       pColor: C.green, pPale: C.greenPale,
       items: [
-        { title: "인증 · 지갑 · 주문 플로우", desc: "이메일 + 카카오 소셜 로그인\nPICK 토큰 지갑 + 토스페이먼츠\nRealtime 주문 추적 완성" },
+        { title: "인증 · 지갑 · 주문 플로우", desc: "이메일 로그인 (카카오 비즈니스 후 추가)\nPICK 토큰 지갑 + 토스페이먼츠\nRealtime 주문 추적 완성" },
         { title: "사장님 · 라이더 · 관리자", desc: "사장님 주문/메뉴/정산/통계\n라이더 수락/위치공유/수익\n관리자 5탭 대시보드" },
         { title: "PWA · 보안 · DB 최적화", desc: "Serwist 오프라인 캐싱\nRLS + 인덱스 30개+ + FCM 푸시\nSentry + Storage 정책 완성" },
       ],
@@ -918,7 +1001,7 @@ const C = {
       status: "완료 ✅",
       statusColor: C.green,
       items: [
-        "✅ 로그인/회원가입 + 카카오 소셜 로그인",
+        "✅ 로그인/회원가입 (이메일 단독 · 카카오 추후)",
         "✅ 홈 탭 + 전문검색(GIN) + 광고",
         "✅ 지갑·주문·리뷰(이미지)·레퍼럴·알림",
         "✅ 사장님 / 라이더 / 관리자 전체",
@@ -956,7 +1039,7 @@ const C = {
         "✅ PWA 오프라인 (Serwist 캐싱)",
         "✅ 가맹점 광고 시스템",
         "✅ Sentry 모니터링 설정",
-        "✅ 카카오 소셜 로그인",
+        "⏳ 카카오 소셜 로그인 (비즈니스 인증 후)",
         "✅ 전문검색 GIN + RPC 함수",
       ],
     },
