@@ -6,6 +6,8 @@ import { useCallback } from "react";
 let _audioEl: HTMLAudioElement | null = null;
 let _blobUrl: string | null = null;
 let _orderInterval: ReturnType<typeof setInterval> | null = null;
+let _ttsMessage = "픽픽 주문이 들어왔습니다";
+let _unlockMessage = "픽픽 알림 소리가 켜졌습니다";
 
 /** AudioBuffer → WAV ArrayBuffer 변환 */
 function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
@@ -86,7 +88,7 @@ function playAudio() {
   if ("speechSynthesis" in window) {
     window.speechSynthesis.cancel();
     window.speechSynthesis.resume();
-    const u = new SpeechSynthesisUtterance("픽픽 주문이 들어왔습니다");
+    const u = new SpeechSynthesisUtterance(_ttsMessage);
     u.lang = "ko-KR";
     u.rate = 1.0;
     u.volume = 1.0;
@@ -96,7 +98,11 @@ function playAudio() {
 
 // ─────────────────────────────────────────────────────
 
-export function useOrderSound() {
+/** ttsMessage: 신규 알림 재생 시 읽어줄 문구 (기본값: "픽픽 주문이 들어왔습니다") */
+export function useOrderSound(ttsMessage?: string) {
+  // 메시지 설정 (모듈 싱글톤에 반영)
+  if (ttsMessage)         _ttsMessage    = ttsMessage;
+  if (ttsMessage)         _unlockMessage = `픽픽 알림 소리가 켜졌습니다`;
 
   /**
    * 🔔 버튼 클릭 (user gesture) →
@@ -125,7 +131,7 @@ export function useOrderSound() {
       // TTS 확인 (user gesture이므로 확실히 동작)
       if ("speechSynthesis" in window) {
         window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance("픽픽 알림 소리가 켜졌습니다");
+        const u = new SpeechSynthesisUtterance(_unlockMessage);
         u.lang = "ko-KR"; u.rate = 1.0; u.volume = 1.0;
         window.speechSynthesis.speak(u);
       }

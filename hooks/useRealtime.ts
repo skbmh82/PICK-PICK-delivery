@@ -130,6 +130,51 @@ export function useStoreOrderStatusRealtime(
   }, [storeId]);
 }
 
+// ── 라이더 배달 요청 알림 (status → ready 변경 감지) ────
+// 사장님이 "라이더 호출" 또는 "조리 완료" 버튼을 누르면 fires
+export function useRiderAvailableOrderRealtime(
+  enabled: boolean,
+  onNewRequest: () => void
+) {
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const cbRef      = useRef(onNewRequest);
+  cbRef.current    = onNewRequest;
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+    }
+
+    const channel = supabase
+      .channel("rider:available-orders")
+      .on(
+        "postgres_changes",
+        {
+          event:  "UPDATE",
+          schema: "public",
+          table:  "orders",
+          filter: "status=eq.ready",
+        },
+        (payload) => {
+          // rider_id 가 없는 경우만 (아직 배정 안 된 주문)
+          const row = payload.new as { status: string; rider_id: string | null };
+          if (row.status === "ready" && !row.rider_id) {
+            cbRef.current();
+          }
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [enabled]);
+}
+
 // ── 라이더 위치 실시간 구독 (배달 중인 사용자용) ────────
 export function useRiderLocationRealtime(
   riderId: string | null,

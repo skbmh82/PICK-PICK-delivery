@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Bike, TrendingUp, MapPin, CheckCircle, Clock, Star, RefreshCw } from "lucide-react";
+import { Bike, TrendingUp, MapPin, CheckCircle, Clock, Star, RefreshCw, Volume2, VolumeX } from "lucide-react";
+import { useRiderAvailableOrderRealtime } from "@/hooks/useRealtime";
+import { useOrderSound } from "@/lib/useOrderSound";
 
 // ── 타입 ──────────────────────────────────────────────
 interface AvailableOrder {
@@ -260,6 +262,9 @@ export default function RiderDashboardPage() {
   const [stats, setStats]           = useState<{ today: TodayStats; weekly: WeeklyDay[]; riderName: string } | null>(null);
   const [availableOrders, setAvailableOrders] = useState<AvailableOrder[]>([]);
   const [loading, setLoading]       = useState(true);
+  const [soundOn,  setSoundOn]      = useState(true);
+  const { play: playSound, stop: stopSound, unlock: unlockSound } =
+    useOrderSound("픽픽 라이더 요청이 왔습니다");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -280,11 +285,22 @@ export default function RiderDashboardPage() {
 
   const handleOrderAccepted = useCallback((orderId: string) => {
     setAvailableOrders((prev) => prev.filter((o) => o.id !== orderId));
-    // 통계 새로고침 (진행 중 카운트 반영)
+    stopSound();
     fetch("/api/rider/stats").then(async (r) => {
       if (r.ok) setStats(await r.json());
     }).catch(() => {/* 무시 */});
-  }, []);
+  }, [stopSound]);
+
+  // 새 배달 요청(ready) 실시간 감지 → 알림음 재생 + 목록 갱신
+  useRiderAvailableOrderRealtime(soundOn, () => {
+    playSound();
+    fetch("/api/rider/available-orders").then(async (r) => {
+      if (r.ok) {
+        const { orders } = await r.json();
+        setAvailableOrders(orders ?? []);
+      }
+    }).catch(() => {/* 무시 */});
+  });
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -301,12 +317,26 @@ export default function RiderDashboardPage() {
           <h1 className="font-black text-pick-text text-xl">안녕하세요, {name}님! 🛵</h1>
           <p className="text-sm text-pick-text-sub mt-0.5">오늘도 안전하게 달려요!</p>
         </div>
-        <button
-          onClick={fetchData}
-          className="p-2 rounded-full bg-pick-bg border border-pick-border text-pick-text-sub"
-        >
-          <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* 알림 소리 잠금 해제 + 토글 */}
+          <button
+            onClick={() => { unlockSound(); setSoundOn((v) => !v); }}
+            className={`p-2 rounded-full border transition-colors ${
+              soundOn
+                ? "bg-sky-500 text-white border-sky-500"
+                : "bg-pick-bg border-pick-border text-pick-text-sub"
+            }`}
+            title={soundOn ? "알림 소리 켜짐" : "알림 소리 꺼짐"}
+          >
+            {soundOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
+          </button>
+          <button
+            onClick={fetchData}
+            className="p-2 rounded-full bg-pick-bg border border-pick-border text-pick-text-sub"
+          >
+            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+          </button>
+        </div>
       </div>
 
       <AvailableOrderAlerts orders={availableOrders} onAccepted={handleOrderAccepted} />
