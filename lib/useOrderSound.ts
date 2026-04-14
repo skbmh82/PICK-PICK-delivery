@@ -1,26 +1,32 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 
 // ── 모듈 레벨 싱글톤 ─────────────────────────────────
-// 어느 페이지에서 unlock()을 호출해도 같은 AudioContext를 공유
 let _ctx: AudioContext | null = null;
 let _interval: ReturnType<typeof setInterval> | null = null;
 
-function getCtx(): AudioContext | null {
+function getOrCreateCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
   try {
     if (!_ctx) _ctx = new AudioContext();
-    if (_ctx.state === "suspended") _ctx.resume();
     return _ctx;
   } catch {
     return null;
   }
 }
 
-function playOnce() {
-  const ctx = getCtx();
+/** resume()을 await한 뒤 노트 재생 — 탭 백그라운드 후에도 안정 동작 */
+async function playOnce(): Promise<void> {
+  const ctx = getOrCreateCtx();
   if (!ctx) return;
+
+  // suspended 상태면 resume 완료까지 대기
+  if (ctx.state !== "running") {
+    try { await ctx.resume(); } catch { return; }
+  }
+  if (ctx.state !== "running") return;
+
   const now = ctx.currentTime;
 
   const note = (freq: number, start: number, dur: number, vol = 0.45) => {
@@ -43,37 +49,35 @@ function playOnce() {
   note(784, 0.55, 0.28);  // ↗동
 }
 
+function stopInterval() {
+  if (_interval) {
+    clearInterval(_interval);
+    _interval = null;
+  }
+}
+
 // ─────────────────────────────────────────────────────
 
-/**
- * useOrderSound — 어느 페이지에서 호출해도 같은 AudioContext 사용
- * - unlock(): 🔔 버튼 클릭 → AudioContext 잠금 해제 + TTS 확인
- * - play():   신규 주문 → 픽픽딩동 3초마다 반복
- * - stop():   수락/취소 → 반복 중단
- */
 export function useOrderSound() {
-  // intervalRef는 컴포넌트별로 관리 (중복 방지)
-  const intervalRef = useRef(_interval);
-
+  /** 신규 주문 → 3초마다 반복 재생 */
   const play = useCallback(() => {
     if (typeof window === "undefined") return;
-    if (_interval) return; // 이미 울리는 중
-    playOnce();
-    _interval = setInterval(playOnce, 3000);
-    intervalRef.current = _interval;
+    if (_interval) return; // 이미 반복 중
+    void playOnce();
+    _interval = setInterval(() => { void playOnce(); }, 3000);
   }, []);
 
+  /** 수락/취소 → 반복 중단 */
   const stop = useCallback(() => {
-    if (_interval) {
-      clearInterval(_interval);
-      _interval = null;
-      intervalRef.current = null;
-    }
+    stopInterval();
   }, []);
 
-  const unlock = useCallback(() => {
-    // 사용자 제스처 컨텍스트에서 AudioContext 잠금 해제
-    getCtx();
+  /** 🔔 버튼 클릭 → AudioContext 사용자 제스처로 생성/활성화 + TTS 확인 */
+  const unlock = useCallback(async () => {
+    const ctx = getOrCreateCtx();
+    if (ctx && ctx.state !== "running") {
+      try { await ctx.resume(); } catch { /* 무시 */ }
+    }
     try {
       if ("speechSynthesis" in window) {
         window.speechSynthesis.cancel();
@@ -83,10 +87,10 @@ export function useOrderSound() {
         if (koVoice) u.voice = koVoice;
         window.speechSynthesis.speak(u);
       } else {
-        playOnce();
+        void playOnce();
       }
     } catch {
-      playOnce();
+      void playOnce();
     }
   }, []);
 
