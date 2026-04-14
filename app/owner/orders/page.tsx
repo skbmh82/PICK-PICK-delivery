@@ -324,7 +324,7 @@ export default function OwnerOrdersPage() {
   const [loading,  setLoading]  = useState(true);
   const [newAlert, setNewAlert] = useState(0);   // 신규 주문 건수
   const [soundOn,  setSoundOn]  = useState(true);
-  const playOrderSound = useOrderSound();
+  const { play: playOrderSound, unlock: unlockSound } = useOrderSound();
   const alertRef = useRef(newAlert);
 
   const fetchOrders = useCallback(async (t: Tab = tab) => {
@@ -402,7 +402,7 @@ export default function OwnerOrdersPage() {
         <div className="flex items-center gap-2">
           {/* 소리 알림 토글 */}
           <button
-            onClick={() => setSoundOn((v) => !v)}
+            onClick={() => { unlockSound(); setSoundOn((v) => !v); }}
             className={`p-2 rounded-full border transition-colors ${
               soundOn
                 ? "bg-pick-purple text-white border-pick-purple"

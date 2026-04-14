@@ -4,22 +4,21 @@ import { useCallback, useRef } from "react";
 
 /**
  * 새 주문 알림 사운드
- * 1) Web Speech API로 "픽픽! 새 주문이 들어왔습니다" 음성 재생
- * 2) 음성 미지원 환경에서는 Web Audio API 비프음으로 폴백
+ * - unlock(): 첫 사용자 클릭 시 호출 → 오디오 잠금 해제 + 소리 테스트
+ * - play():   신규 주문 감지 시 호출 → "픽픽! 새 주문이 들어왔습니다" 음성
  */
 export function useOrderSound() {
-  const ctxRef = useRef<AudioContext | null>(null);
+  const ctxRef     = useRef<AudioContext | null>(null);
+  const unlockedRef = useRef(false);
 
   const playBeep = useCallback(() => {
     try {
-      if (!ctxRef.current) {
-        ctxRef.current = new AudioContext();
-      }
+      if (!ctxRef.current) ctxRef.current = new AudioContext();
       const ctx = ctxRef.current;
       if (ctx.state === "suspended") ctx.resume();
 
       const now = ctx.currentTime;
-      const freqs  = [523, 659, 784]; // C5 E5 G5
+      const freqs  = [523, 659, 784];
       const starts = [0, 0.18, 0.36];
       const dur    = 0.15;
 
@@ -29,48 +28,60 @@ export function useOrderSound() {
         osc.type = "sine";
         osc.frequency.value = freq;
         gain.gain.setValueAtTime(0, now + starts[i]);
-        gain.gain.linearRampToValueAtTime(0.35, now + starts[i] + 0.02);
+        gain.gain.linearRampToValueAtTime(0.4, now + starts[i] + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.001, now + starts[i] + dur);
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start(now + starts[i]);
         osc.stop(now + starts[i] + dur);
       });
+    } catch { /* 무시 */ }
+  }, []);
+
+  const speakKo = useCallback((text: string) => {
+    if (!("speechSynthesis" in window)) return false;
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang   = "ko-KR";
+      u.rate   = 1.05;
+      u.pitch  = 1.1;
+      u.volume = 1.0;
+
+      // 목소리 목록이 이미 로드됐으면 한국어 우선 선택
+      const voices  = window.speechSynthesis.getVoices();
+      const koVoice = voices.find((v) => v.lang.startsWith("ko"));
+      if (koVoice) u.voice = koVoice;
+
+      window.speechSynthesis.speak(u);
+      return true;
     } catch {
-      // AudioContext 미지원 환경에서는 무시
+      return false;
     }
   }, []);
 
-  const play = useCallback(() => {
+  /** 페이지 첫 클릭 시 호출 — 오디오 잠금 해제 + 테스트 재생 */
+  const unlock = useCallback(() => {
+    if (unlockedRef.current) return;
+    unlockedRef.current = true;
+
+    // AudioContext 잠금 해제
     try {
-      if (typeof window === "undefined") return;
+      if (!ctxRef.current) ctxRef.current = new AudioContext();
+      if (ctxRef.current.state === "suspended") ctxRef.current.resume();
+    } catch { /* 무시 */ }
 
-      if ("speechSynthesis" in window) {
-        // 이전 발화 취소
-        window.speechSynthesis.cancel();
+    // 음성 테스트
+    const spoke = speakKo("픽픽 알림 소리가 켜졌습니다");
+    if (!spoke) playBeep();
+  }, [speakKo, playBeep]);
 
-        const utterance = new SpeechSynthesisUtterance("픽픽! 새 주문이 들어왔습니다");
-        utterance.lang  = "ko-KR";
-        utterance.rate  = 1.05;
-        utterance.pitch = 1.1;
-        utterance.volume = 1.0;
+  /** 신규 주문 감지 시 호출 */
+  const play = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const spoke = speakKo("픽픽! 새 주문이 들어왔습니다");
+    if (!spoke) playBeep();
+  }, [speakKo, playBeep]);
 
-        // 한국어 음성이 있으면 우선 사용
-        const voices = window.speechSynthesis.getVoices();
-        const koVoice = voices.find(
-          (v) => v.lang.startsWith("ko") && !v.localService === false
-        ) ?? voices.find((v) => v.lang.startsWith("ko"));
-        if (koVoice) utterance.voice = koVoice;
-
-        window.speechSynthesis.speak(utterance);
-      } else {
-        // 음성 미지원 → 비프음
-        playBeep();
-      }
-    } catch {
-      playBeep();
-    }
-  }, [playBeep]);
-
-  return play;
+  return { play, unlock };
 }

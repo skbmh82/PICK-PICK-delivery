@@ -825,7 +825,7 @@ export default function OwnerDashboardPage() {
   const [hasStore,      setHasStore]      = useState<boolean | null>(null);
   const [isApproved,    setIsApproved]    = useState<boolean | null>(null);
   const [registerOpen,  setRegisterOpen]  = useState(false);
-  const playOrderSound = useOrderSound();
+  const { play: playOrderSound, unlock: unlockSound } = useOrderSound();
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
@@ -896,6 +896,13 @@ export default function OwnerDashboardPage() {
           </h1>
           <p className="text-sm text-pick-text-sub mt-0.5">오늘도 맛있는 하루 보내세요 🍗</p>
         </div>
+        <button
+          onClick={unlockSound}
+          className="p-2 rounded-full bg-pick-bg border border-pick-border text-pick-text-sub"
+          title="알림 소리 켜기 (한 번 눌러주세요)"
+        >
+          🔔
+        </button>
         <button
           onClick={fetchDashboard}
           className="p-2 rounded-full bg-pick-bg border border-pick-border text-pick-text-sub"
