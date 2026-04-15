@@ -56,15 +56,16 @@ interface OrderDetail {
 
 // ── 상태 설정 ─────────────────────────────────────────
 const STATUS_CONFIG: Record<OrderStatus, { label: string; emoji: string; color: string; bg: string; border: string }> = {
-  pending:    { label: "결제 확인 중",     emoji: "⏳", color: "text-yellow-600",  bg: "bg-yellow-50",  border: "border-yellow-200" },
-  confirmed:  { label: "주문 수락됨",      emoji: "✅", color: "text-blue-600",    bg: "bg-blue-50",    border: "border-blue-200" },
-  preparing:  { label: "조리 중",          emoji: "🍳", color: "text-orange-600",  bg: "bg-orange-50",  border: "border-orange-200" },
-  ready:      { label: "픽업 대기 중",     emoji: "📦", color: "text-purple-600",  bg: "bg-purple-50",  border: "border-purple-200" },
-  picked_up:  { label: "라이더 픽업 완료", emoji: "🛵", color: "text-indigo-600",  bg: "bg-indigo-50",  border: "border-indigo-200" },
-  delivering: { label: "배달 중",          emoji: "🚀", color: "text-pick-purple", bg: "bg-pick-bg",    border: "border-pick-border" },
-  delivered:  { label: "배달 완료",        emoji: "🎉", color: "text-green-600",   bg: "bg-green-50",   border: "border-green-200" },
-  cancelled:  { label: "취소됨",           emoji: "❌", color: "text-red-500",     bg: "bg-red-50",     border: "border-red-200" },
-  refunded:   { label: "환불 완료",        emoji: "💸", color: "text-gray-500",    bg: "bg-gray-50",    border: "border-gray-200" },
+  pending:        { label: "결제 확인 중",     emoji: "⏳", color: "text-yellow-600",  bg: "bg-yellow-50",  border: "border-yellow-200" },
+  confirmed:      { label: "주문 수락됨",      emoji: "✅", color: "text-blue-600",    bg: "bg-blue-50",    border: "border-blue-200" },
+  preparing:      { label: "조리 중",          emoji: "🍳", color: "text-orange-600",  bg: "bg-orange-50",  border: "border-orange-200" },
+  calling_rider:  { label: "라이더 호출 중",   emoji: "🛵", color: "text-orange-600",  bg: "bg-orange-50",  border: "border-orange-200" },
+  ready:          { label: "픽업 대기 중",     emoji: "📦", color: "text-purple-600",  bg: "bg-purple-50",  border: "border-purple-200" },
+  picked_up:      { label: "라이더 픽업 완료", emoji: "🛵", color: "text-indigo-600",  bg: "bg-indigo-50",  border: "border-indigo-200" },
+  delivering:     { label: "배달 중",          emoji: "🚀", color: "text-pick-purple", bg: "bg-pick-bg",    border: "border-pick-border" },
+  delivered:      { label: "배달 완료",        emoji: "🎉", color: "text-green-600",   bg: "bg-green-50",   border: "border-green-200" },
+  cancelled:      { label: "취소됨",           emoji: "❌", color: "text-red-500",     bg: "bg-red-50",     border: "border-red-200" },
+  refunded:       { label: "환불 완료",        emoji: "💸", color: "text-gray-500",    bg: "bg-gray-50",    border: "border-gray-200" },
 };
 
 const STEP_LABELS   = ["주문확인", "조리중", "픽업", "배달중", "완료"];
@@ -75,6 +76,45 @@ const STEP_STATUSES: OrderStatus[][] = [
   ["delivering"],
   ["delivered"],
 ];
+
+// ── 카운트다운 타이머 ─────────────────────────────────
+// confirmed_at 기준으로 estimated_time(분) 후 도착 예정 카운트다운
+function CountdownTimer({
+  confirmedAt,
+  estimatedMinutes,
+}: {
+  confirmedAt: string;
+  estimatedMinutes: number;
+}) {
+  const [remaining, setRemaining] = useState<number>(() => {
+    const deadline = new Date(confirmedAt).getTime() + estimatedMinutes * 60 * 1000;
+    return deadline - Date.now();
+  });
+
+  useEffect(() => {
+    const deadline = new Date(confirmedAt).getTime() + estimatedMinutes * 60 * 1000;
+    const tick = () => setRemaining(deadline - Date.now());
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [confirmedAt, estimatedMinutes]);
+
+  if (remaining <= 0) {
+    return <span className="text-sm font-black text-green-600 animate-pulse">곧 도착해요! 🛵</span>;
+  }
+
+  const totalSecs = Math.floor(remaining / 1000);
+  const mins      = Math.floor(totalSecs / 60);
+  const secs      = totalSecs % 60;
+
+  return (
+    <span className="text-sm font-black text-pick-purple tabular-nums">
+      {mins > 0
+        ? `약 ${mins}분 ${String(secs).padStart(2, "0")}초 남음`
+        : `${secs}초 남음`}
+    </span>
+  );
+}
 
 function getStepIndex(status: OrderStatus): number {
   for (let i = 0; i < STEP_STATUSES.length; i++) {
@@ -481,12 +521,18 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
               </div>
             )}
 
-            {/* 예상 도착 시간 */}
-            {order.estimated_time && status !== "cancelled" && (
+            {/* 예상 도착 카운트다운 */}
+            {order.estimated_time && order.confirmed_at &&
+             !["cancelled", "refunded", "delivered"].includes(status) && (
               <div className="flex items-center gap-2 mt-4 bg-pick-bg rounded-2xl px-4 py-2.5">
                 <Clock size={14} className="text-pick-purple" />
-                <span className="text-xs text-pick-text-sub">예상 배달 시간</span>
-                <span className="ml-auto text-sm font-black text-pick-purple">약 {order.estimated_time}분</span>
+                <span className="text-xs text-pick-text-sub">예상 도착</span>
+                <div className="ml-auto">
+                  <CountdownTimer
+                    confirmedAt={order.confirmed_at}
+                    estimatedMinutes={order.estimated_time}
+                  />
+                </div>
               </div>
             )}
 

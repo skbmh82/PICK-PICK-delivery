@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export type OrderStatus =
-  | "pending" | "confirmed" | "preparing" | "ready"
+  | "pending" | "confirmed" | "preparing" | "calling_rider" | "ready"
   | "picked_up" | "delivering" | "delivered" | "cancelled" | "refunded";
 
 // ── 주문 상태 실시간 구독 ─────────────────────────────
