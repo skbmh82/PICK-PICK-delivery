@@ -39,38 +39,39 @@ export async function POST(
     return NextResponse.json({ error: "온라인 상태일 때만 배달을 수락할 수 있습니다" }, { status: 400 });
   }
 
-  // 주문이 아직 ready 상태이고 rider 미배정인지 확인
+  // 주문 존재 여부 사전 확인
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: order } = await (admin as any)
+  const { data: orderCheck } = await (admin as any)
     .from("orders")
-    .select("id, status, rider_id, delivery_fee")
+    .select("id, status")
     .eq("id", orderId)
     .single();
 
-  if (!order) {
+  if (!orderCheck) {
     return NextResponse.json({ error: "주문을 찾을 수 없습니다" }, { status: 404 });
   }
-  if (order.status !== "ready") {
+  if (orderCheck.status !== "ready") {
     return NextResponse.json({ error: "이미 처리된 주문입니다" }, { status: 409 });
   }
-  if (order.rider_id) {
+
+  // 조건부 UPDATE — status=ready AND rider_id IS NULL 인 경우만 업데이트
+  // SELECT → UPDATE 사이 Race Condition 방지 (두 라이더 동시 수락 차단)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: updated, error: updateError } = await (admin as any)
+    .from("orders")
+    .update({ rider_id: profile.id, status: "picked_up", updated_at: new Date().toISOString() })
+    .eq("id", orderId)
+    .eq("status", "ready")
+    .is("rider_id", null)
+    .select("id, delivery_fee")
+    .single();
+
+  if (updateError || !updated) {
     return NextResponse.json({ error: "이미 다른 라이더가 수락한 주문입니다" }, { status: 409 });
   }
 
-  // rider_id 설정 + status → picked_up
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: updateError } = await (admin as any)
-    .from("orders")
-    .update({ rider_id: profile.id, status: "picked_up", updated_at: new Date().toISOString() })
-    .eq("id", orderId);
-
-  if (updateError) {
-    console.error("배달 수락 오류:", updateError.message);
-    return NextResponse.json({ error: "배달 수락에 실패했습니다" }, { status: 500 });
-  }
-
   // rider_earnings 레코드 생성 (배달비 기준)
-  const earningAmount = Number(order.delivery_fee) > 0 ? Number(order.delivery_fee) : 3000;
+  const earningAmount = Number(updated.delivery_fee) > 0 ? Number(updated.delivery_fee) : 3000;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (admin as any)
     .from("rider_earnings")

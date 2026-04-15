@@ -36,6 +36,49 @@ export async function PATCH(
 
   const { status, estimatedTime } = parsed.data;
 
+  // 요청자 프로필 조회
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: profile } = await (admin as any)
+    .from("users")
+    .select("id, role")
+    .eq("auth_id", user.id)
+    .single();
+
+  if (!profile) {
+    return NextResponse.json({ error: "사용자를 찾을 수 없습니다" }, { status: 404 });
+  }
+
+  // 권한 체크 (admin은 모든 상태 변경 가능)
+  if (profile.role !== "admin") {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: orderCheck } = await (admin as any)
+      .from("orders")
+      .select("rider_id, stores!inner(owner_id)")
+      .eq("id", orderId)
+      .single();
+
+    if (!orderCheck) {
+      return NextResponse.json({ error: "주문을 찾을 수 없습니다" }, { status: 404 });
+    }
+
+    const storeOwnerId = orderCheck.stores?.owner_id;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const assignedRiderId = (orderCheck as any).rider_id;
+
+    // 사장님 전용 상태: preparing, ready, cancelled
+    if (["preparing", "ready", "cancelled"].includes(status)) {
+      if (profile.id !== storeOwnerId) {
+        return NextResponse.json({ error: "가게 사장님만 변경할 수 있습니다" }, { status: 403 });
+      }
+    }
+    // 라이더 전용 상태: delivering, delivered
+    else if (["delivering", "delivered"].includes(status)) {
+      if (profile.id !== assignedRiderId) {
+        return NextResponse.json({ error: "배정된 라이더만 변경할 수 있습니다" }, { status: 403 });
+      }
+    }
+  }
+
   // RPC로 상태 변경 (타임스탬프 자동 처리)
   const { error } = await admin.rpc("update_order_status", {
     p_order_id:    orderId,
@@ -91,6 +134,26 @@ export async function PATCH(
         )
       );
     }
+  }
+
+  // 배달 완료 시 재주문 유도 알림 (10분 후 느낌으로 즉시 전송)
+  if (status === "delivered" && order?.user_id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const storeName = (order?.stores as any)?.name ?? "가게";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: storeRow } = await (admin as any)
+      .from("orders")
+      .select("store_id")
+      .eq("id", orderId)
+      .single();
+
+    await createNotification({
+      userId: order.user_id,
+      type:   "promotion",
+      title:  "🍽️ 맛있게 드셨나요?",
+      body:   `${storeName} 음식 어떠셨어요? 또 드시고 싶다면 재주문해보세요!`,
+      data:   { url: storeRow?.store_id ? `/store/${storeRow.store_id}` : "/orders", type: "reorder_nudge" },
+    });
   }
 
   // 배달 완료 시 고객 PICK 적립 + 라이더 PICK 지급

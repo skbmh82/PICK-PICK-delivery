@@ -46,19 +46,50 @@ const SORT_MAP: Record<SortKey, { col: string; asc: boolean }> = {
 const STORES_PAGE_SIZE = 12;
 
 // 카테고리별 가게 목록 (페이지네이션)
+// lat/lng 있으면 배달 반경 필터(Haversine RPC), 없으면 전체 목록
 export async function fetchStoresByCategory(
   category: string,
   sort: SortKey = "rating",
   offset = 0,
   limit  = STORES_PAGE_SIZE,
+  openOnly = false,
+  lat?: number | null,
+  lng?: number | null,
 ): Promise<{ stores: StoreRow[]; hasMore: boolean }> {
   const supabase = createServerClient();
+
+  // 좌표가 있으면 반경 필터 RPC 사용
+  if (lat != null && lng != null) {
+    const { data, error } = await supabase.rpc("fetch_stores_by_category_near", {
+      p_category:  category,
+      p_lat:       lat,
+      p_lng:       lng,
+      p_sort:      sort,
+      p_offset:    offset,
+      p_limit:     limit,
+      p_open_only: openOnly,
+    });
+
+    if (error) {
+      console.error("fetch_stores_by_category_near RPC error:", error.message);
+      // RPC 실패 시 전체 목록으로 폴백
+    } else {
+      const stores = (data ?? []) as StoreRow[];
+      return { stores, hasMore: stores.length === limit };
+    }
+  }
+
+  // 좌표 없거나 RPC 실패 시 — 기존 방식 (위치 필터 없음)
   const { col, asc } = SORT_MAP[sort] ?? SORT_MAP.rating;
-  const { data, error } = await supabase
+  let query = supabase
     .from("stores")
     .select("id, name, category, description, address, lat, lng, image_url, banner_url, rating, review_count, delivery_time, delivery_fee, min_order_amount, pick_reward_rate, is_open")
     .eq("category", category)
-    .eq("is_approved", true)
+    .eq("is_approved", true);
+
+  if (openOnly) query = query.eq("is_open", true);
+
+  const { data, error } = await query
     .order(col, { ascending: asc })
     .range(offset, offset + limit - 1);
 
@@ -73,7 +104,9 @@ export async function fetchStoresByCategory(
 // 가게 검색 (가게명 OR 메뉴명) — PostgreSQL 전문검색(GIN) + ilike 하이브리드
 export async function searchStores(
   query: string,
-  sort: SortKey = "rating"
+  sort:  SortKey  = "rating",
+  lat?:  number | null,
+  lng?:  number | null,
 ): Promise<StoreRow[]> {
   const supabase = createServerClient();
 
@@ -81,6 +114,8 @@ export async function searchStores(
     p_query: query,
     p_sort:  sort,
     p_limit: 30,
+    p_lat:   lat  ?? null,
+    p_lng:   lng  ?? null,
   });
 
   if (error) {
@@ -90,13 +125,14 @@ export async function searchStores(
   return (data ?? []) as StoreRow[];
 }
 
-// 가게 상세
+// 가게 상세 (승인된 가게만 조회)
 export async function fetchStoreById(id: string): Promise<StoreRow | null> {
   const supabase = createServerClient();
   const { data, error } = await supabase
     .from("stores")
     .select("id, name, category, description, address, phone, lat, lng, image_url, banner_url, rating, review_count, delivery_time, delivery_fee, min_order_amount, pick_reward_rate, is_open")
     .eq("id", id)
+    .eq("is_approved", true)
     .single();
 
   if (error) {
