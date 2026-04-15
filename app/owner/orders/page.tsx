@@ -10,7 +10,7 @@ import { useOrderSound } from "@/lib/useOrderSound";
 
 // ── 타입 ──────────────────────────────────────────────
 type OrderStatus =
-  | "pending" | "confirmed" | "preparing" | "ready"
+  | "pending" | "confirmed" | "preparing" | "calling_rider" | "ready"
   | "picked_up" | "delivering" | "delivered" | "cancelled" | "refunded";
 
 interface OrderItem {
@@ -42,27 +42,29 @@ interface Order {
 
 // ── 상태 설정 ─────────────────────────────────────────
 const STATUS_LABEL: Record<OrderStatus, string> = {
-  pending:    "신규 주문 🔴",
-  confirmed:  "수락됨",
-  preparing:  "조리 중 🍳",
-  ready:      "픽업 대기",
-  picked_up:  "라이더 픽업",
-  delivering: "배달 중",
-  delivered:  "배달 완료",
-  cancelled:  "취소",
-  refunded:   "환불",
+  pending:        "신규 주문 🔴",
+  confirmed:      "수락됨",
+  preparing:      "조리 중 🍳",
+  calling_rider:  "라이더 호출됨 🛵",
+  ready:          "픽업 대기",
+  picked_up:      "라이더 픽업",
+  delivering:     "배달 중",
+  delivered:      "배달 완료",
+  cancelled:      "취소",
+  refunded:       "환불",
 };
 
 const STATUS_CONFIG: Record<OrderStatus, { color: string; bg: string; border: string }> = {
-  pending:    { color: "text-red-600",    bg: "bg-red-50",    border: "border-red-200" },
-  confirmed:  { color: "text-blue-600",   bg: "bg-blue-50",   border: "border-blue-200" },
-  preparing:  { color: "text-amber-600",  bg: "bg-amber-50",  border: "border-amber-200" },
-  ready:      { color: "text-green-600",  bg: "bg-green-50",  border: "border-green-200" },
-  picked_up:  { color: "text-purple-600", bg: "bg-purple-50", border: "border-purple-200" },
-  delivering: { color: "text-purple-600", bg: "bg-purple-50", border: "border-purple-200" },
-  delivered:  { color: "text-gray-500",   bg: "bg-gray-50",   border: "border-gray-200" },
-  cancelled:  { color: "text-gray-400",   bg: "bg-gray-50",   border: "border-gray-100" },
-  refunded:   { color: "text-gray-400",   bg: "bg-gray-50",   border: "border-gray-100" },
+  pending:       { color: "text-red-600",    bg: "bg-red-50",    border: "border-red-200" },
+  confirmed:     { color: "text-blue-600",   bg: "bg-blue-50",   border: "border-blue-200" },
+  preparing:     { color: "text-amber-600",  bg: "bg-amber-50",  border: "border-amber-200" },
+  calling_rider: { color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-200" },
+  ready:         { color: "text-green-600",  bg: "bg-green-50",  border: "border-green-200" },
+  picked_up:     { color: "text-purple-600", bg: "bg-purple-50", border: "border-purple-200" },
+  delivering:    { color: "text-purple-600", bg: "bg-purple-50", border: "border-purple-200" },
+  delivered:     { color: "text-gray-500",   bg: "bg-gray-50",   border: "border-gray-200" },
+  cancelled:     { color: "text-gray-400",   bg: "bg-gray-50",   border: "border-gray-100" },
+  refunded:      { color: "text-gray-400",   bg: "bg-gray-50",   border: "border-gray-100" },
 };
 
 const ETA_OPTIONS = [10, 15, 20, 25, 30, 40, 50, 60];
@@ -269,10 +271,10 @@ function OrderCard({
                 <span className="text-xs text-amber-600 font-bold">조리 중...</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                {/* 조리 중에 라이더를 미리 호출 → ready 상태로 변경해 라이더에게 노출 */}
+                {/* 라이더 미리 호출 → calling_rider (조리는 계속, 라이더만 출발) */}
                 <button
                   disabled={loading}
-                  onClick={() => handleStatus("ready")}
+                  onClick={() => handleStatus("calling_rider")}
                   className="flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-gradient-to-r from-purple-500 to-pick-purple text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
                 >
                   {loading
@@ -280,7 +282,7 @@ function OrderCard({
                     : <Bike size={14} />}
                   라이더 호출
                 </button>
-                {/* 조리 완료 후 라이더 호출 (기존 흐름) */}
+                {/* 조리 완료 → ready (라이더 픽업 가능) */}
                 <button
                   disabled={loading}
                   onClick={() => handleStatus("ready")}
@@ -292,6 +294,26 @@ function OrderCard({
                   조리 완료
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* 라이더 호출됨 — 조리는 계속, 라이더 출발 중 */}
+          {order.status === "calling_rider" && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-2xl px-3 py-2">
+                <Bike size={14} className="text-orange-500 flex-shrink-0" />
+                <span className="text-xs text-orange-600 font-bold">라이더 출발 중 — 조리 마무리하세요</span>
+              </div>
+              <button
+                disabled={loading}
+                onClick={() => handleStatus("ready")}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-500 text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
+              >
+                {loading
+                  ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  : <ChefHat size={16} />}
+                조리 완료 (픽업 준비 완료)
+              </button>
             </div>
           )}
 
@@ -383,7 +405,7 @@ export default function OwnerOrdersPage() {
     });
     if (res.ok) {
       // 수락(preparing) 또는 취소 시 알림음 중단
-      if (status === "preparing" || status === "cancelled") stopOrderSound();
+      if (["preparing", "calling_rider", "cancelled"].includes(status)) stopOrderSound();
       setOrders((prev) =>
         prev.map((o) =>
           o.id === id

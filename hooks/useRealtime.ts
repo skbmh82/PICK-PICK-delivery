@@ -158,9 +158,9 @@ export function useRiderAvailableOrderRealtime(
           filter: "status=eq.ready",
         },
         (payload) => {
-          // rider_id 가 없는 경우만 (아직 배정 안 된 주문)
+          // rider_id 가 없고, 라이더 호출 또는 조리 완료 상태인 경우
           const row = payload.new as { status: string; rider_id: string | null };
-          if (row.status === "ready" && !row.rider_id) {
+          if ((row.status === "ready" || row.status === "calling_rider") && !row.rider_id) {
             cbRef.current();
           }
         }

@@ -44,7 +44,7 @@ export async function GET() {
       users!orders_user_id_fkey ( id, name, phone ),
       order_items ( id, menu_name, quantity )
     `)
-    .eq("status", "ready")
+    .in("status", ["calling_rider", "ready"])
     .is("rider_id", null)
     .order("created_at", { ascending: false })
     .limit(20);

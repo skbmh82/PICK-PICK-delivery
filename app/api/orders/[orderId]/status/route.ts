@@ -5,7 +5,7 @@ import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createNotification, ORDER_STATUS_NOTIFICATION } from "@/lib/notifications";
 
 const VALID_STATUSES = [
-  "pending","confirmed","preparing","ready",
+  "pending","confirmed","preparing","calling_rider","ready",
   "picked_up","delivering","delivered","cancelled","refunded",
 ] as const;
 
@@ -65,8 +65,8 @@ export async function PATCH(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const assignedRiderId = (orderCheck as any).rider_id;
 
-    // 사장님 전용 상태: preparing, ready, cancelled
-    if (["preparing", "ready", "cancelled"].includes(status)) {
+    // 사장님 전용 상태: preparing, calling_rider, ready, cancelled
+    if (["preparing", "calling_rider", "ready", "cancelled"].includes(status)) {
       if (profile.id !== storeOwnerId) {
         return NextResponse.json({ error: "가게 사장님만 변경할 수 있습니다" }, { status: 403 });
       }

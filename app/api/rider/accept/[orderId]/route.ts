@@ -50,18 +50,18 @@ export async function POST(
   if (!orderCheck) {
     return NextResponse.json({ error: "주문을 찾을 수 없습니다" }, { status: 404 });
   }
-  if (orderCheck.status !== "ready") {
+  if (!["ready", "calling_rider"].includes(orderCheck.status)) {
     return NextResponse.json({ error: "이미 처리된 주문입니다" }, { status: 409 });
   }
 
-  // 조건부 UPDATE — status=ready AND rider_id IS NULL 인 경우만 업데이트
+  // 조건부 UPDATE — (status=ready OR calling_rider) AND rider_id IS NULL 인 경우만 업데이트
   // SELECT → UPDATE 사이 Race Condition 방지 (두 라이더 동시 수락 차단)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: updated, error: updateError } = await (admin as any)
     .from("orders")
     .update({ rider_id: profile.id, status: "picked_up", updated_at: new Date().toISOString() })
     .eq("id", orderId)
-    .eq("status", "ready")
+    .in("status", ["ready", "calling_rider"])
     .is("rider_id", null)
     .select("id, delivery_fee")
     .single();
