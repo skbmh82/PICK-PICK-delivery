@@ -3,9 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   ArrowDownLeft, ArrowUpRight, X, Check, Search, User,
-  Ticket, ChevronDown, ChevronUp, Tag, ShoppingCart,
-  Gift, Fingerprint, Wallet, History, Flame,
-  Coins, TrendingUp, ArrowLeftRight, Lock, Info,
+  ShoppingCart, Gift, Fingerprint, Wallet, History, Flame,
+  Coins, TrendingUp, ArrowLeftRight, Lock, Info, Star,
 } from "lucide-react";
 
 // ── 충전 모달 ─────────────────────────────────────────
@@ -226,142 +225,6 @@ function TransferModal({ myBalance, onClose, onTransferred }: {
   );
 }
 
-// ── 쿠폰 섹션 ─────────────────────────────────────────
-interface CouponItem {
-  userCouponId: string; isUsed: boolean; usedAt: string | null; receivedAt: string;
-  coupon: {
-    id: string; code: string; title: string; description: string | null;
-    type: "fixed_pick" | "pick_rate" | "free_delivery";
-    value: number; minOrder: number; expiresAt: string | null;
-    storeId: string | null; isExpired: boolean;
-  };
-}
-
-function couponTypeLabel(type: CouponItem["coupon"]["type"], value: number) {
-  if (type === "fixed_pick")    return `${value.toLocaleString()} PICK 지급`;
-  if (type === "pick_rate")     return `PICK ${value}% 추가 적립`;
-  if (type === "free_delivery") return "배달비 무료";
-  return "";
-}
-
-function CouponSection() {
-  const [coupons,     setCoupons]     = useState<CouponItem[]>([]);
-  const [available,   setAvailable]   = useState(0);
-  const [code,        setCode]        = useState("");
-  const [registering, setRegistering] = useState(false);
-  const [regError,    setRegError]    = useState("");
-  const [regSuccess,  setRegSuccess]  = useState("");
-  const [expanded,    setExpanded]    = useState(false);
-  const [loadingList, setLoadingList] = useState(false);
-
-  const fetchCoupons = useCallback(async () => {
-    setLoadingList(true);
-    try {
-      const res = await fetch("/api/coupons");
-      if (res.ok) {
-        const json = await res.json();
-        setCoupons(json.coupons ?? []);
-        setAvailable(json.available ?? 0);
-      }
-    } finally { setLoadingList(false); }
-  }, []);
-
-  useEffect(() => { fetchCoupons(); }, [fetchCoupons]);
-
-  const handleRegister = async () => {
-    if (!code.trim()) return;
-    setRegistering(true); setRegError(""); setRegSuccess("");
-    try {
-      const res = await fetch("/api/coupons", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: code.trim() }),
-      });
-      const json = await res.json();
-      if (res.ok) { setRegSuccess(json.message ?? "쿠폰이 등록됐습니다!"); setCode(""); fetchCoupons(); }
-      else setRegError(json.error ?? "쿠폰 등록에 실패했습니다");
-    } finally { setRegistering(false); }
-  };
-
-  return (
-    <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm overflow-hidden">
-      <button onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center justify-between px-5 py-4 active:bg-pick-bg transition-colors">
-        <div className="flex items-center gap-2">
-          <Ticket size={18} className="text-pick-purple" />
-          <span className="font-bold text-pick-text">내 쿠폰함</span>
-          {available > 0 && (
-            <span className="bg-pick-purple text-white text-xs font-black px-2 py-0.5 rounded-full">
-              {available}
-            </span>
-          )}
-        </div>
-        {expanded ? <ChevronUp size={16} className="text-pick-text-sub" /> : <ChevronDown size={16} className="text-pick-text-sub" />}
-      </button>
-      {expanded && (
-        <div className="border-t border-pick-border">
-          <div className="px-5 py-4 bg-pick-bg">
-            <p className="text-xs font-bold text-pick-text-sub mb-2">쿠폰 코드 등록</p>
-            <div className="flex gap-2">
-              <input type="text" value={code}
-                onChange={(e) => { setCode(e.target.value.toUpperCase()); setRegError(""); setRegSuccess(""); }}
-                onKeyDown={(e) => e.key === "Enter" && handleRegister()}
-                placeholder="쿠폰 코드 입력 (예: WELCOME50)" maxLength={30}
-                className="flex-1 border-2 border-pick-border rounded-2xl px-4 py-2.5 text-sm text-pick-text bg-white dark:bg-pick-surface focus:outline-none focus:border-pick-purple uppercase placeholder:normal-case"
-              />
-              <button onClick={() => void handleRegister()} disabled={registering || !code.trim()}
-                className="px-4 py-2.5 bg-pick-purple text-white rounded-2xl text-sm font-bold disabled:opacity-40 active:scale-95 transition-all flex-shrink-0">
-                {registering
-                  ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin inline-block" />
-                  : "등록"}
-              </button>
-            </div>
-            {regError   && <p className="text-xs text-red-500 font-bold mt-2 px-1">{regError}</p>}
-            {regSuccess  && <p className="text-xs text-green-600 font-bold mt-2 px-1">✓ {regSuccess}</p>}
-          </div>
-          {loadingList ? (
-            <div className="px-5 py-6 flex justify-center">
-              <span className="w-6 h-6 border-2 border-pick-purple/30 border-t-pick-purple rounded-full animate-spin" />
-            </div>
-          ) : coupons.length === 0 ? (
-            <div className="px-5 py-8 flex flex-col items-center gap-2 text-pick-text-sub">
-              <Tag size={32} className="opacity-20" />
-              <p className="text-sm font-medium">보유 중인 쿠폰이 없어요</p>
-              <p className="text-xs opacity-70">쿠폰 코드를 입력해 등록해보세요!</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-pick-border">
-              {coupons.map((item) => {
-                const disabled = item.isUsed || item.coupon.isExpired;
-                return (
-                  <div key={item.userCouponId} className={`px-5 py-4 flex gap-4 ${disabled ? "opacity-50" : ""}`}>
-                    <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${disabled ? "bg-gray-100" : "bg-pick-purple/10"}`}>
-                      <Ticket size={20} className={disabled ? "text-gray-400" : "text-pick-purple"} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-bold text-sm text-pick-text leading-tight">{item.coupon.title}</p>
-                        {item.isUsed && <span className="text-[10px] font-black bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">사용완료</span>}
-                        {!item.isUsed && item.coupon.isExpired && <span className="text-[10px] font-black bg-red-50 text-red-400 px-2 py-0.5 rounded-full">만료됨</span>}
-                        {!item.isUsed && !item.coupon.isExpired && <span className="text-[10px] font-black bg-pick-purple/10 text-pick-purple px-2 py-0.5 rounded-full">사용가능</span>}
-                      </div>
-                      <p className="text-xs text-pick-purple-light font-bold mt-0.5">{couponTypeLabel(item.coupon.type, item.coupon.value)}</p>
-                      {item.coupon.description && <p className="text-xs text-pick-text-sub mt-0.5 leading-tight">{item.coupon.description}</p>}
-                      <div className="flex items-center gap-3 mt-1 flex-wrap">
-                        {item.coupon.minOrder > 0 && <span className="text-[10px] text-pick-text-sub">최소주문 {item.coupon.minOrder.toLocaleString()}원</span>}
-                        {item.coupon.expiresAt && <span className="text-[10px] text-pick-text-sub">~{new Date(item.coupon.expiresAt).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })} 까지</span>}
-                        <span className="text-[10px] text-pick-text-sub font-mono tracking-widest">{item.coupon.code}</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ── 타입 ─────────────────────────────────────────────
 interface Transaction {
@@ -613,73 +476,172 @@ export default function WalletPage() {
       </div>
 
       {/* ── 탭투언 출석 보상 ── */}
-      <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm overflow-hidden">
-        <div className="px-5 pt-5 pb-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-2xl bg-pick-purple/10 flex items-center justify-center text-lg">👆</span>
-            <div>
-              <p className="text-sm font-black text-pick-text">오늘의 출석 보상</p>
-              <p className="text-xs text-pick-text-sub">매일 탭하고 PICK을 모으세요</p>
-            </div>
-          </div>
-          {streak > 0 && (
-            <div className="flex items-center gap-1 bg-pick-purple/10 px-2.5 py-1 rounded-full">
-              <Flame size={12} className="text-pick-purple-light" />
-              <span className="text-xs font-black text-pick-purple">{streak}일 연속</span>
-            </div>
-          )}
-        </div>
+      <div className={`rounded-3xl border-2 shadow-sm overflow-hidden transition-all duration-300 ${
+        checkedToday
+          ? "bg-gradient-to-br from-pick-purple-dark via-pick-purple to-pick-purple-light border-pick-purple"
+          : "bg-white border-pick-border"
+      }`}>
 
-        <div className="px-5 pb-5">
-          {checkedToday ? (
-            <div className="flex flex-col items-center gap-2 py-3 bg-pick-bg rounded-3xl">
-              <div className="w-12 h-12 rounded-full bg-pick-purple/10 flex items-center justify-center">
-                <Check size={22} className="text-pick-purple" />
+        {checkedToday ? (
+          /* ── 출석 완료 상태 ── */
+          <div className="px-5 pt-5 pb-6">
+
+            {/* 헤더 */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🎉</span>
+                <p className="text-base font-black text-white">오늘 출석 완료!</p>
               </div>
-              <p className="text-sm font-black text-pick-text">오늘 출석 완료!</p>
-              <p className="text-xs text-pick-text-sub">내일 또 만나요 👋</p>
-            </div>
-          ) : (
-            <button onClick={() => void handleCheckin()} disabled={checkLoading}
-              className="w-full rounded-3xl py-4 flex items-center justify-center gap-3 font-black text-white bg-gradient-to-r from-pick-purple to-pick-purple-light active:scale-95 transition-all disabled:opacity-70 shadow-md">
-              {checkLoading ? (
-                <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  <Fingerprint size={20} />
-                  <span>+50 PICK 받기</span>
-                  <span className="text-sm text-white/70">≈ ₩50</span>
-                </>
+              {streak > 0 && (
+                <div className="flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full">
+                  <Flame size={13} className="text-pick-yellow-light" />
+                  <span className="text-xs font-black text-white">{streak}일 연속 🔥</span>
+                </div>
               )}
-            </button>
-          )}
+            </div>
 
-          {checkDone && (
-            <p className="text-center text-xs font-bold mt-2 text-pick-purple">
-              🎉 +50 PICK이 지갑에 추가됐어요!
-            </p>
-          )}
-
-          {/* 연속 출석 진행 바 */}
-          {streak > 0 && (
-            <div className="mt-4">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11px] text-pick-text-sub font-medium">7일 연속 출석 목표</span>
-                <span className="text-[11px] font-black text-pick-purple">{Math.min(streak, 7)}/7일</span>
+            {/* PICK 적립 확인 카드 */}
+            <div className="bg-white/15 rounded-3xl px-5 py-5 mb-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-white/70 font-medium mb-1">오늘 적립된 PICK</p>
+                <div className="flex items-end gap-1.5">
+                  <span className="text-4xl font-black text-white">+50</span>
+                  <span className="text-pick-yellow-light font-black text-lg mb-1">PICK</span>
+                </div>
+                <p className="text-xs text-white/60 mt-0.5">≈ ₩50 지갑에 추가됐어요</p>
               </div>
-              <div className="h-2 bg-pick-border rounded-full overflow-hidden">
+              {/* 코인 스택 시각화 */}
+              <div className="flex flex-col items-center gap-0.5">
+                {[...Array(5)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-10 h-3 rounded-full bg-pick-yellow-light shadow-sm"
+                    style={{
+                      opacity: 1 - i * 0.12,
+                      transform: `scaleX(${1 - i * 0.08})`,
+                    }}
+                  />
+                ))}
+                <span className="text-lg mt-1">🪙</span>
+              </div>
+            </div>
+
+            {/* 현재 잔액 */}
+            <div className="bg-white/10 rounded-2xl px-4 py-3 mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wallet size={14} className="text-white/60" />
+                <span className="text-xs text-white/70 font-medium">현재 잔액</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-base font-black text-white">{balance.toLocaleString()}</span>
+                <span className="text-xs text-pick-yellow-light font-black">PICK</span>
+              </div>
+            </div>
+
+            {/* 7일 연속 출석 달력 */}
+            <div className="bg-white/10 rounded-2xl px-4 py-3 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs text-white/70 font-medium">7일 연속 출석 현황</span>
+                <span className="text-xs font-black text-pick-yellow-light">{Math.min(streak, 7)}/7일</span>
+              </div>
+              {/* 날짜 원형 뱃지 */}
+              <div className="flex justify-between gap-1">
+                {[...Array(7)].map((_, i) => {
+                  const dayStreak = streak >= 7 ? 7 : streak;
+                  const filled = i < dayStreak;
+                  const isToday = i === dayStreak - 1;
+                  return (
+                    <div key={i} className="flex flex-col items-center gap-1">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                        isToday
+                          ? "bg-pick-yellow-light shadow-lg scale-110"
+                          : filled
+                            ? "bg-white/80"
+                            : "bg-white/15 border border-white/20"
+                      }`}>
+                        {filled
+                          ? <Check size={14} className={isToday ? "text-pick-purple-dark" : "text-pick-purple"} strokeWidth={3} />
+                          : <span className="text-[10px] text-white/40 font-bold">{i + 1}</span>
+                        }
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* 진행 바 */}
+              <div className="mt-3 h-1.5 bg-white/20 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-pick-purple to-pick-purple-light rounded-full transition-all duration-500"
+                  className="h-full bg-pick-yellow-light rounded-full transition-all duration-700"
                   style={{ width: `${Math.min((streak / 7) * 100, 100)}%` }}
                 />
               </div>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* ── 쿠폰함 ── */}
-      {isLoggedIn && <CouponSection />}
+            {/* 별 누적 적립 */}
+            <div className="flex items-center justify-center gap-2">
+              <Star size={12} className="text-pick-yellow-light fill-pick-yellow-light" />
+              <p className="text-xs text-white/70">
+                누적 출석 적립 <span className="font-black text-white">{(streak * 50).toLocaleString()} PICK</span> 이상 달성 중
+              </p>
+              <Star size={12} className="text-pick-yellow-light fill-pick-yellow-light" />
+            </div>
+
+            {/* 내일 안내 */}
+            <p className="text-center text-xs text-white/50 mt-3">내일도 잊지 말고 출석하세요 👋</p>
+          </div>
+
+        ) : (
+          /* ── 출석 전 상태 ── */
+          <div className="px-5 pt-5 pb-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <span className="w-10 h-10 rounded-2xl bg-pick-purple/10 flex items-center justify-center text-lg">👆</span>
+                <div>
+                  <p className="text-sm font-black text-pick-text">오늘의 출석 보상</p>
+                  <p className="text-xs text-pick-text-sub">매일 탭하고 PICK을 모으세요</p>
+                </div>
+              </div>
+              {streak > 0 && (
+                <div className="flex items-center gap-1 bg-pick-purple/10 px-2.5 py-1 rounded-full">
+                  <Flame size={12} className="text-pick-purple-light" />
+                  <span className="text-xs font-black text-pick-purple">{streak}일 연속</span>
+                </div>
+              )}
+            </div>
+
+            <button onClick={() => void handleCheckin()} disabled={checkLoading}
+              className="w-full rounded-3xl py-5 flex items-center justify-center gap-3 font-black text-white bg-gradient-to-r from-pick-purple to-pick-purple-light active:scale-95 transition-all disabled:opacity-70 shadow-lg">
+              {checkLoading ? (
+                <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Fingerprint size={22} />
+                  <div className="flex flex-col items-start leading-tight">
+                    <span className="text-base">출석하고 PICK 받기</span>
+                    <span className="text-xs text-white/70 font-medium">+50 PICK ≈ ₩50</span>
+                  </div>
+                  <span className="ml-auto text-2xl font-black text-pick-yellow-light">50P</span>
+                </>
+              )}
+            </button>
+
+            {streak > 0 && (
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] text-pick-text-sub">연속 출석 현황</span>
+                  <span className="text-[11px] font-black text-pick-purple">{Math.min(streak, 7)}/7일</span>
+                </div>
+                <div className="h-2 bg-pick-border rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-pick-purple to-pick-purple-light rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min((streak / 7) * 100, 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ── 로그인 안내 ── */}
       {!isLoggedIn && (

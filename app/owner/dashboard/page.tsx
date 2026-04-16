@@ -739,11 +739,20 @@ function RegisterStoreModal({ onClose, onRegistered }: {
 
 // ── 신규 가맹점 초대 카드 ──────────────────────────────
 function StoreReferralCard() {
-  const [copied, setCopied] = useState(false);
+  const [copied,       setCopied]       = useState(false);
+  const [referralCode, setReferralCode] = useState<string>("");
+
+  useEffect(() => {
+    fetch("/api/referral")
+      .then((r) => r.json())
+      .then((d: { code?: string }) => { if (d.code) setReferralCode(d.code); })
+      .catch(() => {});
+  }, []);
 
   const handleShare = () => {
-    const text = "PICK PICK에 가게를 등록하고 무료로 배달 주문을 받아보세요! 지금 가입하면 신규 가맹점 보너스 20,000 PICK 지급! 픽픽 앱에서 확인해보세요.";
-    const url  = typeof window !== "undefined" ? window.location.origin : "";
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const url  = referralCode ? `${base}/register?ref=${referralCode}&role=owner` : base;
+    const text = "PICK PICK에 가게를 등록하고 무료로 배달 주문을 받아보세요! 지금 가입하면 신규 가맹점 보너스 20,000 PICK 지급!";
     if (navigator.share) {
       navigator.share({ title: "PICK PICK 가맹점 초대", text, url }).catch(() => {});
     } else {
@@ -766,9 +775,9 @@ function StoreReferralCard() {
       </div>
       <div className="bg-white/15 rounded-2xl px-4 py-3 mb-4 flex items-center justify-between">
         <div>
-          <p className="text-xs text-white/70">초대 성공 시 지급</p>
+          <p className="text-xs text-white/70">신규 사장님 가입 시</p>
           <p className="text-2xl font-black text-pick-yellow-light">20,000 <span className="text-base">PICK</span></p>
-          <p className="text-[11px] text-white/60">≈ ₩20,000</p>
+          <p className="text-[11px] text-white/60">신규 사장님에게 지급 · 나에게 5,000 P</p>
         </div>
         <span className="text-4xl">🎁</span>
       </div>

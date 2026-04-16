@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/coupon-expiry",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/rider-offline",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

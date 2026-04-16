@@ -4,6 +4,21 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createNotification, ORDER_STATUS_NOTIFICATION } from "@/lib/notifications";
 
+// 배달 요청 알림을 보낼 라이더 최대 반경 (km)
+const RIDER_NOTIFY_RADIUS_KM = 5;
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R    = 6371;
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLng = (lng2 - lng1) * (Math.PI / 180);
+  const a    =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * (Math.PI / 180)) *
+    Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 const VALID_STATUSES = [
   "pending","confirmed","preparing","calling_rider","ready",
   "picked_up","delivering","delivered","cancelled","refunded",
@@ -94,7 +109,7 @@ export async function PATCH(
   // 주문 조회 (이후 로직에서 공유)
   const { data: order } = await (admin as ReturnType<typeof getAdminSupabaseClient> & { from: (t: string) => any }) // eslint-disable-line @typescript-eslint/no-explicit-any
     .from("orders")
-    .select("user_id, rider_id, pick_reward, delivery_address, stores(name)")
+    .select("user_id, rider_id, pick_reward, delivery_address, stores(name, lat, lng)")
     .eq("id", orderId)
     .single();
 
@@ -110,20 +125,31 @@ export async function PATCH(
     });
   }
 
-  // 조리 완료(ready) → 활성 라이더 전체에게 배달 요청 알림
+  // 조리 완료(ready) → 반경 내 활성 라이더에게만 배달 요청 알림
   if (status === "ready") {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: activeRiders } = await (admin as any)
       .from("rider_locations")
-      .select("rider_id")
+      .select("rider_id, lat, lng")
       .eq("is_active", true);
 
     if (activeRiders && activeRiders.length > 0) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const storeName = (order?.stores as any)?.name ?? "가게";
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const storeLat  = Number((order?.stores as any)?.lat  ?? 0);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const storeLng  = Number((order?.stores as any)?.lng  ?? 0);
+
+      // 가게 좌표 기준 반경 내 라이더만 필터링
+      const nearbyRiders = activeRiders.filter((r: { rider_id: string; lat: number; lng: number }) => {
+        if (!storeLat || !storeLng) return true; // 가게 좌표 없으면 전체 알림
+        if (!r.lat   || !r.lng)    return false; // 라이더 위치 미등록이면 제외
+        return haversineKm(storeLat, storeLng, Number(r.lat), Number(r.lng)) <= RIDER_NOTIFY_RADIUS_KM;
+      });
+
       await Promise.all(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        activeRiders.map((r: { rider_id: string }) =>
+        nearbyRiders.map((r: { rider_id: string }) =>
           createNotification({
             userId: r.rider_id,
             type:   "order_update",

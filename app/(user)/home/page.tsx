@@ -289,12 +289,16 @@ function CategoryGrid() {
 /* ────────────── 가게 카드 (실데이터) ────────────── */
 function StoreCard({ store }: { store: StoreRow }) {
   const emoji = getCategoryEmoji(store.category);
+  const closed = !store.is_open;
 
   return (
     <Link
       href={`/store/${store.id}`}
-      className="block bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm active:scale-95 transition-transform duration-150 overflow-hidden"
+      className={`block bg-white dark:bg-pick-card rounded-3xl border-2 shadow-sm active:scale-95 transition-transform duration-150 overflow-hidden relative ${
+        closed ? "border-gray-200 opacity-75" : "border-pick-border"
+      }`}
     >
+      {/* 이미지 영역 */}
       <div className="h-36 bg-gradient-to-br from-pick-bg to-pick-border flex items-center justify-center relative">
         {store.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -302,21 +306,39 @@ function StoreCard({ store }: { store: StoreRow }) {
         ) : (
           <span className="text-7xl">{emoji}</span>
         )}
+
+        {/* 영업종료 오버레이 */}
+        {closed && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+            <span className="bg-white/90 text-gray-700 text-sm font-black px-4 py-1.5 rounded-full shadow">
+              🚫 영업종료
+            </span>
+          </div>
+        )}
       </div>
+
       <div className="px-4 pt-3 pb-4">
         <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="font-black text-pick-text text-base leading-snug flex-1">{store.name}</h3>
-          <span className="flex-shrink-0 text-xs font-black bg-pick-yellow-light text-pick-yellow-dark px-2.5 py-1 rounded-full">
-            +{store.pick_reward_rate}%
-          </span>
+          <h3 className={`font-black text-base leading-snug flex-1 ${closed ? "text-gray-400" : "text-pick-text"}`}>
+            {store.name}
+          </h3>
+          {closed ? (
+            <span className="flex-shrink-0 text-xs font-black bg-gray-100 text-gray-400 px-2.5 py-1 rounded-full">
+              영업종료
+            </span>
+          ) : (
+            <span className="flex-shrink-0 text-xs font-black bg-pick-yellow-light text-pick-yellow-dark px-2.5 py-1 rounded-full">
+              +{store.pick_reward_rate}%
+            </span>
+          )}
         </div>
         {store.description && (
           <p className="text-xs text-pick-text-sub mb-2 line-clamp-1">{store.description}</p>
         )}
-        <div className="flex items-center gap-3 text-xs text-pick-text-sub">
+        <div className={`flex items-center gap-3 text-xs ${closed ? "text-gray-400" : "text-pick-text-sub"}`}>
           <span className="flex items-center gap-1">
-            <Star size={12} className="text-pick-yellow fill-pick-yellow" />
-            <span className="font-bold text-pick-text">{store.rating}</span>
+            <Star size={12} className={closed ? "text-gray-300" : "text-pick-yellow fill-pick-yellow"} />
+            <span className={`font-bold ${closed ? "text-gray-400" : "text-pick-text"}`}>{store.rating}</span>
             <span>({store.review_count})</span>
           </span>
           <span className="w-0.5 h-3 bg-pick-border" />
@@ -328,7 +350,7 @@ function StoreCard({ store }: { store: StoreRow }) {
           <span className="flex items-center gap-1">
             <Bike size={12} />
             {store.delivery_fee === 0
-              ? <span className="font-bold text-green-600">무료배달</span>
+              ? <span className={`font-bold ${closed ? "text-gray-400" : "text-green-600"}`}>무료배달</span>
               : `${store.delivery_fee.toLocaleString()}원`}
           </span>
         </div>

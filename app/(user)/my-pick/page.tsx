@@ -248,14 +248,20 @@ function EditProfileModal({
 }
 
 // ── 레퍼럴 카드 ────────────────────────────────────────
+const SHARE_TARGETS = [
+  { role: "user",  emoji: "👤", label: "일반 초대",   reward: "5,000",  desc: "음식 주문 유저",   color: "bg-white/20" },
+  { role: "owner", emoji: "🏪", label: "사장님 초대", reward: "20,000", desc: "가맹점 사장님",     color: "bg-pick-yellow/20" },
+  { role: "rider", emoji: "🛵", label: "라이더 초대", reward: "10,000", desc: "배달 라이더",       color: "bg-white/20" },
+] as const;
+
 function ReferralCard() {
-  const [code,         setCode]         = useState<string | null>(null);
-  const [stats,        setStats]        = useState({ referralCount: 0, totalReward: 0 });
-  const [inputCode,    setInputCode]    = useState("");
-  const [loading,      setLoading]      = useState(true);
-  const [submitting,   setSubmitting]   = useState(false);
-  const [copied,       setCopied]       = useState(false);
-  const [msg,          setMsg]          = useState<{ text: string; ok: boolean } | null>(null);
+  const [code,       setCode]       = useState<string | null>(null);
+  const [stats,      setStats]      = useState({ referralCount: 0, totalReward: 0 });
+  const [inputCode,  setInputCode]  = useState("");
+  const [loading,    setLoading]    = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [copiedRole, setCopiedRole] = useState<string | null>(null);
+  const [msg,        setMsg]        = useState<{ text: string; ok: boolean } | null>(null);
 
   useEffect(() => {
     fetch("/api/referral")
@@ -266,23 +272,20 @@ function ReferralCard() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleCopy = () => {
+  const handleShare = (role: string) => {
     if (!code) return;
-    navigator.clipboard.writeText(code).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
-  const handleShare = () => {
-    if (!code) return;
-    const text = `PICK PICK 배달앱에서 첫 주문 시 ${process.env.NEXT_PUBLIC_APP_NAME ?? "PICK PICK"}을 이용해보세요! 초대 코드: ${code}`;
+    const base   = typeof window !== "undefined" ? window.location.origin : "";
+    const url    = `${base}/register?ref=${code}&role=${role}`;
+    const labels: Record<string, string> = { user: "친구", owner: "사장님 지인", rider: "라이더 지인" };
+    const bonuses: Record<string, string> = { user: "5,000", owner: "20,000", rider: "10,000" };
+    const text = `PICK PICK 배달앱에 ${labels[role]}을 초대해보세요! 가입 시 ${bonuses[role]} PICK 지급!`;
     if (navigator.share) {
-      navigator.share({ title: "PICK PICK 초대", text }).catch(() => {});
+      navigator.share({ title: "PICK PICK 초대", text, url }).catch(() => {});
     } else {
-      navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      navigator.clipboard.writeText(`${text}\n${url}`).then(() => {
+        setCopiedRole(role);
+        setTimeout(() => setCopiedRole(null), 2000);
+      });
     }
   };
 
@@ -311,40 +314,70 @@ function ReferralCard() {
 
   return (
     <div className="mx-4 mb-4">
-      {/* 내 초대 코드 */}
+      {/* 내 초대 코드 + 공유 버튼 */}
       <div className="bg-gradient-to-br from-pick-purple-dark via-pick-purple to-pick-purple-light rounded-3xl p-5 text-white shadow-lg mb-3">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-2 mb-3">
           <Gift size={16} className="text-pick-yellow-light" />
-          <p className="text-xs font-bold text-white/80">내 초대 코드</p>
+          <p className="text-sm font-black">친구 초대하고 PICK 받기 🎁</p>
         </div>
 
+        {/* 내 코드 */}
         {loading ? (
-          <div className="h-10 bg-white/20 rounded-2xl animate-pulse my-2" />
+          <div className="h-10 bg-white/20 rounded-2xl animate-pulse mb-3" />
         ) : (
-          <div className="flex items-center gap-3 my-2">
-            <span className="text-3xl font-black tracking-[0.2em] text-pick-yellow-light">
-              {code ?? "------"}
-            </span>
-            <div className="flex gap-2 ml-auto">
-              <button
-                onClick={handleCopy}
-                className="w-9 h-9 rounded-2xl bg-white/20 flex items-center justify-center active:scale-90 transition-transform"
-              >
-                {copied ? <Check size={15} /> : <Copy size={15} />}
-              </button>
-              <button
-                onClick={handleShare}
-                className="w-9 h-9 rounded-2xl bg-white/20 flex items-center justify-center active:scale-90 transition-transform"
-              >
-                <Share2 size={15} />
-              </button>
+          <div className="bg-white/15 rounded-2xl px-4 py-3 flex items-center justify-between mb-1">
+            <div>
+              <p className="text-[10px] text-white/60 mb-0.5">내 초대 코드</p>
+              <span className="text-2xl font-black tracking-[0.2em] text-pick-yellow-light">
+                {code ?? "------"}
+              </span>
             </div>
+            <button
+              onClick={() => {
+                if (!code) return;
+                navigator.clipboard.writeText(code).then(() => {
+                  setCopiedRole("copy");
+                  setTimeout(() => setCopiedRole(null), 2000);
+                });
+              }}
+              className="w-9 h-9 rounded-2xl bg-white/20 flex items-center justify-center active:scale-90 transition-transform flex-shrink-0"
+            >
+              {copiedRole === "copy" ? <Check size={15} /> : <Copy size={15} />}
+            </button>
           </div>
         )}
 
-        <p className="text-xs text-white/70 mb-4">
-          친구가 이 코드로 가입하면 <span className="font-black text-pick-yellow-light">5,000 PICK</span> 지급!
+        <p className="text-[11px] text-white/60 mb-4 text-center">
+          초대 성공 시 <span className="font-black text-white">나에게 5,000 PICK</span> · 가입자에게 역할별 보너스
         </p>
+
+        {/* 역할별 초대 버튼 3개 */}
+        <div className="flex flex-col gap-2 mb-4">
+          {SHARE_TARGETS.map((t) => (
+            <button
+              key={t.role}
+              onClick={() => handleShare(t.role)}
+              disabled={!code}
+              className="flex items-center gap-3 bg-white/10 hover:bg-white/20 rounded-2xl px-4 py-3 text-left active:scale-95 transition-all disabled:opacity-40"
+            >
+              <span className="text-xl">{t.emoji}</span>
+              <div className="flex-1">
+                <p className="text-sm font-black leading-tight">{t.label}</p>
+                <p className="text-[10px] text-white/60">{t.desc} 가입 시</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-white/60">상대방</p>
+                <p className="font-black text-pick-yellow-light text-sm">+{t.reward} P</p>
+              </div>
+              <span className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                {copiedRole === t.role
+                  ? <Check size={13} />
+                  : <Share2 size={13} />
+                }
+              </span>
+            </button>
+          ))}
+        </div>
 
         {/* 초대 실적 */}
         <div className="grid grid-cols-2 gap-2">
@@ -354,7 +387,7 @@ function ReferralCard() {
           </div>
           <div className="bg-white/15 rounded-2xl px-3 py-2.5 text-center">
             <p className="text-xl font-black">{stats.totalReward.toLocaleString()} P</p>
-            <p className="text-[10px] text-white/70">총 획득 보상</p>
+            <p className="text-[10px] text-white/70">내가 받은 보상</p>
           </div>
         </div>
       </div>

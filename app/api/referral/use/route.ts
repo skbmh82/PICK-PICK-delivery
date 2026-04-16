@@ -9,9 +9,9 @@ const UseSchema = z.object({
   code: z.string().length(8, "레퍼럴 코드는 8자리입니다"),
 });
 
-const REFERRAL_REWARD = Number(process.env.PICK_REFERRAL_REWARD ?? 50);
+const REFERRAL_REWARD = Number(process.env.PICK_REFERRAL_REWARD_USER ?? 5000);
 
-// POST /api/referral/use — 레퍼럴 코드 입력 → 초대자·피초대자 각 50 PICK
+// POST /api/referral/use — 레퍼럴 코드 입력 → 초대자·피초대자 각 5,000 PICK
 export async function POST(request: NextRequest) {
   const supabase = await createServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -129,6 +129,6 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     ok:      true,
     reward:  REFERRAL_REWARD,
-    message: `${REFERRAL_REWARD} PICK이 지갑에 적립됐어요!`,
+    message: `${REFERRAL_REWARD.toLocaleString()} PICK이 지갑에 적립됐어요!`,
   });
 }

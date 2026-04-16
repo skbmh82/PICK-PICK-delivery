@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { Eye, EyeOff } from "lucide-react";
@@ -32,9 +32,11 @@ const ROLES = [
 ] as const;
 
 export default function RegisterPage() {
-  const router = useRouter();
+  const router       = useRouter();
+  const searchParams = useSearchParams();
   const [showPw,       setShowPw]       = useState(false);
   const [kakaoLoading, setKakaoLoading] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
 
   const handleKakaoLogin = async () => {
     setKakaoLoading(true);
@@ -61,12 +63,20 @@ export default function RegisterPage() {
 
   const selectedRole = watch("role");
 
+  // URL ?ref=CODE&role=owner 파라미터 자동 처리
+  useEffect(() => {
+    const ref  = searchParams.get("ref");
+    const role = searchParams.get("role") as FormData["role"] | null;
+    if (ref)  setReferralCode(ref.toUpperCase().slice(0, 8));
+    if (role && ["user", "owner", "rider"].includes(role)) setValue("role", role);
+  }, [searchParams, setValue]);
+
   const onSubmit = async (data: FormData) => {
     // 서버에 가입 요청 후 결과 상관없이 로그인 페이지로 이동
     await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ ...data, ...(referralCode ? { referralCode } : {}) }),
     }).catch(() => {});
 
     router.replace("/login");
@@ -85,6 +95,15 @@ export default function RegisterPage() {
         </h1>
         <p className="text-sm text-pick-text-sub mt-1">새 계정을 만들어보세요!</p>
       </div>
+
+      {/* 초대 코드 배너 */}
+      {referralCode && (
+        <div className="bg-gradient-to-r from-pick-purple to-pick-purple-light rounded-3xl p-4 text-white text-center shadow-md">
+          <p className="text-xs text-white/80 mb-1">🎁 초대 코드로 가입하면</p>
+          <p className="font-black text-lg">5,000 PICK 즉시 지급!</p>
+          <p className="text-xs text-white/70 mt-1">코드: {referralCode}</p>
+        </div>
+      )}
 
       {/* 카카오로 빠른 시작 */}
       <div className="bg-white rounded-3xl border-2 border-pick-border p-5 shadow-sm">

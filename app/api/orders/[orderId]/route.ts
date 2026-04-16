@@ -24,7 +24,7 @@ export async function GET(
       delivery_lat, delivery_lng,
       estimated_time, confirmed_at, picked_up_at, delivered_at,
       cancelled_at, created_at, rider_id,
-      stores ( id, name, image_url, category, phone, address ),
+      stores ( id, name, image_url, category, phone, address, photo_review_reward_krw ),
       order_items ( id, menu_id, menu_name, price, quantity, options )
     `)
     .eq("id", orderId)

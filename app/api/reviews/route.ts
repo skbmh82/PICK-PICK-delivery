@@ -3,8 +3,6 @@ import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 
-const REVIEW_PICK_REWARD = 10; // 리뷰 작성 시 PICK 보상
-
 const ReviewSchema = z.object({
   orderId:    z.string().uuid(),
   rating:     z.number().int().min(1).max(5),
@@ -44,7 +42,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ exists: !!review, review: review ?? null });
 }
 
-// POST /api/reviews — 리뷰 작성 + PICK 보상
+// POST /api/reviews — 리뷰 작성 + PICK 보상 (가게 설정값 연동)
 export async function POST(request: NextRequest) {
   const supabase = await createServerSupabaseClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -66,6 +64,7 @@ export async function POST(request: NextRequest) {
   if (!profile) return NextResponse.json({ error: "사용자를 찾을 수 없습니다" }, { status: 404 });
 
   const { orderId, rating, content, imageUrls } = parsed.data;
+  const hasPhotos = (imageUrls ?? []).length > 0;
 
   // 주문 검증: 본인 주문 + 배달 완료 상태
   const { data: order } = await admin
@@ -87,6 +86,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "이미 리뷰를 작성한 주문이에요" }, { status: 409 });
   }
 
+  // 가게 리뷰 보상 설정 조회 (photo_review_reward_krw, 1 KRW = 1 PICK)
+  const { data: store } = await admin
+    .from("stores")
+    .select("photo_review_reward_krw")
+    .eq("id", order.store_id)
+    .single();
+
+  // 사진 첨부 시에만 가게 설정 보상 지급, 텍스트만이면 0
+  const pickReward = hasPhotos ? Number(store?.photo_review_reward_krw ?? 0) : 0;
+
   // 리뷰 저장
   const { error: insertError } = await admin.from("reviews").insert({
     order_id:    orderId,
@@ -95,7 +104,7 @@ export async function POST(request: NextRequest) {
     rating,
     content:     content ?? null,
     image_urls:  imageUrls ?? [],
-    pick_reward: REVIEW_PICK_REWARD,
+    pick_reward: pickReward,
   });
 
   if (insertError) {
@@ -118,27 +127,29 @@ export async function POST(request: NextRequest) {
     }).eq("id", order.store_id);
   }
 
-  // PICK 보상 지급
-  const { data: wallet } = await admin
-    .from("wallets").select("id, pick_balance, total_earned").eq("user_id", profile.id).single();
+  // PICK 보상 지급 (보상이 있을 때만)
+  if (pickReward > 0) {
+    const { data: wallet } = await admin
+      .from("wallets").select("id, pick_balance, total_earned").eq("user_id", profile.id).single();
 
-  if (wallet) {
-    const newBalance     = Number(wallet.pick_balance) + REVIEW_PICK_REWARD;
-    const newTotalEarned = Number(wallet.total_earned) + REVIEW_PICK_REWARD;
-    await admin.from("wallets").update({
-      pick_balance: newBalance,
-      total_earned: newTotalEarned,
-      updated_at:   new Date().toISOString(),
-    }).eq("id", wallet.id);
+    if (wallet) {
+      const newBalance     = Number(wallet.pick_balance) + pickReward;
+      const newTotalEarned = Number(wallet.total_earned) + pickReward;
+      await admin.from("wallets").update({
+        pick_balance: newBalance,
+        total_earned: newTotalEarned,
+        updated_at:   new Date().toISOString(),
+      }).eq("id", wallet.id);
 
-    await admin.from("wallet_transactions").insert({
-      wallet_id:     wallet.id,
-      type:          "reward",
-      amount:        REVIEW_PICK_REWARD,
-      balance_after: newBalance,
-      description:   "리뷰 작성 PICK 보상",
-    });
+      await admin.from("wallet_transactions").insert({
+        wallet_id:     wallet.id,
+        type:          "reward",
+        amount:        pickReward,
+        balance_after: newBalance,
+        description:   "사진 리뷰 PICK 보상",
+      });
+    }
   }
 
-  return NextResponse.json({ ok: true, pickReward: REVIEW_PICK_REWARD });
+  return NextResponse.json({ ok: true, pickReward });
 }

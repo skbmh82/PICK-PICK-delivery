@@ -25,6 +25,7 @@ interface OrderStore {
   name: string;
   image_url: string | null;
   category: string;
+  photo_review_reward_krw: number | null;
 }
 
 interface Order {
@@ -237,10 +238,20 @@ function ReviewModal({
           </div>
 
           {/* PICK 보상 안내 */}
-          <div className="bg-pick-bg rounded-2xl px-4 py-2.5 flex items-center gap-2">
-            <span className="text-base">✨</span>
-            <span className="text-xs text-pick-text-sub">리뷰 작성 시 <strong className="text-pick-purple">+10 PICK</strong> 보상!</span>
-          </div>
+          {Number(order.stores?.photo_review_reward_krw ?? 0) > 0 && (
+            <div className={`rounded-2xl px-4 py-2.5 flex items-center gap-2 transition-colors ${
+              imageUrls.length > 0 ? "bg-pick-purple/10" : "bg-pick-bg"
+            }`}>
+              <span className="text-base">📸</span>
+              <span className="text-xs text-pick-text-sub">
+                사진 첨부 시{" "}
+                <strong className="text-pick-purple">
+                  +{Number(order.stores?.photo_review_reward_krw ?? 0).toLocaleString()} PICK
+                </strong>{" "}
+                {imageUrls.length > 0 ? "지급 예정!" : "보상!"}
+              </span>
+            </div>
+          )}
           {error && <p className="text-xs text-red-500 font-bold text-center">{error}</p>}
         </div>
 

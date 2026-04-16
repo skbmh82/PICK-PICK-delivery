@@ -43,7 +43,7 @@ export async function GET(request: Request) {
       id, status, total_amount, delivery_fee,
       pick_used, pick_reward, delivery_address,
       estimated_time, created_at, rider_id,
-      stores ( id, name, image_url, category ),
+      stores ( id, name, image_url, category, photo_review_reward_krw ),
       order_items ( id, menu_id, menu_name, price, quantity, options )
     `)
     .eq("user_id", profile.id)

@@ -30,6 +30,7 @@ interface OrderStore {
   category: string;
   phone: string | null;
   address: string;
+  photo_review_reward_krw: number | null;
 }
 
 interface OrderDetail {
@@ -188,14 +189,17 @@ function ReviewModal({
   onClose: () => void;
   onReviewed: () => void;
 }) {
-  const [rating,     setRating]     = useState(5);
-  const [content,    setContent]    = useState("");
-  const [loading,    setLoading]    = useState(false);
-  const [error,      setError]      = useState("");
-  const [success,    setSuccess]    = useState(false);
-  const [imageUrls,  setImageUrls]  = useState<string[]>([]);
-  const [uploading,  setUploading]  = useState(false);
+  const [rating,       setRating]       = useState(5);
+  const [content,      setContent]      = useState("");
+  const [loading,      setLoading]      = useState(false);
+  const [error,        setError]        = useState("");
+  const [success,      setSuccess]      = useState(false);
+  const [earnedPick,   setEarnedPick]   = useState(0);
+  const [imageUrls,    setImageUrls]    = useState<string[]>([]);
+  const [uploading,    setUploading]    = useState(false);
   const imgInputRef = useRef<HTMLInputElement>(null);
+
+  const photoReward = Number(order.stores?.photo_review_reward_krw ?? 0);
 
   const handleImagePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -240,8 +244,10 @@ function ReviewModal({
         }),
       });
       if (res.ok) {
+        const json = await res.json() as { pickReward?: number };
+        setEarnedPick(json.pickReward ?? 0);
         setSuccess(true);
-        setTimeout(() => { onReviewed(); onClose(); }, 900);
+        setTimeout(() => { onReviewed(); onClose(); }, 1200);
       } else {
         const err = await res.json().catch(() => ({}));
         setError((err.error as string) ?? "리뷰 저장에 실패했습니다");
@@ -325,8 +331,27 @@ function ReviewModal({
               </button>
             )}
           </div>
+          {/* 사진 리뷰 보상 안내 */}
+          {photoReward > 0 && (
+            <div className={`rounded-2xl px-4 py-2.5 flex items-center gap-2 transition-colors ${
+              imageUrls.length > 0 ? "bg-pick-purple/10" : "bg-pick-bg"
+            }`}>
+              <span className="text-base">📸</span>
+              <span className="text-xs text-pick-text-sub">
+                사진 첨부 시{" "}
+                <strong className="text-pick-purple">
+                  +{photoReward.toLocaleString()} PICK
+                </strong>{" "}
+                {imageUrls.length > 0 ? "지급 예정!" : "보상!"}
+              </span>
+            </div>
+          )}
           {error   && <p className="text-xs text-red-500 font-bold text-center">{error}</p>}
-          {success && <p className="text-xs text-green-600 font-bold text-center">✓ 리뷰가 등록됐어요! +10 PICK 지급</p>}
+          {success && (
+            <p className="text-xs text-green-600 font-bold text-center">
+              ✓ 리뷰가 등록됐어요!{earnedPick > 0 ? ` +${earnedPick.toLocaleString()} PICK 지급 🎉` : ""}
+            </p>
+          )}
         </div>
         <div className="px-5 pb-8 pt-1 border-t border-pick-border">
           <button
