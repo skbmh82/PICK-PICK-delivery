@@ -64,7 +64,7 @@ const C = {
     fill: { color: C.purpleLight }, line: { color: C.purpleLight },
   });
 
-  slide.addText("2026년 4월 16일  |  지갑 탭 재디자인 · 출석 Tap-to-Earn · 사장님 자체 리워드 설정", {
+  slide.addText("2026년 4월 16일  |  레퍼럴 재설계 · 리뷰보상 연동 · 라이더 5km 필터 · 자동오프라인 Cron", {
     x: 1, y: 3.6, w: 11.6, h: 0.5,
     fontSize: 14, color: "C4B5FD",
     align: "center",
@@ -117,31 +117,33 @@ const C = {
     { label: "지갑 탭 재디자인 + Pi UI + 출석 Tap-to-Earn", pct: 100, color: C.green },
     { label: "사장님 사진리뷰보상 + 쿠폰 KRW 입력 설정",    pct: 100, color: C.green },
     { label: "친구 초대 리워드 역할별 배치 (사용자·사장님·라이더)", pct: 100, color: C.green },
+    { label: "레퍼럴 재설계: 초대자 5K 고정 · 역할별 웰컴 보너스",  pct: 100, color: C.green },
+    { label: "라이더 5km 반경 필터링 + 10분 자동오프라인 Cron",      pct: 100, color: C.green },
   ];
 
   progressItems.forEach((item, i) => {
-    const y = 1.0 + i * 0.36;
+    const y = 1.0 + i * 0.32;
     const barW = 5.5;
 
     slide.addText(item.label, {
-      x: 0.5, y: y + 0.04, w: 4.2, h: 0.28,
-      fontSize: 10.5, color: C.textDark,
+      x: 0.5, y: y + 0.04, w: 4.2, h: 0.26,
+      fontSize: 10, color: C.textDark,
     });
 
     slide.addShape(prs.ShapeType.rect, {
-      x: 4.85, y: y + 0.1, w: barW, h: 0.15,
+      x: 4.85, y: y + 0.1, w: barW, h: 0.13,
       fill: { color: "E5E7EB" }, line: { color: "E5E7EB" },
     });
     if (item.pct > 0) {
       slide.addShape(prs.ShapeType.rect, {
-        x: 4.85, y: y + 0.1, w: barW * item.pct / 100, h: 0.15,
+        x: 4.85, y: y + 0.1, w: barW * item.pct / 100, h: 0.13,
         fill: { color: item.color }, line: { color: item.color },
       });
     }
 
     slide.addText(`${item.pct}%`, {
-      x: 10.5, y: y + 0.04, w: 0.7, h: 0.28,
-      fontSize: 10.5, bold: true, color: item.color, align: "right",
+      x: 10.5, y: y + 0.04, w: 0.7, h: 0.26,
+      fontSize: 10, bold: true, color: item.color, align: "right",
     });
   });
 
@@ -857,7 +859,89 @@ const C = {
   });
 }
 
-// ── 슬라이드 12 — 완료된 기능 전체 목록 (4/16 기준) ───
+// ── 슬라이드 12 — Day 11 작업 내역 (4/16 추가) ─────────
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 2.9, h: 0.55,
+    fill: { color: "FDF2F8" }, line: { color: "BE185D" },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 04. 16 (Day 11)", {
+    x: 0.4, y: 0.18, w: 2.9, h: 0.55,
+    fontSize: 11, bold: true, color: "BE185D", align: "center",
+  });
+
+  slide.addText("🔗  레퍼럴 재설계 · 리뷰보상 연동 · 라이더 위치 필터 · 자동오프라인", {
+    x: 3.5, y: 0.22, w: 10.1, h: 0.55,
+    fontSize: 18, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day11 = [
+    {
+      emoji: "🔗", title: "레퍼럴 시스템 재설계",
+      desc: "초대자: 역할 무관 5,000 PICK 고정\n신규 가입자: 역할별 웰컴 보너스\n  사용자 5K · 사장님 20K · 라이더 10K\n회원가입 시 자동 지급 (서버사이드)",
+    },
+    {
+      emoji: "👥", title: "MyPICK 초대 3버튼",
+      desc: "일반 초대 / 사장님 초대 / 라이더 초대\n역할별 링크 (?ref=CODE&role=XXX)\n'상대방 +X,000 P' 라벨 + 복사 피드백\n사장님·라이더 대시보드도 자체 버튼",
+    },
+    {
+      emoji: "📸", title: "리뷰 보상 가게설정 연동",
+      desc: "하드코딩 10 PICK → 가게 설정값 연동\nphoto_review_reward_krw 필드 활용\n사진 첨부 시에만 보상 지급\n보상 0인 가게는 알림 미표시",
+    },
+    {
+      emoji: "📍", title: "라이더 5km 반경 필터",
+      desc: "Haversine 공식으로 거리 계산\n가게 기준 5km 이내 주문만 노출\n거리순 정렬 (가까운 주문 상단)\n조리완료 알림도 5km 라이더만 수신",
+    },
+    {
+      emoji: "⏰", title: "라이더 자동오프라인 Cron",
+      desc: "10분간 위치 미업데이트 → 자동 오프라인\nVercel Cron 매 5분 실행\nrider_locations.updated_at 기준 판별\n오프라인 전환 시 라이더에게 알림 발송",
+    },
+    {
+      emoji: "✅", title: "사장님/라이더 타 가게 주문",
+      desc: "사장님·라이더도 타 가게 주문 가능\n역할 제한 없음 (user/owner/rider 모두)\nAPI 주문 생성에 역할 제약 없음\n실제 사용 시나리오 검증 완료",
+    },
+  ];
+
+  day11.forEach((item, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
+    const y = 1.0 + row * 2.55;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.1, h: 2.35,
+      fill: { color: "FDF2F8" }, line: { color: "F9A8D4" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: y + 0.2, w: 0.58, h: 0.58,
+      fill: { color: C.white }, line: { color: "F9A8D4" },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.18, y: y + 0.18, w: 0.6, h: 0.6,
+      fontSize: 18, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
+      fontSize: 12, bold: true, color: "BE185D",
+    });
+    slide.addText(item.desc, {
+      x: x + 0.22, y: y + 0.78, w: 3.65, h: 1.42,
+      fontSize: 10, color: C.textDark, wrap: true,
+    });
+  });
+}
+
+// ── 슬라이드 13 — 완료된 기능 전체 목록 (4/16 기준) ───
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
@@ -880,7 +964,7 @@ const C = {
         "카카오 소셜 로그인 (비즈니스 인증 후 재추가)",
         "RBAC 미들웨어 (user/owner/rider/admin)",
         "비밀번호 찾기·재설정 + 검색 히스토리",
-        "프로필 수정 + 다중 배달 주소 + 레퍼럴",
+        "프로필 수정 + 다중 배달 주소 + 레퍼럴 재설계",
       ],
     },
     {
@@ -891,7 +975,7 @@ const C = {
         "지갑: 퍼플 재디자인 + Pi UI + 출석 Tap-to-Earn",
         "PICK주문: Realtime 추적 + 상세 + 재주문",
         "알림 드로어 + 딥링크 + 자동 트리거",
-        "친구 초대 역할별 배치 (5K/10K/20K PICK)",
+        "MyPICK 초대 3버튼 (사용자·사장님·라이더)",
       ],
     },
     {
@@ -910,7 +994,7 @@ const C = {
       color: C.yellow, pale: "FFFBEB",
       items: [
         "가게 등록·설정·쿠폰(KRW 입력)·영업시간",
-        "사진 리뷰 보상 설정 (원화→PICK 자동환산)",
+        "사진 리뷰 보상 설정 연동 (photo_review_reward_krw)",
         "주문 관리: 수락 ETA + 거절 확인 팝업",
         "매출 통계 대시보드 + 주간 차트",
         "신규주문 TTS 알림 '픽픽 주문이 들어왔습니다'",
@@ -922,10 +1006,10 @@ const C = {
       color: "0891B2", pale: "ECFEFF",
       items: [
         "배달 수락 → PICK 자동 지급 + 위치 공유",
-        "라이더 TTS 알림 '픽픽 라이더 요청이 왔습니다'",
+        "라이더 5km 반경 필터링 + 거리순 정렬",
+        "10분 자동오프라인 Cron (매 5분 실행)",
         "FCM 푸시 알림 + 관리자 일괄 발송",
-        "PWA 오프라인 캐싱 (Serwist)",
-        "Sentry 모니터링 + 가맹점 광고 시스템",
+        "PWA 오프라인 캐싱 (Serwist) + Sentry 모니터링",
       ],
     },
     {
