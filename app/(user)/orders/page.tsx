@@ -52,6 +52,7 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; emoji: string; color: 
   picked_up:  { label: "라이더 픽업 완료", emoji: "🛵", color: "text-indigo-600",  bg: "bg-indigo-50 border-indigo-200" },
   delivering: { label: "배달 중",          emoji: "🚀", color: "text-pick-purple", bg: "bg-pick-bg border-pick-border" },
   delivered:  { label: "배달 완료",        emoji: "🎉", color: "text-green-600",   bg: "bg-green-50 border-green-200" },
+  calling_rider: { label: "라이더 호출 중", emoji: "📡", color: "text-sky-600",    bg: "bg-sky-50 border-sky-200" },
   cancelled:  { label: "취소됨",           emoji: "❌", color: "text-red-500",     bg: "bg-red-50 border-red-200" },
   refunded:   { label: "환불 완료",        emoji: "💸", color: "text-gray-500",    bg: "bg-gray-50 border-gray-200" },
 };
@@ -511,8 +512,8 @@ function CompletedOrderCard({
           )}
         </div>
         <div className="flex gap-2 flex-shrink-0">
-          {/* 재주문 */}
-          {!isCancel && (
+          {/* 재주문 — 완료·취소 모두 표시 */}
+          {order.stores && (
             <button
               onClick={() => onReorder(order)}
               className="flex items-center gap-1 text-xs font-bold text-pick-purple bg-pick-bg border border-pick-border px-3 py-1.5 rounded-full active:scale-90 transition-transform"

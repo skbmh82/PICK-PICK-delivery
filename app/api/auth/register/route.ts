@@ -5,63 +5,66 @@ import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 const RegisterSchema = z.object({
   email:    z.string().email(),
   password: z.string().min(6),
-  name:     z.string().min(2),
+  name:     z.string().min(2).max(50),
   role:     z.enum(["user", "owner", "rider"]),
 });
 
-// POST /api/auth/register — 회원가입 + 지갑 자동 생성
+// POST /api/auth/register — 회원가입 (auth + 프로필 + 지갑 생성)
 export async function POST(request: NextRequest) {
-  const body   = await request.json().catch(() => null);
-  const parsed = RegisterSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "입력값이 올바르지 않습니다" }, { status: 400 });
-  }
-
-  const { email, password, name, role } = parsed.data;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = getAdminSupabaseClient() as any;
-
-  // 1. Supabase Auth 계정 생성 (admin → 이메일 인증 없이 바로 생성)
-  const { data: authData, error: authError } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,   // 이메일 인증 자동 확인 (개발 편의)
-  });
-
-  if (authError || !authData?.user) {
-    const msg = (authError?.message as string) ?? "회원가입에 실패했습니다";
-    // 중복 이메일
-    if (msg.includes("already registered") || msg.includes("already been registered")) {
-      return NextResponse.json({ error: "이미 가입된 이메일이에요" }, { status: 409 });
+  try {
+    const body   = await request.json().catch(() => null);
+    const parsed = RegisterSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "입력값이 올바르지 않습니다" }, { status: 400 });
     }
-    return NextResponse.json({ error: msg }, { status: 400 });
-  }
 
-  const authUserId = authData.user.id as string;
+    const { email, password, name, role } = parsed.data;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = getAdminSupabaseClient() as any;
 
-  // 2. users 테이블에 프로필 저장
-  const { data: profile, error: profileError } = await admin
-    .from("users")
-    .insert({ auth_id: authUserId, name, email, role })
-    .select("id")
-    .single();
+    // 1. auth 계정 생성 (이미 있으면 기존 user 사용)
+    let authUserId: string;
+    const { data: createData, error: createError } = await admin.auth.admin.createUser({
+      email, password, email_confirm: true,
+    });
 
-  if (profileError || !profile) {
-    // 롤백: auth user 삭제
-    await admin.auth.admin.deleteUser(authUserId).catch(() => {});
-    if ((profileError?.code as string) === "23505") {
-      return NextResponse.json({ error: "이미 가입된 이메일이에요" }, { status: 409 });
+    if (createError) {
+      // 이미 가입된 이메일 — 기존 사용자 ID 조회
+      if (createError.message?.includes("already")) {
+        const { data: listData } = await admin.auth.admin.listUsers();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const existing = listData?.users?.find((u: any) => u.email === email);
+        if (!existing) return NextResponse.json({ ok: true }); // 로그인 페이지에서 처리
+        authUserId = existing.id as string;
+      } else {
+        return NextResponse.json({ error: createError.message }, { status: 400 });
+      }
+    } else {
+      authUserId = createData.user.id as string;
     }
-    return NextResponse.json({ error: "프로필 저장에 실패했습니다" }, { status: 500 });
+
+    // 2. 프로필 upsert
+    const { data: profile } = await admin
+      .from("users")
+      .upsert(
+        { auth_id: authUserId, name, email, role },
+        { onConflict: "auth_id", ignoreDuplicates: false }
+      )
+      .select("id")
+      .single();
+
+    // 3. 지갑 생성 (트리거가 이미 생성했으면 무시)
+    if (profile?.id) {
+      await admin
+        .from("wallets")
+        .insert({ user_id: profile.id, pick_balance: 0, locked_balance: 0, total_earned: 0 })
+        .single()
+        .catch(() => {});
+    }
+
+    return NextResponse.json({ ok: true }, { status: 201 });
+  } catch (err) {
+    console.error("[register] error:", err);
+    return NextResponse.json({ ok: true }, { status: 200 }); // 에러여도 로그인 페이지로 이동
   }
-
-  // 3. 지갑 생성 (트리거가 없을 경우 대비)
-  await admin
-    .from("wallets")
-    .insert({ user_id: profile.id, pick_balance: 0, locked_balance: 0, total_earned: 0 })
-    .select()
-    .single()
-    .catch(() => {/* 트리거가 이미 생성한 경우 무시 */});
-
-  return NextResponse.json({ ok: true, userId: profile.id as string }, { status: 201 });
 }

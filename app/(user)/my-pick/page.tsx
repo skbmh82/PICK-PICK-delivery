@@ -17,7 +17,7 @@ import { useTheme } from "@/hooks/useTheme";
 // ── 타입 ──────────────────────────────────────────────
 interface Grade    { label: string; earned: number; nextThreshold: number; multiplier?: number }
 interface Favorite { storeId: string; name: string; category: string; rating: number; deliveryFee: number; deliveryTime: number }
-interface Review   { id: string; rating: number; content: string; createdAt: string; storeName: string }
+interface Review   { id: string; rating: number; content: string; createdAt: string; storeId: string | null; storeName: string }
 interface MeData {
   profile:   { name: string; email: string; phone: string | null; addressMain: string | null };
   grade:     Grade;
@@ -89,6 +89,30 @@ function RiderBanner() {
   );
 }
 
+// ── 관리자 배너 ───────────────────────────────────────
+function AdminBanner() {
+  return (
+    <div className="px-4 mb-4">
+      <div className="bg-gradient-to-r from-gray-800 to-gray-600 rounded-3xl p-5 text-white shadow-lg">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="w-9 h-9 flex items-center justify-center rounded-2xl bg-white/20">
+            <LayoutDashboard size={20} className="text-white" />
+          </span>
+          <div>
+            <p className="font-black text-base leading-tight">관리자 메뉴 🛠️</p>
+            <p className="text-xs text-white/80">가게 승인 및 앱 전체를 관리하세요</p>
+          </div>
+        </div>
+        <Link href="/admin/dashboard"
+          className="flex items-center justify-center gap-2 bg-white/20 active:scale-95 transition-all rounded-2xl py-3 font-bold text-sm">
+          <LayoutDashboard size={16} />
+          관리자 대시보드
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 // ── PICK 등급 배너 ─────────────────────────────────────
 function GradeBanner({ grade }: { grade: Grade }) {
   const pct = grade.nextThreshold > 0
@@ -131,80 +155,6 @@ function GradeBanner({ grade }: { grade: Grade }) {
             : `최고 등급 달성 🎉`
           }
         </p>
-      </div>
-    </div>
-  );
-}
-
-// ── 즐겨찾기 섹션 ──────────────────────────────────────
-function FavoritesSection({ favorites }: { favorites: Favorite[] }) {
-  if (favorites.length === 0) return null;
-
-  return (
-    <div className="px-4 mb-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Heart size={16} className="text-red-400" />
-        <h3 className="font-bold text-pick-text text-sm">즐겨찾기 가맹점</h3>
-      </div>
-      <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
-        {favorites.map((fav) => (
-          <Link
-            key={fav.storeId}
-            href={`/store/${fav.storeId}`}
-            className="flex items-center gap-3 px-4 py-3.5 active:bg-pick-bg transition-colors"
-          >
-            <span className="text-2xl">{getCategoryEmoji(fav.category)}</span>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-pick-text text-sm truncate">{fav.name}</p>
-              <p className="text-xs text-pick-text-sub mt-0.5">
-                ⭐ {fav.rating} · {fav.deliveryTime}분 ·{" "}
-                {fav.deliveryFee === 0
-                  ? <span className="text-green-600 font-bold">무료배달</span>
-                  : `배달비 ${fav.deliveryFee.toLocaleString()}원`
-                }
-              </p>
-            </div>
-            <ChevronRight size={16} className="text-pick-text-sub flex-shrink-0" />
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── 내 리뷰 섹션 ───────────────────────────────────────
-function ReviewsSection({ reviews }: { reviews: Review[] }) {
-  if (reviews.length === 0) return null;
-
-  return (
-    <div className="px-4 mb-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Star size={16} className="text-pick-yellow fill-pick-yellow" />
-        <h3 className="font-bold text-pick-text text-sm">내 리뷰</h3>
-      </div>
-      <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
-        {reviews.map((r) => (
-          <div key={r.id} className="px-4 py-3.5">
-            <div className="flex items-center justify-between mb-1">
-              <p className="font-bold text-pick-text text-sm">{r.storeName}</p>
-              <div className="flex items-center gap-0.5">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star
-                    key={i}
-                    size={11}
-                    className={i < r.rating ? "text-amber-400 fill-amber-400" : "text-gray-200 fill-gray-200"}
-                  />
-                ))}
-              </div>
-            </div>
-            {r.content && (
-              <p className="text-xs text-pick-text-sub line-clamp-2">{r.content}</p>
-            )}
-            <p className="text-[10px] text-pick-text-sub mt-1">
-              {new Date(r.createdAt).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}
-            </p>
-          </div>
-        ))}
       </div>
     </div>
   );
@@ -393,7 +343,7 @@ function ReferralCard() {
         )}
 
         <p className="text-xs text-white/70 mb-4">
-          친구가 이 코드로 가입하면 둘 다 <span className="font-black text-pick-yellow-light">50 PICK</span> 지급!
+          친구가 이 코드로 가입하면 <span className="font-black text-pick-yellow-light">5,000 PICK</span> 지급!
         </p>
 
         {/* 초대 실적 */}
@@ -858,8 +808,10 @@ export default function MyPickPage() {
   const [meData,          setMeData]          = useState<MeData | null>(null);
   const [loadingMe,       setLoadingMe]       = useState(false);
   const [previewRole,     setPreviewRole]      = useState<PreviewRole>("user");
-  const [editOpen,        setEditOpen]        = useState(false);
-  const [addressOpen,     setAddressOpen]     = useState(false);
+  const [editOpen,          setEditOpen]          = useState(false);
+  const [addressOpen,       setAddressOpen]       = useState(false);
+  const [reviewSheetOpen,   setReviewSheetOpen]   = useState(false);
+  const [favSheetOpen,      setFavSheetOpen]      = useState(false);
   const [profileImage,    setProfileImage]    = useState<string | null>(null);
   const [uploadingPfp,    setUploadingPfp]    = useState(false);
   const [deleteConfirm,   setDeleteConfirm]   = useState(false);
@@ -1037,22 +989,9 @@ export default function MyPickPage() {
       <GradeBanner grade={grade} />
 
       {/* 역할별 배너 */}
-      {displayRole === "owner" && <OwnerBanner />}
-      {displayRole === "rider" && <RiderBanner />}
-
-      {/* 즐겨찾기 (데이터 있을 때만) */}
-      <div id="section-favorites">
-        {meData?.favorites && meData.favorites.length > 0 && (
-          <FavoritesSection favorites={meData.favorites} />
-        )}
-      </div>
-
-      {/* 내 리뷰 (데이터 있을 때만) */}
-      <div id="section-reviews">
-        {meData?.reviews && meData.reviews.length > 0 && (
-          <ReviewsSection reviews={meData.reviews} />
-        )}
-      </div>
+      {displayRole === "admin"  && <AdminBanner />}
+      {displayRole === "owner"  && <OwnerBanner />}
+      {displayRole === "rider"  && <RiderBanner />}
 
       {/* 친구 초대 레퍼럴 카드 */}
       <ReferralCard />
@@ -1061,11 +1000,11 @@ export default function MyPickPage() {
       <div className="mx-4 bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
         <MenuItem icon={<MapPin  size={18} />} label="배달 주소 관리" onClick={() => setAddressOpen(true)} />
         <MenuItem icon={<Heart   size={18} />} label="즐겨찾기 가맹점"
-          onClick={() => document.getElementById("section-favorites")?.scrollIntoView({ behavior: "smooth" })}
+          onClick={() => setFavSheetOpen(true)}
           badge={meData?.favorites.length ? String(meData.favorites.length) : undefined}
         />
         <MenuItem icon={<Star    size={18} />} label="내 리뷰"
-          onClick={() => document.getElementById("section-reviews")?.scrollIntoView({ behavior: "smooth" })}
+          onClick={() => setReviewSheetOpen(true)}
           badge={meData?.reviews.length ? String(meData.reviews.length) : undefined}
         />
         <MenuItem icon={<Bell    size={18} />} label="알림" href="/notifications" />
@@ -1184,6 +1123,116 @@ export default function MyPickPage() {
 
       {/* 배달 주소 관리 모달 */}
       {addressOpen && <AddressManagerModal onClose={() => setAddressOpen(false)} />}
+
+      {/* 내 리뷰 바텀시트 */}
+      {favSheetOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-[60] backdrop-blur-[1px]" onClick={() => setFavSheetOpen(false)} />
+          <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[65] bg-white dark:bg-pick-card rounded-t-3xl shadow-2xl max-h-[80dvh] flex flex-col overflow-hidden">
+            <div className="flex-shrink-0 px-5 pt-3 pb-4 border-b border-pick-border flex items-center justify-between">
+              <div className="w-10 h-1 bg-pick-border rounded-full absolute left-1/2 -translate-x-1/2 top-3" />
+              <h2 className="font-black text-pick-text text-base mt-2">즐겨찾기 가맹점</h2>
+              <button onClick={() => setFavSheetOpen(false)}
+                className="mt-2 w-8 h-8 flex items-center justify-center rounded-full bg-pick-bg">
+                <X size={16} className="text-pick-text-sub" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              {!meData?.favorites || meData.favorites.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 py-12">
+                  <span className="text-4xl">🤍</span>
+                  <p className="font-black text-pick-text-sub text-sm">즐겨찾기한 가맹점이 없어요</p>
+                  <p className="text-xs text-pick-text-sub">가게 상세 페이지에서 하트를 눌러보세요!</p>
+                </div>
+              ) : (
+                <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
+                  {meData.favorites.map((fav) => (
+                    <Link
+                      key={fav.storeId}
+                      href={`/store/${fav.storeId}`}
+                      onClick={() => setFavSheetOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3.5 active:bg-pick-bg transition-colors"
+                    >
+                      <span className="text-2xl">{getCategoryEmoji(fav.category)}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-pick-text text-sm truncate">{fav.name}</p>
+                        <p className="text-xs text-pick-text-sub mt-0.5">
+                          ⭐ {fav.rating} · {fav.deliveryTime}분 ·{" "}
+                          {fav.deliveryFee === 0
+                            ? <span className="text-green-600 font-bold">무료배달</span>
+                            : `배달비 ${fav.deliveryFee.toLocaleString()}원`
+                          }
+                        </p>
+                      </div>
+                      <ChevronRight size={16} className="text-pick-text-sub flex-shrink-0" />
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {reviewSheetOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-[60] backdrop-blur-[1px]" onClick={() => setReviewSheetOpen(false)} />
+          <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[65] bg-white dark:bg-pick-card rounded-t-3xl shadow-2xl max-h-[80dvh] flex flex-col overflow-hidden">
+            {/* 핸들 + 헤더 */}
+            <div className="flex-shrink-0 px-5 pt-3 pb-4 border-b border-pick-border flex items-center justify-between">
+              <div className="w-10 h-1 bg-pick-border rounded-full absolute left-1/2 -translate-x-1/2 top-3" />
+              <h2 className="font-black text-pick-text text-base mt-2">내 리뷰</h2>
+              <button onClick={() => setReviewSheetOpen(false)}
+                className="mt-2 w-8 h-8 flex items-center justify-center rounded-full bg-pick-bg">
+                <X size={16} className="text-pick-text-sub" />
+              </button>
+            </div>
+            {/* 리뷰 목록 */}
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              {!meData?.reviews || meData.reviews.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 py-12">
+                  <span className="text-4xl">📭</span>
+                  <p className="font-black text-pick-text-sub text-sm">아직 작성한 리뷰가 없어요</p>
+                  <p className="text-xs text-pick-text-sub">주문 완료 후 리뷰를 남겨보세요!</p>
+                </div>
+              ) : (
+                <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border overflow-hidden shadow-sm divide-y divide-pick-border">
+                  {meData.reviews.map((r) => {
+                    const inner = (
+                      <>
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="font-bold text-pick-text text-sm truncate flex-1 mr-2">{r.storeName}</p>
+                          <div className="flex items-center gap-0.5 flex-shrink-0">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star key={i} size={11}
+                                className={i < r.rating ? "text-amber-400 fill-amber-400" : "text-gray-200 fill-gray-200"} />
+                            ))}
+                          </div>
+                        </div>
+                        {r.content && (
+                          <p className="text-xs text-pick-text-sub line-clamp-2">{r.content}</p>
+                        )}
+                        <p className="text-[10px] text-pick-text-sub mt-1">
+                          {new Date(r.createdAt).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}
+                        </p>
+                      </>
+                    );
+                    return r.storeId ? (
+                      <Link key={r.id} href={`/store/${r.storeId}?tab=review`}
+                        onClick={() => setReviewSheetOpen(false)}
+                        className="block px-4 py-3.5 active:bg-pick-bg transition-colors">
+                        {inner}
+                      </Link>
+                    ) : (
+                      <div key={r.id} className="px-4 py-3.5">{inner}</div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

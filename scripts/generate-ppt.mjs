@@ -64,7 +64,7 @@ const C = {
     fill: { color: C.purpleLight }, line: { color: C.purpleLight },
   });
 
-  slide.addText("2026년 4월 14일  |  알림음 TTS 완성 · 라이더 실시간 알림 · 주문 플로우 버그 수정", {
+  slide.addText("2026년 4월 16일  |  지갑 탭 재디자인 · 출석 Tap-to-Earn · 사장님 자체 리워드 설정", {
     x: 1, y: 3.6, w: 11.6, h: 0.5,
     fontSize: 14, color: "C4B5FD",
     align: "center",
@@ -88,7 +88,7 @@ const C = {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("📊  PICK PICK 진행 현황 (4/14 최종)", {
+  slide.addText("📊  PICK PICK 진행 현황 (4/16 최신)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 26, bold: true, color: C.purpleDark,
   });
@@ -114,6 +114,9 @@ const C = {
     { label: "가맹점 광고 시스템 + Sentry 모니터링",        pct: 100, color: C.green },
     { label: "주간 영업시간 표시 + 실사 이미지 연동",       pct: 100, color: C.green },
     { label: "FCM 푸시 알림 + 관리자 일괄 발송",             pct: 100, color: C.green },
+    { label: "지갑 탭 재디자인 + Pi UI + 출석 Tap-to-Earn", pct: 100, color: C.green },
+    { label: "사장님 사진리뷰보상 + 쿠폰 KRW 입력 설정",    pct: 100, color: C.green },
+    { label: "친구 초대 리워드 역할별 배치 (사용자·사장님·라이더)", pct: 100, color: C.green },
   ];
 
   progressItems.forEach((item, i) => {
@@ -144,7 +147,7 @@ const C = {
 
   // 우측 요약 박스
   const summary = [
-    { icon: "✅", label: "완료 기능",  value: "55개+", color: C.green,  pale: C.greenPale },
+    { icon: "✅", label: "완료 기능",  value: "60개+", color: C.green,  pale: C.greenPale },
     { icon: "🚧", label: "진행 중",    value: "0개",   color: C.yellow, pale: "FFFBEB" },
     { icon: "⏳", label: "미착수",     value: "0개",   color: C.textSub, pale: "F3F4F6" },
   ];
@@ -772,12 +775,94 @@ const C = {
   });
 }
 
-// ── 슬라이드 11 — 완료된 기능 전체 목록 (4/14 기준) ───
+// ── 슬라이드 11 — Day 10 작업 내역 (4/15~16) ──────────
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("✅  완료된 기능 전체 목록 (4/14 최종)", {
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 2.9, h: 0.55,
+    fill: { color: C.purplePale }, line: { color: C.purple },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 04. 16 (Day 10)", {
+    x: 0.4, y: 0.18, w: 2.9, h: 0.55,
+    fontSize: 11, bold: true, color: C.purple, align: "center",
+  });
+
+  slide.addText("💜  지갑 재디자인 · Tap-to-Earn · 사장님 자체 리워드 설정", {
+    x: 3.5, y: 0.22, w: 10.1, h: 0.55,
+    fontSize: 19, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day10 = [
+    {
+      emoji: "💜", title: "지갑 탭 전면 재디자인",
+      desc: "퍼플 브랜드 테마 통일\nPi 잔액 UI (디자인 선설계)\nPICK↔Pi 교환 카드 (1π=300P)\n100억 PICK 발행 · 1PICK=₩1 정보",
+    },
+    {
+      emoji: "📅", title: "출석 Tap-to-Earn",
+      desc: "매일 출석 → 50 PICK 자동 지급\ndaily_checkins 테이블 + API\n연속 streak 카운터 + 진행 바\n중복 체크인 방지 (DB UNIQUE)",
+    },
+    {
+      emoji: "🎁", title: "친구 초대 리워드 재배치",
+      desc: "사용자 MyPick: 5,000 PICK 지급\n사장님 대시보드: 20,000 PICK\n라이더 내정보: 10,000 PICK\n지갑탭에서 제거 → 역할별 분산",
+    },
+    {
+      emoji: "📸", title: "사진 리뷰 보상 설정",
+      desc: "원화 입력 → PICK 자동환산\n₩300 / ₩500 / ₩1,000 단계 버튼\nPICK 시세 변동 시 원화가치 유지\nstores.photo_review_reward_krw DB",
+    },
+    {
+      emoji: "🎟️", title: "쿠폰 KRW 입력 방식",
+      desc: "fixed_pick 쿠폰: 원화 → PICK 환산\n₩500 입력 → 500P 자동 표시\n시세 변동 안내 문구 포함\n가맹점 PICK 잔액 차감 구조",
+    },
+    {
+      emoji: "🗑️", title: "가게설정 UI 정리",
+      desc: "PICK 적립률 설정 섹션 제거\n사장님 직접 조율 불필요 항목\n픽업대기 라이더 배정 상태 표시\n주문 상태 메시지 조건부 분기",
+    },
+  ];
+
+  day10.forEach((item, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
+    const y = 1.0 + row * 2.55;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.1, h: 2.35,
+      fill: { color: C.purplePale }, line: { color: "C4B5FD" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: y + 0.2, w: 0.58, h: 0.58,
+      fill: { color: C.white }, line: { color: "C4B5FD" },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.18, y: y + 0.18, w: 0.6, h: 0.6,
+      fontSize: 18, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
+      fontSize: 12, bold: true, color: C.purple,
+    });
+    slide.addText(item.desc, {
+      x: x + 0.22, y: y + 0.78, w: 3.65, h: 1.42,
+      fontSize: 10.5, color: C.textDark, wrap: true,
+    });
+  });
+}
+
+// ── 슬라이드 12 — 완료된 기능 전체 목록 (4/16 기준) ───
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addText("✅  완료된 기능 전체 목록 (4/16 최신)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 24, bold: true, color: C.purpleDark,
   });
@@ -803,10 +888,10 @@ const C = {
       color: C.blue, pale: C.bluePale,
       items: [
         "홈: 카테고리·검색(GIN)·인기가게·광고",
-        "지갑: 실잔액 + 충전 + PICK 보내기",
+        "지갑: 퍼플 재디자인 + Pi UI + 출석 Tap-to-Earn",
         "PICK주문: Realtime 추적 + 상세 + 재주문",
         "알림 드로어 + 딥링크 + 자동 트리거",
-        "주간 영업시간 아코디언 + 실사 이미지",
+        "친구 초대 역할별 배치 (5K/10K/20K PICK)",
       ],
     },
     {
@@ -824,12 +909,12 @@ const C = {
       title: "👨‍🍳 사장님 기능",
       color: C.yellow, pale: "FFFBEB",
       items: [
-        "가게 등록·설정·쿠폰 관리·주간 영업시간",
+        "가게 등록·설정·쿠폰(KRW 입력)·영업시간",
+        "사진 리뷰 보상 설정 (원화→PICK 자동환산)",
         "주문 관리: 수락 ETA + 거절 확인 팝업",
-        "메뉴 옵션 그룹/옵션 CRUD UI",
         "매출 통계 대시보드 + 주간 차트",
         "신규주문 TTS 알림 '픽픽 주문이 들어왔습니다'",
-        "조리 중 라이더 호출 버튼 분리",
+        "신규 가맹점 초대 리워드 20,000 PICK",
       ],
     },
     {

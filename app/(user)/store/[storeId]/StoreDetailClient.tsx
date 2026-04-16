@@ -500,10 +500,18 @@ function ReviewSection({
     }
   };
 
-  if (reviews.length === 0) return null;
+  if (reviews.length === 0) return (
+    <div id="review-section" className="mx-4 mb-6">
+      <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm px-5 py-10 flex flex-col items-center gap-3">
+        <span className="text-4xl">📭</span>
+        <p className="font-black text-pick-text-sub text-sm">아직 리뷰가 없어요</p>
+        <p className="text-xs text-pick-text-sub">첫 번째 리뷰를 남겨보세요!</p>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="mx-4 mb-6">
+    <div id="review-section" className="mx-4 mb-6">
       <div className="flex items-center gap-2 mb-3">
         <MessageSquare size={16} className="text-pick-purple" />
         <h2 className="font-black text-pick-text text-base">리뷰</h2>
@@ -537,18 +545,31 @@ export default function StoreDetailClient({
   reviews = [],
   todayHours = null,
   weeklyHours = null,
+  initialTab = "menu",
 }: {
   store: StoreDetail;
   isFavorited?: boolean;
   reviews?: ReviewItem[];
   todayHours?: TodayHours | null;
   weeklyHours?: WeeklyHour[] | null;
+  initialTab?: "menu" | "review" | "info";
 }) {
   const [cartOpen,      setCartOpen]      = useState(false);
   const [favorited,     setFavorited]     = useState(initialFavorited);
   const [favLoading,    setFavLoading]    = useState(false);
   const [optionTarget,  setOptionTarget]  = useState<MenuItem | null>(null);
+  const [activeTab,     setActiveTab]     = useState<"menu" | "review" | "info">(initialTab);
   const todayDow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" })).getDay();
+
+  // 최근 본 가게 저장
+  useEffect(() => {
+    try {
+      const key = "pickpick_recent_stores";
+      const saved = JSON.parse(localStorage.getItem(key) ?? "[]") as string[];
+      const updated = [store.id, ...saved.filter((id) => id !== store.id)].slice(0, 10);
+      localStorage.setItem(key, JSON.stringify(updated));
+    } catch {}
+  }, [store.id]);
   const handleCartClose = useCallback(() => setCartOpen(false), []);
   const addItem     = useCartStore((s) => s.addItem);
   const cartItems   = useCartStore((s) => s.items);
@@ -669,14 +690,17 @@ export default function StoreDetailClient({
         <h1 className="font-black text-pick-text text-xl mt-2 mb-3 leading-snug">
           {store.name}
         </h1>
-        <div className="flex items-center gap-1.5 mb-4">
+        <button
+          className="flex items-center gap-1.5 mb-4 active:opacity-70 transition-opacity"
+          onClick={() => setActiveTab("review")}
+        >
           <Star size={16} className="text-pick-yellow fill-pick-yellow" />
           <span className="font-black text-pick-text text-sm">{store.rating}</span>
           <span className="text-pick-text-sub text-xs">
             리뷰 {store.reviewCount.toLocaleString()}개
           </span>
           <ChevronRight size={14} className="text-pick-text-sub" />
-        </div>
+        </button>
         <div className="flex gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 bg-pick-bg border border-pick-border rounded-full px-3.5 py-2">
             <Clock size={13} className="text-pick-purple" />
@@ -701,6 +725,25 @@ export default function StoreDetailClient({
         </p>
       </div>
 
+      {/* ── 탭바 ── */}
+      <div className="sticky top-0 z-20 bg-white border-b-2 border-pick-border flex mb-1">
+        {(["menu", "review", "info"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`flex-1 py-3 text-sm font-black transition-colors ${
+              activeTab === tab
+                ? "text-pick-purple border-b-2 border-pick-purple -mb-[2px]"
+                : "text-pick-text-sub"
+            }`}
+          >
+            {tab === "menu" ? "메뉴" : tab === "review" ? "리뷰" : "정보"}
+          </button>
+        ))}
+      </div>
+
+      {/* ── 정보 탭 ── */}
+      {activeTab === "info" && <>
       {/* ── 영업 상태 / 영업시간 ── */}
       {todayHours && (
         <div className={`mx-4 mb-5 rounded-3xl border-2 px-4 py-3.5 flex items-center gap-3 ${
@@ -783,20 +826,25 @@ export default function StoreDetailClient({
           />
         )}
       </div>
+      </>}
 
-      {/* ── 메뉴 목록 ── */}
-      <div className="mb-4">
-        <h2 className="font-black text-pick-text text-base px-4 mb-5 flex items-center gap-2">
-          <ShoppingBag size={18} className="text-pick-purple" />
-          메뉴
-        </h2>
-        {Object.entries(menuGroups).map(([cat, menus]) => (
-          <MenuSection key={cat} category={cat} menus={menus} onAdd={handleAddMenu} />
-        ))}
-      </div>
+      {/* ── 메뉴 탭 ── */}
+      {activeTab === "menu" && (
+        <div className="mb-4">
+          <h2 className="font-black text-pick-text text-base px-4 mb-5 flex items-center gap-2">
+            <ShoppingBag size={18} className="text-pick-purple" />
+            메뉴
+          </h2>
+          {Object.entries(menuGroups).map(([cat, menus]) => (
+            <MenuSection key={cat} category={cat} menus={menus} onAdd={handleAddMenu} />
+          ))}
+        </div>
+      )}
 
-      {/* ── 리뷰 목록 ── */}
-      <ReviewSection storeId={store.id} initialReviews={reviews} rating={store.rating} reviewCount={store.reviewCount} />
+      {/* ── 리뷰 탭 ── */}
+      {activeTab === "review" && (
+        <ReviewSection storeId={store.id} initialReviews={reviews} rating={store.rating} reviewCount={store.reviewCount} />
+      )}
 
       {/* ── 하단 장바구니 버튼 (고정) ── */}
       <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-4 z-30">

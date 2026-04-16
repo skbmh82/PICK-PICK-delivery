@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Bike, TrendingUp, MapPin, CheckCircle, Clock, Star, RefreshCw, Volume2, VolumeX } from "lucide-react";
+import { Bike, TrendingUp, MapPin, CheckCircle, Clock, Star, RefreshCw, Volume2 } from "lucide-react";
 import { useRiderAvailableOrderRealtime } from "@/hooks/useRealtime";
 import { useOrderSound } from "@/lib/useOrderSound";
 
@@ -262,9 +262,9 @@ export default function RiderDashboardPage() {
   const [stats, setStats]           = useState<{ today: TodayStats; weekly: WeeklyDay[]; riderName: string } | null>(null);
   const [availableOrders, setAvailableOrders] = useState<AvailableOrder[]>([]);
   const [loading, setLoading]       = useState(true);
-  const [soundOn,  setSoundOn]      = useState(true);
   const { play: playSound, stop: stopSound, unlock: unlockSound } =
     useOrderSound("픽픽 라이더 요청이 왔습니다");
+  const prevOrderCountRef = useRef(0);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -292,7 +292,7 @@ export default function RiderDashboardPage() {
   }, [stopSound]);
 
   // 새 배달 요청(ready) 실시간 감지 → 알림음 재생 + 목록 갱신
-  useRiderAvailableOrderRealtime(soundOn, () => {
+  useRiderAvailableOrderRealtime(true, () => {
     playSound();
     fetch("/api/rider/available-orders").then(async (r) => {
       if (r.ok) {
@@ -301,6 +301,22 @@ export default function RiderDashboardPage() {
       }
     }).catch(() => {/* 무시 */});
   });
+
+  // 폴링 백업: 10초마다 가능 주문 수 확인 → 증가하면 알림음 (Realtime 누락 대비)
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const r = await fetch("/api/rider/available-orders").catch(() => null);
+      if (!r?.ok) return;
+      const { orders } = await r.json() as { orders?: unknown[] };
+      const count = orders?.length ?? 0;
+      if (count > prevOrderCountRef.current) {
+        playSound();
+        setAvailableOrders(orders as AvailableOrder[]);
+      }
+      prevOrderCountRef.current = count;
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [playSound]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -318,17 +334,13 @@ export default function RiderDashboardPage() {
           <p className="text-sm text-pick-text-sub mt-0.5">오늘도 안전하게 달려요!</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* 알림 소리 잠금 해제 + 토글 */}
+          {/* 알림 소리 잠금 해제 */}
           <button
-            onClick={() => { unlockSound(); setSoundOn((v) => !v); }}
-            className={`p-2 rounded-full border transition-colors ${
-              soundOn
-                ? "bg-sky-500 text-white border-sky-500"
-                : "bg-pick-bg border-pick-border text-pick-text-sub"
-            }`}
-            title={soundOn ? "알림 소리 켜짐" : "알림 소리 꺼짐"}
+            onClick={() => unlockSound()}
+            className="p-2 rounded-full border bg-sky-500 text-white border-sky-500 transition-colors"
+            title="알림 소리 켜기 (한 번 눌러주세요)"
           >
-            {soundOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
+            <Volume2 size={15} />
           </button>
           <button
             onClick={fetchData}

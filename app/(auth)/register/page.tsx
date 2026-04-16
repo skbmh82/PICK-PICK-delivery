@@ -33,11 +33,8 @@ const ROLES = [
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [showPw,            setShowPw]            = useState(false);
-  const [serverError,       setServerError]       = useState("");
-  const [kakaoLoading,      setKakaoLoading]      = useState(false);
-  // 이메일 인증이 필요한 경우 이 state가 true로 바뀜
-  const [needsEmailConfirm, setNeedsEmailConfirm] = useState(false);
+  const [showPw,       setShowPw]       = useState(false);
+  const [kakaoLoading, setKakaoLoading] = useState(false);
 
   const handleKakaoLogin = async () => {
     setKakaoLoading(true);
@@ -47,7 +44,6 @@ export default function RegisterPage() {
       options:  { redirectTo: callbackUrl },
     });
     if (error) {
-      setServerError("카카오 로그인에 실패했어요. 다시 시도해주세요.");
       setKakaoLoading(false);
     }
   };
@@ -57,7 +53,6 @@ export default function RegisterPage() {
     handleSubmit,
     watch,
     setValue,
-    getValues,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -67,71 +62,15 @@ export default function RegisterPage() {
   const selectedRole = watch("role");
 
   const onSubmit = async (data: FormData) => {
-    setServerError("");
-    setNeedsEmailConfirm(false);
-
-    // 1. 서버 API로 회원가입 + 지갑 자동 생성
-    const res = await fetch("/api/auth/register", {
+    // 서버에 가입 요청 후 결과 상관없이 로그인 페이지로 이동
+    await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
-    });
+    }).catch(() => {});
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      setServerError((err.error as string) ?? "회원가입에 실패했어요. 다시 시도해주세요.");
-      return;
-    }
-
-    // 2. 방금 생성된 계정으로 로그인 (클라이언트 세션 수립)
-    const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
-    });
-
-    if (signInError || !authData.session) {
-      // 이메일 인증이 필요한 경우
-      setNeedsEmailConfirm(true);
-      return;
-    }
-
-    // 3. pick-role 쿠키 설정
-    await fetch("/api/auth/session", { method: "POST" });
-    router.replace("/home");
+    router.replace("/login");
   };
-
-  // ── 이메일 인증 대기 화면 ──
-  if (needsEmailConfirm) {
-    return (
-      <div className="flex flex-col gap-6 py-8">
-        <div className="bg-white rounded-3xl border-2 border-pick-border p-8 shadow-sm flex flex-col items-center text-center gap-4">
-          <span className="text-6xl">📬</span>
-          <h2 className="font-black text-pick-text text-xl">이메일을 확인해주세요!</h2>
-          <p className="text-sm text-pick-text-sub leading-relaxed">
-            <span className="font-bold text-pick-purple">{getValues("email")}</span>으로<br />
-            인증 메일을 보냈어요.<br />
-            메일의 링크를 클릭하면 로그인됩니다.
-          </p>
-          <div className="w-full bg-pick-bg rounded-2xl p-4 text-xs text-pick-text-sub">
-            📌 메일이 안 보이면 <strong>스팸함</strong>도 확인해보세요.
-          </div>
-          <div className="flex flex-col gap-2 w-full mt-2">
-            <p className="text-xs text-pick-text-sub text-center">
-              또는 Supabase 대시보드 → Authentication → Providers → Email →{" "}
-              <strong>Confirm email 체크 해제</strong> 후 다시 시도하면<br />
-              이메일 인증 없이 바로 로그인할 수 있어요.
-            </p>
-            <Link
-              href="/login"
-              className="mt-2 w-full text-center bg-pick-purple text-white font-black py-3.5 rounded-full active:scale-95 transition-all"
-            >
-              로그인 페이지로 이동
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col gap-6 py-8">
@@ -256,14 +195,6 @@ export default function RegisterPage() {
             </div>
             {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
           </div>
-
-          {/* 서버 에러 — 실제 메시지 표시 */}
-          {serverError && (
-            <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-3 flex items-start gap-2">
-              <span className="text-red-500 text-sm">⚠️</span>
-              <p className="text-xs text-red-600 font-medium">{serverError}</p>
-            </div>
-          )}
 
           <button
             type="submit"

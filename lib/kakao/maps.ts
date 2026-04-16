@@ -17,21 +17,20 @@ export function openKakaoNavi({
   address?: string;
 }) {
   if (lat && lng) {
-    // 앱 딥링크 (카카오맵 설치된 경우)
-    const appUrl = `kakaomap://look?p=${lat},${lng}`;
-    // 웹 URL (폴백)
+    // 웹 URL (항상 새 탭에서 열림)
     const webUrl = `https://map.kakao.com/link/map/${encodeURIComponent(name)},${lat},${lng}`;
+    window.open(webUrl, "_blank");
 
-    // 딥링크 시도 후 일정 시간 내 반응 없으면 웹으로
-    const start = Date.now();
-    window.location.href = appUrl;
-    setTimeout(() => {
-      if (Date.now() - start < 2000) {
-        window.open(webUrl, "_blank");
-      }
-    }, 1500);
+    // 앱 딥링크 (카카오맵 설치된 경우 — 숨겨진 a 태그로 시도, 앱이동시켜도 현재 페이지 유지)
+    try {
+      const a = document.createElement("a");
+      a.href = `kakaomap://look?p=${lat},${lng}`;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => document.body.removeChild(a), 1000);
+    } catch { /* 무시 */ }
   } else if (address) {
-    // 주소 기반 검색
     const webUrl = `https://map.kakao.com/link/search/${encodeURIComponent(address)}`;
     window.open(webUrl, "_blank");
   }
@@ -45,20 +44,20 @@ export function openKakaoRoute({
   pickupName: string; pickupLat: number; pickupLng: number;
   destName:   string; destLat:   number; destLng:   number;
 }) {
-  // 카카오맵 앱 경로 딥링크
-  const appUrl =
-    `kakaomap://route?sp=${pickupLat},${pickupLng}&ep=${destLat},${destLng}&by=CAR`;
-  // 웹 폴백 (출발지→목적지)
+  // 웹 URL (항상 새 탭)
   const webUrl =
     `https://map.kakao.com/link/from/${encodeURIComponent(pickupName)},${pickupLat},${pickupLng}/to/${encodeURIComponent(destName)},${destLat},${destLng}`;
+  window.open(webUrl, "_blank");
 
-  const start = Date.now();
-  window.location.href = appUrl;
-  setTimeout(() => {
-    if (Date.now() - start < 2000) {
-      window.open(webUrl, "_blank");
-    }
-  }, 1500);
+  // 앱 딥링크 시도 (현재 페이지 유지)
+  try {
+    const a = document.createElement("a");
+    a.href = `kakaomap://route?sp=${pickupLat},${pickupLng}&ep=${destLat},${destLng}&by=CAR`;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => document.body.removeChild(a), 1000);
+  } catch { /* 무시 */ }
 }
 
 /** 카카오맵 SDK 스크립트 동적 로드 */

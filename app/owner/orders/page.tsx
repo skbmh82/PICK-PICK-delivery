@@ -36,6 +36,7 @@ interface Order {
   delivery_note: string | null;
   estimated_time: number | null;
   created_at: string;
+  rider_id: string | null;
   users: OrderUser | null;
   order_items: OrderItem[];
 }
@@ -320,7 +321,9 @@ function OrderCard({
           {order.status === "ready" && (
             <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-2xl px-4 py-3">
               <CheckCircle size={16} className="text-green-600" />
-              <span className="text-sm font-bold text-green-700">조리 완료 — 라이더 배정 중</span>
+              <span className="text-sm font-bold text-green-700">
+                {order.rider_id ? "조리 완료 — 라이더 픽업 대기 중" : "조리 완료 — 라이더 배정 중"}
+              </span>
             </div>
           )}
 

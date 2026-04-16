@@ -21,8 +21,10 @@ export async function GET() {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: store } = await (admin as any)
-    .from("stores").select("id").eq("owner_id", profile.id).single();
+  const { data: storeList } = await (admin as any)
+    .from("stores").select("id").eq("owner_id", profile.id)
+    .order("created_at", { ascending: false }).limit(1);
+  const store = storeList?.[0] ?? null;
 
   if (!store) {
     return NextResponse.json({ monthly: [], topMenus: [], peakHours: [], summary: null });

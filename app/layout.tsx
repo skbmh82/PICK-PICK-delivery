@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "@/components/providers/AuthProvider";
@@ -10,6 +10,10 @@ const inter = Inter({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  themeColor: "#6B21A8",
+};
+
 export const metadata: Metadata = {
   title: "PICK PICK | 픽픽 배달앱",
   description: "PICK 토큰으로 주문하고 적립하는 스마트 배달 플랫폼",
@@ -20,7 +24,6 @@ export const metadata: Metadata = {
     title: "픽픽",
   },
   formatDetection: { telephone: false },
-  themeColor: "#6B21A8",
 };
 
 export default function RootLayout({

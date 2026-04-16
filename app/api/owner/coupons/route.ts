@@ -13,8 +13,10 @@ async function requireOwner() {
     .from("users").select("id, role").eq("auth_id", user.id).single();
   if (!profile || !["owner", "admin"].includes(profile.role)) return null;
   // 본인 가게 확인
-  const { data: store } = await admin
-    .from("stores").select("id").eq("owner_id", profile.id).single();
+  const { data: storeList } = await admin
+    .from("stores").select("id").eq("owner_id", profile.id)
+    .order("created_at", { ascending: false }).limit(1);
+  const store = storeList?.[0] ?? null;
   return store ? { profile, store, admin } : null;
 }
 

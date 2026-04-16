@@ -11,6 +11,9 @@
   --color-pick-yellow:       #D97706;
   --color-pick-yellow-light: #FCD34D;
   --color-pick-yellow-dark:  #92400E;
+  --color-pick-orange:       #FF6B35;
+  --color-pick-orange-light: #FF8C5A;
+  --color-pick-orange-dark:  #D94E18;
 
   /* 시맨틱 컬러 (CSS 변수로 위임 → 다크모드 자동 전환) */
   --color-pick-bg:       var(--pick-bg);

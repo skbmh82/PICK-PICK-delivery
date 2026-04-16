@@ -30,6 +30,6 @@ export default withSentryConfig(serwistConfig, {
     disable: process.env.NODE_ENV !== "production",
     deleteSourcemapsAfterUpload: true,
   },
-  // 클라이언트 번들에 Sentry 자동 주입
-  autoInstrumentServerFunctions: true,
+  // 서버 함수 자동 계측
+  widenClientFileUpload: true,
 });

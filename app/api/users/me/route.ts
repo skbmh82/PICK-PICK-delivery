@@ -52,7 +52,7 @@ export async function GET() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: reviews } = await (admin as any)
     .from("reviews")
-    .select("id, rating, content, created_at, stores(name, category)")
+    .select("id, rating, content, created_at, store_id, stores(name)")
     .eq("user_id", profile.id)
     .order("created_at", { ascending: false })
     .limit(5);
@@ -84,6 +84,7 @@ export async function GET() {
       rating:    r.rating,
       content:   r.content,
       createdAt: r.created_at,
+      storeId:   r.store_id ?? null,
       storeName: r.stores?.name ?? "",
     })),
   });

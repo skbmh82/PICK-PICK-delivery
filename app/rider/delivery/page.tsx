@@ -269,23 +269,12 @@ function DeliveryCard({
               </button>
             )}
             <button
-              onClick={() => {
-                const hasRoute =
-                  order.stores?.lat && order.stores?.lng &&
-                  order.delivery_lat && order.delivery_lng;
-                if (hasRoute) {
-                  openKakaoRoute({
-                    pickupName: order.stores!.name,
-                    pickupLat:  Number(order.stores!.lat),
-                    pickupLng:  Number(order.stores!.lng),
-                    destName:   "배달지",
-                    destLat:    Number(order.delivery_lat),
-                    destLng:    Number(order.delivery_lng),
-                  });
-                } else {
-                  openKakaoNavi({ name: "배달지", address: order.delivery_address });
-                }
-              }}
+              onClick={() => openKakaoNavi({
+                name:    "배달지",
+                lat:     order.delivery_lat,
+                lng:     order.delivery_lng,
+                address: order.delivery_address,
+              })}
               className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl border-2 border-sky-200 bg-sky-50 text-sky-700 font-bold text-xs active:scale-95 transition-transform"
             >
               <Navigation size={13} />

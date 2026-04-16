@@ -5,8 +5,9 @@ import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 
 const HourSchema = z.object({
   day_of_week: z.number().int().min(0).max(6),
-  open_time:   z.string().regex(/^\d{2}:\d{2}$/),
-  close_time:  z.string().regex(/^\d{2}:\d{2}$/),
+  // 브라우저에 따라 HH:MM 또는 HH:MM:SS 로 넘어올 수 있어 모두 허용 후 앞 5자리만 사용
+  open_time:   z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).transform((v) => v.slice(0, 5)),
+  close_time:  z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).transform((v) => v.slice(0, 5)),
   is_closed:   z.boolean(),
 });
 
@@ -24,9 +25,10 @@ async function getOwnerStore(user: { id: string }) {
     .from("users").select("id, role").eq("auth_id", user.id).single();
   if (!profile || !["owner", "admin"].includes(profile.role as string)) return null;
 
-  const { data: store } = await admin
-    .from("stores").select("id, is_open").eq("owner_id", profile.id).single();
-  return store ?? null;
+  const { data: storeList } = await admin
+    .from("stores").select("id, is_open").eq("owner_id", profile.id)
+    .order("created_at", { ascending: false }).limit(1);
+  return storeList?.[0] ?? null;
 }
 
 // GET /api/stores/my/hours — 내 가게 영업시간 조회

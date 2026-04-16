@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Navigation, Bike, Wallet, ChevronLeft } from "lucide-react";
+import { Navigation, Bike, Wallet, ChevronLeft, User } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -10,6 +10,7 @@ const RIDER_NAV = [
   { href: "/rider/dashboard", label: "배달현황", Icon: Navigation },
   { href: "/rider/delivery",  label: "배달하기", Icon: Bike },
   { href: "/rider/earnings",  label: "수익내역", Icon: Wallet },
+  { href: "/rider/profile",   label: "내 정보",   Icon: User },
 ] as const;
 
 export default function RiderLayout({ children }: { children: React.ReactNode }) {

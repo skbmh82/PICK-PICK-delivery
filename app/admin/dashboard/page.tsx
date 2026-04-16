@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Users, Coins, RefreshCw, Search, X, Check, ChevronDown, Store, MapPin, Phone, Clock, XCircle, CheckCircle, BarChart2, ShoppingBag, Ticket, Plus, Tag, ToggleLeft, ToggleRight, Trash2, Bell, Send } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Users, Coins, RefreshCw, Search, X, Check, ChevronDown, Store, MapPin, Phone, Clock, XCircle, CheckCircle, BarChart2, ShoppingBag, Ticket, Plus, Tag, ToggleLeft, ToggleRight, Trash2, Bell, Send, ArrowLeft } from "lucide-react";
 
 // ── 타입 ──────────────────────────────────────────────
 interface UserRow {
@@ -1030,6 +1031,7 @@ function PushTab() {
 
 // ── 메인 페이지 ───────────────────────────────────────
 export default function AdminDashboardPage() {
+  const router = useRouter();
   const [activeTab,    setActiveTab]    = useState<"stats" | "users" | "stores" | "coupons" | "push">("stats");
   const [users,        setUsers]        = useState<UserRow[]>([]);
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
@@ -1105,14 +1107,22 @@ export default function AdminDashboardPage() {
       {/* 헤더 */}
       <div className="sticky top-0 z-10 bg-white border-b border-pick-border px-4 pt-4 pb-0">
         <div className="flex items-center justify-between mb-3">
-          <div>
-            <h1 className="font-black text-pick-text text-xl">관리자 대시보드 🛡️</h1>
-            <p className="text-xs text-pick-text-sub mt-0.5">
-              {activeTab === "stats"   ? "플랫폼 통계" :
-               activeTab === "users"   ? `전체 ${users.length}명` :
-               activeTab === "stores"  ? "가게 승인 관리" :
-               activeTab === "coupons" ? "쿠폰 생성 및 관리" : "일괄 푸시 알림 발송"}
-            </p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/my-pick")}
+              className="p-2 rounded-full bg-pick-bg border border-pick-border text-pick-text-sub active:scale-95 transition-all"
+            >
+              <ArrowLeft size={16} />
+            </button>
+            <div>
+              <h1 className="font-black text-pick-text text-xl">관리자 대시보드 🛡️</h1>
+              <p className="text-xs text-pick-text-sub mt-0.5">
+                {activeTab === "stats"   ? "플랫폼 통계" :
+                 activeTab === "users"   ? `전체 ${users.length}명` :
+                 activeTab === "stores"  ? "가게 승인 관리" :
+                 activeTab === "coupons" ? "쿠폰 생성 및 관리" : "일괄 푸시 알림 발송"}
+              </p>
+            </div>
           </div>
           <button
             onClick={() => { fetchUsers(); fetchStats(); fetchPendingCount(); }}

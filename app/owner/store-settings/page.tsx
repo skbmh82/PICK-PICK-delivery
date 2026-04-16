@@ -5,28 +5,34 @@ import { useRouter } from "next/navigation";
 import {
   Store, MapPin, Phone, Clock, Wallet, ToggleLeft, ToggleRight,
   ChevronLeft, Check, Loader2, Star, FileText, AlertCircle,
-  ImagePlus, Camera, Ticket, Plus, X, Tag, CalendarDays,
+  ImagePlus, Camera, Ticket, Plus, X, Tag, CalendarDays, Gift, Image,
 } from "lucide-react";
 
 // ── 타입 ──────────────────────────────────────────────
 interface StoreData {
-  id:             string;
-  name:           string;
-  category:       string;
-  description:    string | null;
-  phone:          string | null;
-  address:        string;
-  isOpen:         boolean;
-  deliveryFee:    number;
-  minOrderAmount: number;
-  deliveryTime:   number;
-  pickRewardRate: number;
-  isApproved:     boolean;
-  rating:         number;
-  reviewCount:    number;
-  imageUrl:       string | null;
-  bannerUrl:      string | null;
+  id:                    string;
+  name:                  string;
+  category:              string;
+  description:           string | null;
+  phone:                 string | null;
+  address:               string;
+  isOpen:                boolean;
+  deliveryFee:           number;
+  minOrderAmount:        number;
+  deliveryTime:          number;
+  deliveryRadiusKm:      number;
+  pickRewardRate:        number;
+  photoReviewRewardKrw:  number;
+  isApproved:            boolean;
+  rating:                number;
+  reviewCount:           number;
+  imageUrl:              string | null;
+  bannerUrl:             string | null;
 }
+
+// 현재 PICK 시세 (1 PICK = 1원, 추후 API/config 테이블에서 동적으로 조회)
+const PICK_RATE_KRW = 1; // 원화 기준 1 PICK = 1원
+const krwToPick = (krw: number) => Math.round(krw / PICK_RATE_KRW);
 
 // ── 입력 필드 래퍼 ─────────────────────────────────────
 function Field({
@@ -149,33 +155,57 @@ function StoreHoursSection() {
           ) : (
             <>
               {hours.map((h) => (
-                <div key={h.day_of_week} className={`flex items-center gap-2 px-3 py-2.5 rounded-2xl border-2 transition-all ${
+                <div key={h.day_of_week} className={`px-3 py-2.5 rounded-2xl border-2 transition-all ${
                   h.is_closed ? "bg-gray-50 border-gray-200 opacity-60" : "bg-pick-bg border-pick-border"
                 }`}>
-                  {/* 요일 */}
-                  <span className={`text-xs font-black w-5 text-center flex-shrink-0 ${
-                    h.day_of_week === 0 ? "text-red-500" :
-                    h.day_of_week === 6 ? "text-blue-500" :
-                    "text-pick-text"
-                  }`}>
-                    {DAYS[h.day_of_week]}
-                  </span>
+                  {/* 1행: 요일 + 영업/휴무 토글 + 전체적용 */}
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-black w-5 text-center ${
+                        h.day_of_week === 0 ? "text-red-500" :
+                        h.day_of_week === 6 ? "text-blue-500" :
+                        "text-pick-text"
+                      }`}>
+                        {DAYS[h.day_of_week]}
+                      </span>
+                      {/* 영업/휴무 세그먼트 토글 */}
+                      <div className="flex items-center bg-gray-100 rounded-full p-0.5 gap-0.5">
+                        <button
+                          onClick={() => update(h.day_of_week, "is_closed", false)}
+                          className={`text-[10px] font-black px-2.5 py-1 rounded-full transition-all ${
+                            !h.is_closed
+                              ? "bg-green-500 text-white shadow-sm"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          영업
+                        </button>
+                        <button
+                          onClick={() => update(h.day_of_week, "is_closed", true)}
+                          className={`text-[10px] font-black px-2.5 py-1 rounded-full transition-all ${
+                            h.is_closed
+                              ? "bg-gray-400 text-white shadow-sm"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          휴무
+                        </button>
+                      </div>
+                    </div>
+                    {!h.is_closed && (
+                      <button
+                        onClick={() => copyToAll(h.day_of_week)}
+                        title="이 시간을 모든 요일에 적용"
+                        className="text-[10px] text-pick-purple font-black px-2.5 py-1 bg-white border border-pick-purple/30 rounded-full whitespace-nowrap active:scale-90 transition-transform"
+                      >
+                        전체적용
+                      </button>
+                    )}
+                  </div>
 
-                  {/* 휴무 토글 */}
-                  <button
-                    onClick={() => update(h.day_of_week, "is_closed", !h.is_closed)}
-                    className={`flex-shrink-0 text-[10px] font-black px-2 py-1 rounded-full transition-all ${
-                      h.is_closed
-                        ? "bg-gray-200 text-gray-500"
-                        : "bg-green-100 text-green-700"
-                    }`}
-                  >
-                    {h.is_closed ? "휴무" : "영업"}
-                  </button>
-
-                  {/* 시간 설정 */}
-                  {!h.is_closed && (
-                    <>
+                  {/* 2행: 시간 설정 */}
+                  {!h.is_closed ? (
+                    <div className="flex items-center gap-2">
                       <input
                         type="time"
                         value={h.open_time}
@@ -189,18 +219,9 @@ function StoreHoursSection() {
                         onChange={(e) => update(h.day_of_week, "close_time", e.target.value)}
                         className="flex-1 min-w-0 text-xs font-bold bg-white border border-pick-border rounded-xl px-2 py-1.5 text-pick-text focus:outline-none focus:border-pick-purple"
                       />
-                      {/* 전체 복사 버튼 */}
-                      <button
-                        onClick={() => copyToAll(h.day_of_week)}
-                        title="이 시간을 모든 요일에 적용"
-                        className="flex-shrink-0 text-[10px] text-pick-purple font-black px-2 py-1 bg-pick-bg border border-pick-border rounded-full whitespace-nowrap active:scale-90 transition-transform"
-                      >
-                        전체적용
-                      </button>
-                    </>
-                  )}
-                  {h.is_closed && (
-                    <span className="flex-1 text-xs text-pick-text-sub text-center">오늘 쉬어요</span>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-pick-text-sub text-center py-0.5">오늘 쉬어요</p>
                   )}
                 </div>
               ))}
@@ -231,6 +252,150 @@ function StoreHoursSection() {
   );
 }
 
+// ── 사진 리뷰 보상 설정 섹션 ──────────────────────────
+interface PhotoReviewRewardSectionProps {
+  storeId: string;
+  initialKrw: number;
+}
+
+function PhotoReviewRewardSection({ storeId, initialKrw }: PhotoReviewRewardSectionProps) {
+  const [expanded, setExpanded] = useState(false);
+  const [krwInput, setKrwInput] = useState(String(initialKrw || 0));
+  const [saving,   setSaving]   = useState(false);
+  const [saved,    setSaved]    = useState(false);
+  const [err,      setErr]      = useState("");
+
+  const pickAmount = krwToPick(parseFloat(krwInput) || 0);
+
+  const handleSave = async () => {
+    const krw = parseFloat(krwInput);
+    if (isNaN(krw) || krw < 0) return setErr("올바른 금액을 입력해주세요");
+    if (krw > 100000)          return setErr("최대 100,000원까지 설정 가능해요");
+
+    setSaving(true); setErr("");
+    try {
+      const res = await fetch("/api/stores/my", {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ photoReviewRewardKrw: krw }),
+      });
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      } else {
+        const j = await res.json().catch(() => ({}));
+        setErr((j.error as string) ?? "저장에 실패했습니다");
+      }
+    } finally { setSaving(false); }
+  };
+
+  // storeId unused but kept for future per-store balance checks
+  void storeId;
+
+  return (
+    <div className="bg-white rounded-3xl shadow-sm border border-pick-border overflow-hidden">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center justify-between px-5 py-4 active:bg-pick-bg transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Image size={16} className="text-pick-purple" />
+          <span className="font-black text-pick-text text-sm">사진 리뷰 보상 설정</span>
+          {initialKrw > 0 && (
+            <span className="bg-green-100 text-green-700 text-[10px] font-black px-2 py-0.5 rounded-full">
+              ₩{initialKrw.toLocaleString()} 설정됨
+            </span>
+          )}
+        </div>
+        <span className="text-xs text-pick-purple font-bold">{expanded ? "접기 ▲" : "열기 ▼"}</span>
+      </button>
+
+      {expanded && (
+        <div className="border-t border-pick-border px-5 py-4 flex flex-col gap-4">
+          {/* 안내 */}
+          <div className="bg-pick-bg rounded-2xl px-4 py-3 border border-pick-border">
+            <p className="text-xs font-bold text-pick-text mb-1">📸 사진 리뷰 보상이란?</p>
+            <p className="text-[11px] text-pick-text-sub leading-relaxed">
+              고객이 주문 후 <strong>사진과 함께 리뷰</strong>를 작성하면 설정한 금액을 PICK으로 자동 지급해요.<br />
+              PICK 가격이 변동되어도 <strong>원화 가치는 그대로 유지</strong>돼요.<br />
+              <span className="text-pick-yellow font-bold">가맹점 PICK 잔액에서 차감</span>됩니다.
+            </p>
+          </div>
+
+          {/* 금액 입력 */}
+          <div>
+            <label className="text-xs font-bold text-pick-text-sub block mb-2">
+              보상 금액 (원화 기준)
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-pick-text-sub">₩</span>
+              <input
+                type="number"
+                value={krwInput}
+                onChange={(e) => setKrwInput(e.target.value)}
+                min="0"
+                max="100000"
+                step="100"
+                placeholder="500"
+                className="w-full bg-pick-bg border-2 border-pick-border rounded-2xl pl-8 pr-4 py-3 text-sm font-bold text-right text-pick-text focus:outline-none focus:border-pick-purple transition-colors"
+              />
+            </div>
+            {/* 단계 버튼 */}
+            <div className="flex gap-2 mt-2">
+              {[0, 300, 500, 1000].map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setKrwInput(String(v))}
+                  className={`flex-1 py-2 rounded-2xl text-xs font-bold transition-all active:scale-95 ${
+                    krwInput === String(v)
+                      ? "bg-pick-purple text-white"
+                      : "bg-pick-bg border border-pick-border text-pick-text-sub"
+                  }`}
+                >
+                  {v === 0 ? "미지급" : `₩${v}`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 자동 환산 미리보기 */}
+          {pickAmount > 0 && (
+            <div className="bg-gradient-to-r from-pick-purple/10 to-pick-purple-light/10 rounded-2xl px-4 py-3 border border-pick-purple/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] text-pick-text-sub">현재 시세 (1 PICK = ₩{PICK_RATE_KRW})</p>
+                  <p className="text-xs font-bold text-pick-text mt-0.5">고객에게 지급되는 PICK</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-black text-pick-purple">{pickAmount.toLocaleString()} P</p>
+                  <p className="text-[10px] text-pick-text-sub">≈ ₩{(pickAmount * PICK_RATE_KRW).toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {err && <p className="text-xs text-red-500 font-bold">{err}</p>}
+
+          <button
+            onClick={() => void handleSave()}
+            disabled={saving}
+            className={`w-full py-3 rounded-full font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 ${
+              saved ? "bg-green-500 text-white" : "bg-pick-purple text-white"
+            }`}
+          >
+            {saving
+              ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> 저장 중...</>
+              : saved
+                ? <><Check size={14} /> 저장 완료!</>
+                : <><Gift size={14} /> 보상 설정 저장</>
+            }
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── 사장님 쿠폰 관리 섹션 ─────────────────────────────
 interface OwnerCoupon {
   id: string; code: string; title: string;
@@ -251,6 +416,7 @@ function OwnerCouponSection() {
   const [fTitle,    setFTitle]    = useState("");
   const [fType,     setFType]     = useState<"fixed_pick" | "pick_rate" | "free_delivery">("fixed_pick");
   const [fValue,    setFValue]    = useState("");
+  const [fKrw,      setFKrw]      = useState(""); // KRW 입력 → PICK 자동 환산용
   const [fMinOrder, setFMinOrder] = useState("0");
   const [fMaxUses,  setFMaxUses]  = useState("");
   const [fExpires,  setFExpires]  = useState("");
@@ -287,7 +453,7 @@ function OwnerCouponSection() {
       const json = await res.json();
       if (res.ok) {
         setCreateOpen(false);
-        setFCode(""); setFTitle(""); setFValue(""); setFMinOrder("0"); setFMaxUses(""); setFExpires("");
+        setFCode(""); setFTitle(""); setFValue(""); setFKrw(""); setFMinOrder("0"); setFMaxUses(""); setFExpires("");
         await fetchCoupons();
       } else {
         setFormErr(json.error ?? "쿠폰 생성에 실패했습니다");
@@ -368,15 +534,41 @@ function OwnerCouponSection() {
                   <input value={fTitle} onChange={(e) => setFTitle(e.target.value)} placeholder="우리 가게 첫 방문 쿠폰"
                     className="w-full border-2 border-pick-border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-pick-purple" />
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                {/* 쿠폰 값 입력 — fixed_pick은 원화 입력 후 PICK 자동 환산 */}
+                {fType === "fixed_pick" ? (
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-pick-text-sub">보상 금액 (원화 입력)</label>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-pick-text-sub">₩</span>
+                        <input
+                          type="number" value={fKrw} min="0" placeholder="500"
+                          onChange={(e) => {
+                            setFKrw(e.target.value);
+                            setFValue(String(krwToPick(parseFloat(e.target.value) || 0)));
+                          }}
+                          className="w-full border-2 border-pick-border rounded-xl pl-7 pr-3 py-2 text-sm bg-white focus:outline-none focus:border-pick-purple"
+                        />
+                      </div>
+                      <span className="text-xs text-pick-text-sub flex-shrink-0">→</span>
+                      <div className="flex-1 border-2 border-pick-purple/30 bg-pick-bg rounded-xl px-3 py-2 flex items-center justify-between">
+                        <span className="text-xs font-black text-pick-purple">{krwToPick(parseFloat(fKrw) || 0).toLocaleString()} P</span>
+                        <span className="text-[9px] text-pick-text-sub">PICK</span>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-pick-text-sub">현재 시세: 1 PICK = ₩{PICK_RATE_KRW} · PICK 가격 변동 시 자동 조정</p>
+                  </div>
+                ) : (
                   <div>
                     <label className="text-[10px] font-bold text-pick-text-sub block mb-1">
-                      {fType === "pick_rate" ? "추가율 (%)" : fType === "fixed_pick" ? "PICK 수량" : "값 (0)"}
+                      {fType === "pick_rate" ? "추가 적립율 (%)" : "값 (0)"}
                     </label>
                     <input type="number" value={fValue} onChange={(e) => setFValue(e.target.value)} min="0"
                       disabled={fType === "free_delivery"}
                       className="w-full border-2 border-pick-border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-pick-purple disabled:bg-gray-50" />
                   </div>
+                )}
+                <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-[10px] font-bold text-pick-text-sub block mb-1">최소주문(원)</label>
                     <input type="number" value={fMinOrder} onChange={(e) => setFMinOrder(e.target.value)} min="0"
@@ -467,10 +659,12 @@ export default function StoreSettingsPage() {
   const [phone,          setPhone]          = useState("");
   const [address,        setAddress]        = useState("");
   const [isOpen,         setIsOpen]         = useState(true);
-  const [deliveryFee,    setDeliveryFee]    = useState("");
-  const [minOrderAmount, setMinOrderAmount] = useState("");
-  const [deliveryTime,   setDeliveryTime]   = useState("");
-  const [pickRewardRate, setPickRewardRate] = useState("");
+  const [deliveryFee,      setDeliveryFee]      = useState("");
+  const [minOrderAmount,   setMinOrderAmount]   = useState("");
+  const [deliveryTime,     setDeliveryTime]     = useState("");
+  const [deliveryRadiusKm, setDeliveryRadiusKm] = useState("5");
+  const [pickRewardRate,        setPickRewardRate]        = useState("1.0"); // 기본값 유지, UI 미노출
+  const [photoReviewRewardKrw,  setPhotoReviewRewardKrw]  = useState(0);
   const [imageUrl,       setImageUrl]       = useState<string | null>(null);
   const [bannerUrl,      setBannerUrl]      = useState<string | null>(null);
   const [uploadingImg,   setUploadingImg]   = useState<"image" | "banner" | null>(null);
@@ -486,22 +680,24 @@ export default function StoreSettingsPage() {
       if (!s) return;
 
       const data: StoreData = {
-        id:             s.id,
-        name:           s.name,
-        category:       s.category,
-        description:    s.description,
-        phone:          s.phone,
-        address:        s.address,
-        isOpen:         s.is_open,
-        deliveryFee:    Number(s.delivery_fee),
-        minOrderAmount: Number(s.min_order_amount),
-        deliveryTime:   Number(s.delivery_time),
-        pickRewardRate: Number(s.pick_reward_rate),
-        isApproved:     s.is_approved,
-        rating:         Number(s.rating),
-        reviewCount:    Number(s.review_count),
-        imageUrl:       s.image_url  ?? null,
-        bannerUrl:      s.banner_url ?? null,
+        id:                   s.id,
+        name:                 s.name,
+        category:             s.category,
+        description:          s.description,
+        phone:                s.phone,
+        address:              s.address,
+        isOpen:               s.is_open,
+        deliveryFee:          Number(s.delivery_fee),
+        minOrderAmount:       Number(s.min_order_amount),
+        deliveryTime:         Number(s.delivery_time),
+        deliveryRadiusKm:     Number(s.delivery_radius_km ?? 5),
+        pickRewardRate:       Number(s.pick_reward_rate),
+        photoReviewRewardKrw: Number(s.photo_review_reward_krw ?? 0),
+        isApproved:           s.is_approved,
+        rating:               Number(s.rating),
+        reviewCount:          Number(s.review_count),
+        imageUrl:             s.image_url  ?? null,
+        bannerUrl:            s.banner_url ?? null,
       };
       setStore(data);
 
@@ -514,7 +710,9 @@ export default function StoreSettingsPage() {
       setDeliveryFee(String(data.deliveryFee));
       setMinOrderAmount(String(data.minOrderAmount));
       setDeliveryTime(String(data.deliveryTime));
+      setDeliveryRadiusKm(String(data.deliveryRadiusKm));
       setPickRewardRate(String(data.pickRewardRate));
+      setPhotoReviewRewardKrw(data.photoReviewRewardKrw);
       setImageUrl(data.imageUrl);
       setBannerUrl(data.bannerUrl);
     } finally {
@@ -545,15 +743,16 @@ export default function StoreSettingsPage() {
     if (!name.trim())    return setError("가게 이름을 입력해주세요");
     if (!address.trim()) return setError("주소를 입력해주세요");
 
-    const fee  = parseInt(deliveryFee,    10);
-    const min  = parseInt(minOrderAmount, 10);
-    const time = parseInt(deliveryTime,   10);
-    const rate = parseFloat(pickRewardRate);
+    const fee    = parseInt(deliveryFee,      10);
+    const min    = parseInt(minOrderAmount,   10);
+    const time   = parseInt(deliveryTime,     10);
+    const radius = parseFloat(deliveryRadiusKm);
+    const rate   = parseFloat(pickRewardRate);
 
-    if (isNaN(fee)  || fee  < 0)           return setError("배달비를 올바르게 입력해주세요");
-    if (isNaN(min)  || min  < 0)           return setError("최소 주문금액을 올바르게 입력해주세요");
-    if (isNaN(time) || time < 5 || time > 120) return setError("예상 배달 시간은 5~120분 사이로 입력해주세요");
-    if (isNaN(rate) || rate < 0.1)         return setError("PICK 적립률을 올바르게 입력해주세요");
+    if (isNaN(fee)    || fee    < 0)                return setError("배달비를 올바르게 입력해주세요");
+    if (isNaN(min)    || min    < 0)                return setError("최소 주문금액을 올바르게 입력해주세요");
+    if (isNaN(time)   || time   < 5 || time > 120)  return setError("예상 배달 시간은 5~120분 사이로 입력해주세요");
+    if (isNaN(radius) || radius < 1 || radius > 30) return setError("배달 반경은 1~30km 사이로 입력해주세요");
 
     setSaving(true);
     setError("");
@@ -562,15 +761,16 @@ export default function StoreSettingsPage() {
         method:  "PATCH",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({
-          name:           name.trim(),
-          description:    description.trim() || null,
-          phone:          phone.trim() || null,
-          address:        address.trim(),
+          name:             name.trim(),
+          description:      description.trim() || null,
+          phone:            phone.trim() || null,
+          address:          address.trim(),
           isOpen,
-          deliveryFee:    fee,
-          minOrderAmount: min,
-          deliveryTime:   time,
-          pickRewardRate: rate,
+          deliveryFee:      fee,
+          minOrderAmount:   min,
+          deliveryTime:     time,
+          deliveryRadiusKm: radius,
+          pickRewardRate:   rate,
           imageUrl,
           bannerUrl,
         }),
@@ -864,42 +1064,41 @@ export default function StoreSettingsPage() {
               inputMode="numeric"
             />
           </Field>
-        </div>
 
-        {/* PICK 적립 설정 */}
-        <div className="bg-white rounded-3xl p-5 shadow-sm border border-pick-border">
-          <h2 className="text-sm font-black text-pick-text mb-1 flex items-center gap-2">
-            <Star size={15} className="text-pick-yellow" />
-            PICK 적립률 설정
-          </h2>
-          <p className="text-xs text-pick-text-sub mb-4">주문 금액의 몇 %를 고객에게 PICK으로 적립해드릴까요?</p>
-
-          <div className="flex gap-2 mb-3">
-            {[0.5, 1.0, 1.5, 2.0].map((r) => (
-              <button
-                key={r}
-                onClick={() => setPickRewardRate(String(r))}
-                className={`flex-1 py-2.5 rounded-2xl text-xs font-bold transition-all active:scale-95 ${
-                  pickRewardRate === String(r)
-                    ? "bg-pick-yellow text-white"
-                    : "bg-pick-bg border border-pick-border text-pick-text-sub"
-                }`}
-              >
-                {r}%
-              </button>
-            ))}
-          </div>
-          <input
-            value={pickRewardRate}
-            onChange={(e) => setPickRewardRate(e.target.value)}
-            className={`${numInputCls}`}
-            placeholder="직접 입력 (%)"
-            inputMode="decimal"
-          />
+          <Field label="배달 반경 (km)" icon={<MapPin size={12} />}>
+            <p className="text-[11px] text-pick-text-sub mb-2">
+              이 반경 내 고객에게만 가게가 노출돼요
+            </p>
+            <div className="flex gap-2 mb-2">
+              {[3, 5, 7, 10].map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setDeliveryRadiusKm(String(r))}
+                  className={`flex-1 py-2.5 rounded-2xl text-xs font-bold transition-all active:scale-95 ${
+                    deliveryRadiusKm === String(r)
+                      ? "bg-pick-purple text-white"
+                      : "bg-pick-bg border border-pick-border text-pick-text-sub"
+                  }`}
+                >
+                  {r}km
+                </button>
+              ))}
+            </div>
+            <input
+              value={deliveryRadiusKm}
+              onChange={(e) => setDeliveryRadiusKm(e.target.value)}
+              className={`${numInputCls}`}
+              placeholder="직접 입력 (km, 1~30)"
+              inputMode="decimal"
+            />
+          </Field>
         </div>
 
         {/* 영업시간 관리 */}
         <StoreHoursSection />
+
+        {/* 사진 리뷰 보상 설정 */}
+        <PhotoReviewRewardSection storeId={store.id} initialKrw={photoReviewRewardKrw} />
 
         {/* 쿠폰 관리 */}
         <OwnerCouponSection />

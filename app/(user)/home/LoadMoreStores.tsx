@@ -75,11 +75,17 @@ export default function LoadMoreStores({
   sort,
   initialOffset,
   initialHasMore,
+  openOnly = false,
+  lat,
+  lng,
 }: {
   category: string;
   sort: string;
   initialOffset: number;
   initialHasMore: boolean;
+  openOnly?: boolean;
+  lat?: number | null;
+  lng?: number | null;
 }) {
   const [stores,   setStores]   = useState<StoreRow[]>([]);
   const [hasMore,  setHasMore]  = useState(initialHasMore);
@@ -91,6 +97,9 @@ export default function LoadMoreStores({
     setLoading(true);
     try {
       const params = new URLSearchParams({ category, sort, offset: String(offset), limit: "12" });
+      if (openOnly) params.set("open", "1");
+      if (lat != null) params.set("lat", String(lat));
+      if (lng != null) params.set("lng", String(lng));
       const res    = await fetch(`/api/stores?${params.toString()}`);
       if (!res.ok) return;
       const { stores: more, hasMore: more2 } = await res.json() as { stores: StoreRow[]; hasMore: boolean };

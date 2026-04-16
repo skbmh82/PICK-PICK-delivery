@@ -56,6 +56,8 @@ export function useStoreOrderRealtime(
   onNewOrder: (orderId: string) => void
 ) {
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const cbRef      = useRef(onNewOrder);
+  cbRef.current    = onNewOrder; // 항상 최신 콜백 유지
 
   useEffect(() => {
     if (!storeId) return;
@@ -76,7 +78,7 @@ export function useStoreOrderRealtime(
         },
         (payload) => {
           const orderId = (payload.new as { id: string }).id;
-          if (orderId) onNewOrder(orderId);
+          if (orderId) cbRef.current(orderId);
         }
       )
       .subscribe();

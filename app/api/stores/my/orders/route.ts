@@ -22,12 +22,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "사장님 권한이 필요합니다" }, { status: 403 });
   }
 
-  const { data: store } = await admin
+  const { data: storeList } = await admin
     .from("stores")
     .select("id")
     .eq("owner_id", profile.id)
-    .single();
+    .order("created_at", { ascending: false })
+    .limit(1);
 
+  const store = storeList?.[0] ?? null;
   if (!store) {
     return NextResponse.json({ orders: [], storeId: null });
   }
@@ -40,7 +42,7 @@ export async function GET(request: NextRequest) {
     .from("orders")
     .select(`
       id, status, total_amount, delivery_fee, pick_used,
-      delivery_address, delivery_note, estimated_time, created_at,
+      delivery_address, delivery_note, estimated_time, created_at, rider_id,
       users!orders_user_id_fkey ( id, name, phone ),
       order_items ( id, menu_name, price, quantity )
     `)

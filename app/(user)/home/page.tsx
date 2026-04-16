@@ -1,16 +1,20 @@
-import { Star, Clock, Bike, ArrowLeft, Frown, Search, Zap, Gift, Flame, Megaphone } from "lucide-react";
+import { Star, Clock, Bike, ArrowLeft, Frown, Search, Zap, Flame, Megaphone } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import AutoScrollBanner from "./AutoScrollBanner";
+import { cookies } from "next/headers";
 import { fetchStoresByCategory, searchStores, fetchTopStores, fetchSponsoredStores, type StoreRow, type AdStore } from "@/lib/supabase/stores";
 import { CATEGORY_META, getCategoryEmoji } from "@/lib/utils/categoryEmoji";
 import SearchBar from "./SearchBar";
 import FilterSortBar, { type SortKey } from "./FilterSortBar";
 import LoadMoreStores from "./LoadMoreStores";
 import LocationBar from "./LocationBar";
+import RecentlyViewedStores from "./RecentlyViewedStores";
+import NearbyFavorites from "./NearbyFavorites";
 
 /* ────────────── 검색 결과 뷰 ────────────── */
-async function SearchResultsView({ query, sort }: { query: string; sort: SortKey }) {
-  const stores = await searchStores(query, sort);
+async function SearchResultsView({ query, sort, lat, lng }: { query: string; sort: SortKey; lat?: number | null; lng?: number | null }) {
+  const stores = await searchStores(query, sort, lat, lng);
 
   return (
     <section className="pt-3 pb-4">
@@ -134,35 +138,23 @@ async function SponsoredSection() {
 
   if (topAds.length === 0 && bannerAds.length === 0) return null;
 
+  // AdStore → AutoScrollBanner 형식으로 변환
+  const adBannerItems = bannerAds.map((s) => ({
+    id:       s.adId,
+    gradient: s.bannerGradient ?? "from-pick-purple-dark via-pick-purple to-pick-purple-light",
+    badge:    "AD 📢",
+    badgeBg:  "bg-white/25 text-white",
+    title:    s.bannerTitle ?? s.name,
+    sub:      s.bannerSub ?? s.description ?? "",
+    href:     `/store/${s.id}`,
+  }));
+
   return (
     <>
-      {/* 배너 광고 */}
-      {bannerAds.length > 0 && (
-        <div className="px-4 pt-1 pb-0">
-          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide snap-x snap-mandatory">
-            {bannerAds.map((store) => (
-              <Link
-                key={store.adId}
-                href={`/store/${store.id}`}
-                className={`flex-shrink-0 w-[76vw] max-w-[310px] snap-start bg-gradient-to-r ${
-                  store.bannerGradient ?? "from-pick-purple-dark via-pick-purple to-pick-purple-light"
-                } rounded-3xl p-5 text-white shadow-lg active:scale-95 transition-transform`}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="text-[10px] font-black px-2.5 py-1 rounded-full bg-white/25">
-                    AD
-                  </div>
-                  <Megaphone size={22} className="text-white/70" />
-                </div>
-                <p className="font-black text-base leading-snug mb-1">
-                  {store.bannerTitle ?? store.name}
-                </p>
-                <p className="text-xs text-white/80 leading-relaxed">
-                  {store.bannerSub ?? store.description ?? ""}
-                </p>
-              </Link>
-            ))}
-          </div>
+      {/* 배너 광고 — 자동 슬라이드 */}
+      {adBannerItems.length > 0 && (
+        <div className="pt-1">
+          <AutoScrollBanner items={adBannerItems} />
         </div>
       )}
 
@@ -184,64 +176,41 @@ async function SponsoredSection() {
   );
 }
 
-/* ────────────── 프로모션 배너 ────────────── */
-const BANNERS = [
+/* ────────────── 프로모션 배너 데이터 ────────────── */
+const PROMO_BANNERS = [
   {
     id: "welcome",
     gradient: "from-pick-purple-dark via-pick-purple to-pick-purple-light",
-    icon: <Gift size={28} className="text-pick-yellow-light" />,
+    badge: "쿠폰", badgeBg: "bg-pick-yellow text-white",
     title: "첫 주문 혜택! 🎉",
     sub: "WELCOME50 코드 입력하고\n50 PICK 즉시 지급",
-    badge: "쿠폰",
-    badgeBg: "bg-pick-yellow text-white",
     href: "/wallet",
   },
   {
     id: "pick",
     gradient: "from-amber-500 via-orange-400 to-yellow-400",
-    icon: <Zap size={28} className="text-white" />,
+    badge: "등급", badgeBg: "bg-white/30 text-white",
     title: "PICK 등급 혜택 ⚡",
     sub: "FOREST 등급 달성 시\n주문금액 3배 적립!",
-    badge: "등급",
-    badgeBg: "bg-white/30 text-white",
     href: "/my-pick",
   },
   {
     id: "free",
     gradient: "from-emerald-500 via-teal-500 to-cyan-500",
-    icon: <Bike size={28} className="text-white" />,
+    badge: "무료배달", badgeBg: "bg-white/30 text-white",
     title: "배달비 무료 쿠폰 🛵",
     sub: "FREESHIP 코드로\n배달비 0원에 주문",
-    badge: "무료배달",
-    badgeBg: "bg-white/30 text-white",
     href: "/wallet",
   },
+  {
+    id: "referral",
+    gradient: "from-rose-500 via-pink-500 to-fuchsia-500",
+    badge: "초대", badgeBg: "bg-white/30 text-white",
+    title: "친구 초대하면 50 PICK 🎁",
+    sub: "친구가 첫 주문 완료 시\n나에게도 50 PICK 지급!",
+    href: "/my-pick",
+  },
 ];
-
-function PromoBanner() {
-  return (
-    <div className="px-4 pt-2 pb-1">
-      <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide snap-x snap-mandatory">
-        {BANNERS.map((b) => (
-          <Link
-            key={b.id}
-            href={b.href}
-            className={`flex-shrink-0 w-[76vw] max-w-[310px] snap-start bg-gradient-to-r ${b.gradient} rounded-3xl p-5 text-white shadow-lg active:scale-95 transition-transform`}
-          >
-            <div className="flex items-start justify-between mb-3">
-              <div className={`text-[10px] font-black px-2.5 py-1 rounded-full ${b.badgeBg}`}>
-                {b.badge}
-              </div>
-              {b.icon}
-            </div>
-            <p className="font-black text-base leading-snug mb-1">{b.title}</p>
-            <p className="text-xs text-white/80 leading-relaxed whitespace-pre-line">{b.sub}</p>
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 /* ────────────── 인기 가게 가로 스크롤 ────────────── */
 function HotStoreCard({ store }: { store: StoreRow }) {
@@ -372,10 +341,15 @@ function StoreCard({ store }: { store: StoreRow }) {
 }
 
 /* ────────────── 가게 목록 뷰 (실데이터) ────────────── */
-async function StoreListView({ category, sort }: { category: string; sort: SortKey }) {
+async function StoreListView({
+  category, sort, openOnly = false, lat, lng,
+}: {
+  category: string; sort: SortKey; openOnly?: boolean;
+  lat?: number | null; lng?: number | null;
+}) {
   const info = CATEGORY_META[category];
   const [{ stores, hasMore }, allSponsored] = await Promise.all([
-    fetchStoresByCategory(category, sort),
+    fetchStoresByCategory(category, sort, 0, undefined, openOnly, lat, lng),
     fetchSponsoredStores(),
   ]);
   // 해당 카테고리의 상단 노출 광고 가게
@@ -437,6 +411,9 @@ async function StoreListView({ category, sort }: { category: string; sort: SortK
             sort={sort}
             initialOffset={stores.length}
             initialHasMore={hasMore}
+            openOnly={openOnly}
+            lat={lat}
+            lng={lng}
           />
         </div>
       )}
@@ -450,11 +427,19 @@ const VALID_SORTS: SortKey[] = ["rating", "delivery_fee", "min_order", "delivery
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; search?: string; sort?: string }>;
+  searchParams: Promise<{ category?: string; search?: string; sort?: string; open?: string }>;
 }) {
-  const { category, search, sort: sortParam } = await searchParams;
+  const { category, search, sort: sortParam, open } = await searchParams;
   const sort: SortKey =
     VALID_SORTS.includes(sortParam as SortKey) ? (sortParam as SortKey) : "rating";
+  const openOnly = open === "1";
+
+  // 쿠키에서 유저 배달 주소 좌표 읽기 (LocationBar가 설정)
+  const cookieStore = await cookies();
+  const latCookie   = cookieStore.get("pick-lat")?.value;
+  const lngCookie   = cookieStore.get("pick-lng")?.value;
+  const userLat     = latCookie  ? parseFloat(latCookie)  : null;
+  const userLng     = lngCookie  ? parseFloat(lngCookie)  : null;
 
   const showSearch   = !!search?.trim();
   const showCategory = !showSearch && !!category;
@@ -467,9 +452,9 @@ export default async function HomePage({
       </Suspense>
 
       {showSearch ? (
-        <SearchResultsView query={search!.trim()} sort={sort} />
+        <SearchResultsView query={search!.trim()} sort={sort} lat={userLat} lng={userLng} />
       ) : showCategory ? (
-        <StoreListView category={category!} sort={sort} />
+        <StoreListView category={category!} sort={sort} openOnly={openOnly} lat={userLat} lng={userLng} />
       ) : (
         <>
           {/* 광고 섹션 (배너 광고 + 상단 노출) */}
@@ -477,10 +462,19 @@ export default async function HomePage({
             <SponsoredSection />
           </Suspense>
 
-          {/* 프로모션 배너 */}
-          <PromoBanner />
+          {/* 프로모션 배너 — 자동 슬라이드 */}
+          <AutoScrollBanner items={PROMO_BANNERS} />
 
-          {/* 인기 가게 */}
+          {/* 카테고리 그리드 — 배너 바로 아래 */}
+          <CategoryGrid />
+
+          {/* 최근 본 가게 */}
+          <RecentlyViewedStores />
+
+          {/* 이 주소 근처 즐겨찾기 */}
+          <NearbyFavorites />
+
+          {/* 지금 인기 가게 */}
           <Suspense fallback={
             <div className="px-4 py-3">
               <div className="h-5 w-32 bg-gray-100 rounded-full mb-3 animate-pulse" />
@@ -493,9 +487,6 @@ export default async function HomePage({
           }>
             <HotStoresSection />
           </Suspense>
-
-          {/* 카테고리 그리드 */}
-          <CategoryGrid />
         </>
       )}
     </div>

@@ -31,14 +31,18 @@ function clearRecent() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
+interface Suggestion { id: string; name: string; category: string; }
+
 export default function SearchBar() {
   const router       = useRouter();
   const searchParams = useSearchParams();
-  const [query,    setQuery]    = useState(searchParams.get("search") ?? "");
-  const [focused,  setFocused]  = useState(false);
-  const [recent,   setRecent]   = useState<string[]>([]);
-  const inputRef   = useRef<HTMLInputElement>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [query,       setQuery]       = useState(searchParams.get("search") ?? "");
+  const [focused,     setFocused]     = useState(false);
+  const [recent,      setRecent]      = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const inputRef    = useRef<HTMLInputElement>(null);
+  const wrapperRef  = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // URL 파라미터 변경 시 동기화
   useEffect(() => {
@@ -49,6 +53,22 @@ export default function SearchBar() {
   useEffect(() => {
     if (focused) setRecent(loadRecent());
   }, [focused]);
+
+  // 타이핑 시 자동완성 (디바운스 300ms)
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!trimmed) { setSuggestions([]); return; }
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetch(`/api/stores/autocomplete?q=${encodeURIComponent(trimmed)}`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => setSuggestions(data?.suggestions ?? []))
+        .catch(() => setSuggestions([]));
+    }, 300);
+
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [query]);
 
   // 외부 클릭 시 드롭다운 닫기
   useEffect(() => {
@@ -98,8 +118,9 @@ export default function SearchBar() {
     setRecent([]);
   };
 
-  const showDropdown = focused && query.trim() === "";
-  const hasRecent    = recent.length > 0;
+  const showDropdown    = focused && query.trim() === "";
+  const showSuggestions = focused && query.trim() !== "" && suggestions.length > 0;
+  const hasRecent       = recent.length > 0;
 
   return (
     <div ref={wrapperRef} className="px-4 pt-4 pb-3 relative z-30">
@@ -129,7 +150,24 @@ export default function SearchBar() {
         </div>
       </form>
 
-      {/* ── 드롭다운 ── */}
+      {/* ── 자동완성 드롭다운 ── */}
+      {showSuggestions && (
+        <div className="absolute left-4 right-4 top-full mt-1 bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-xl overflow-hidden z-30">
+          {suggestions.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => go(s.name)}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-pick-bg active:scale-95 transition-all text-left border-b border-pick-border/50 last:border-0"
+            >
+              <Search size={13} className="text-pick-purple flex-shrink-0" />
+              <span className="text-sm font-semibold text-pick-text flex-1 truncate">{s.name}</span>
+              <span className="text-[10px] text-pick-text-sub flex-shrink-0">{s.category}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ── 최근/인기 드롭다운 ── */}
       {showDropdown && (
         <div className="absolute left-4 right-4 top-full mt-1 bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-xl overflow-hidden">
           {/* 최근 검색어 */}

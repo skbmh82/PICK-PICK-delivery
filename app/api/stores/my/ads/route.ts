@@ -24,11 +24,11 @@ export async function GET() {
   const admin = getAdminSupabaseClient();
 
   // 내 가게 조회
-  const { data: store } = await admin
-    .from("stores")
-    .select("id")
-    .eq("owner_id", (await admin.from("users").select("id").eq("auth_id", user.id).single()).data?.id)
-    .single();
+  const ownerId = (await admin.from("users").select("id").eq("auth_id", user.id).single()).data?.id;
+  const { data: storeListGet } = await admin
+    .from("stores").select("id").eq("owner_id", ownerId)
+    .order("created_at", { ascending: false }).limit(1);
+  const store = storeListGet?.[0] ?? null;
 
   if (!store) return NextResponse.json({ error: "가게를 찾을 수 없습니다" }, { status: 404 });
 
@@ -68,7 +68,9 @@ export async function POST(req: NextRequest) {
   const { data: owner } = await admin.from("users").select("id").eq("auth_id", user.id).single();
   if (!owner) return NextResponse.json({ error: "사용자 없음" }, { status: 404 });
 
-  const { data: store } = await admin.from("stores").select("id, is_approved").eq("owner_id", owner.id).single();
+  const { data: storeList } = await admin.from("stores").select("id, is_approved").eq("owner_id", owner.id)
+    .order("created_at", { ascending: false }).limit(1);
+  const store = storeList?.[0] ?? null;
   if (!store) return NextResponse.json({ error: "가게를 찾을 수 없습니다" }, { status: 404 });
   if (!store.is_approved) {
     return NextResponse.json({ error: "승인된 가게만 광고를 신청할 수 있습니다" }, { status: 403 });

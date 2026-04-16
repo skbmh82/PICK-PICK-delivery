@@ -19,9 +19,11 @@ async function getOwnerAndStore() {
     return { error: "사장님 권한이 필요합니다", status: 403 };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: store } = await (admin as any)
-    .from("stores").select("id").eq("owner_id", profile.id).single();
+  const { data: storeList } = await (admin as any)
+    .from("stores").select("id").eq("owner_id", profile.id)
+    .order("created_at", { ascending: false }).limit(1);
 
+  const store = storeList?.[0] ?? null;
   if (!store) return { error: "가게를 찾을 수 없습니다", status: 404 };
 
   return { admin, profile, store };

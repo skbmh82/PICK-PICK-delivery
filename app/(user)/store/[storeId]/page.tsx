@@ -7,10 +7,13 @@ import StoreDetailClient, { type StoreDetail, type MenuItem, type ReviewItem, ty
 
 export default async function StoreDetailPage({
   params,
+  searchParams,
 }: {
-  params: Promise<{ storeId: string }>;
+  params:       Promise<{ storeId: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
-  const { storeId } = await params;
+  const [{ storeId }, { tab }] = await Promise.all([params, searchParams]);
+  const initialTab = (tab === "review" || tab === "info") ? tab : "menu";
 
   const [storeRow, menuRows] = await Promise.all([
     fetchStoreById(storeId),
@@ -171,5 +174,5 @@ export default async function StoreDetailPage({
     })),
   };
 
-  return <StoreDetailClient store={store} isFavorited={isFavorited} reviews={reviews} todayHours={todayHours} weeklyHours={weeklyHours} />;
+  return <StoreDetailClient store={store} isFavorited={isFavorited} reviews={reviews} todayHours={todayHours} weeklyHours={weeklyHours} initialTab={initialTab} />;
 }
