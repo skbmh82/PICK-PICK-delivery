@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { ClipboardList, TrendingUp, Bell, CheckCircle, XCircle, Clock, RefreshCw, Store, ChevronDown, X, Check, BarChart2, Utensils, Zap, ArrowUp, ArrowDown, Settings, MapPin, Navigation, Gift, Copy, Share2 } from "lucide-react";
 
-import { useStoreOrderRealtime } from "@/hooks/useRealtime";
+import { useStoreOrderRealtime, useStoreOrderStatusRealtime } from "@/hooks/useRealtime";
 import { useOrderSound } from "@/lib/useOrderSound";
 
 // ── 타입 ──────────────────────────────────────────────
@@ -914,7 +914,12 @@ export default function OwnerDashboardPage() {
     fetchDashboard();
   });
 
-  // 폴링 백업: 10초마다 신규 주문 수 체크 → 증가하면 알림음 (Realtime 누락 대비)
+  // 주문 상태 변경 실시간 (고객 취소 포함) → 대시보드 재조회
+  useStoreOrderStatusRealtime(storeId, (_orderId, _newStatus) => {
+    fetchDashboard();
+  });
+
+  // 폴링 백업: 5초마다 신규 주문 수 체크 (Realtime 누락 대비)
   const prevPendingRef = useRef(0);
   useEffect(() => {
     if (!storeId) return;
@@ -923,14 +928,13 @@ export default function OwnerDashboardPage() {
       if (!res?.ok) return;
       const fresh = await res.json() as { pendingOrders?: unknown[] };
       const count = fresh.pendingOrders?.length ?? 0;
-      if (count > prevPendingRef.current) {
-        playOrderSound();
+      if (count !== prevPendingRef.current) {
         fetchDashboard();
       }
       prevPendingRef.current = count;
-    }, 10000);
+    }, 5000);
     return () => clearInterval(interval);
-  }, [storeId, playOrderSound, fetchDashboard]);
+  }, [storeId, fetchDashboard]);
 
   // 신규 주문이 모두 처리되면 알림음 중단
   const pendingCount = data?.pendingOrders?.length ?? 0;

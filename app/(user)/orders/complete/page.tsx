@@ -134,7 +134,6 @@ export default function OrderCompletePage() {
       <div className="w-full flex flex-col gap-3">
         <Link
           href="/orders"
-          onClick={clearLastOrder}
           className="w-full bg-gradient-to-r from-pick-purple to-pick-purple-light text-white font-black py-4 rounded-full shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-transform"
         >
           <ClipboardList size={20} />
