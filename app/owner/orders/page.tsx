@@ -375,25 +375,31 @@ function OrderCard({
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-2xl px-3 py-2">
                 <Bike size={14} className="text-orange-500 flex-shrink-0" />
-                <span className="text-xs text-orange-600 font-bold">라이더 출발 중 — 조리 마무리하세요</span>
+                <span className="text-xs text-orange-600 font-bold">
+                  {order.rider_id
+                    ? "라이더 이동 중 🛵 — 조리 완료 버튼을 눌러주세요"
+                    : "라이더 호출 중 — 조리 마무리하세요"}
+                </span>
               </div>
               {!showCancel ? (
                 <>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      disabled={notifying}
-                      onClick={handleNotifyRiders}
-                      className="flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-orange-100 border-2 border-orange-300 text-orange-700 font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
-                    >
-                      {notifying
-                        ? <span className="w-4 h-4 border-2 border-orange-400/40 border-t-orange-600 rounded-full animate-spin" />
-                        : <Bell size={14} />}
-                      라이더 재호출
-                    </button>
+                  <div className={order.rider_id ? "" : "grid grid-cols-2 gap-2"}>
+                    {!order.rider_id && (
+                      <button
+                        disabled={notifying}
+                        onClick={handleNotifyRiders}
+                        className="flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-orange-100 border-2 border-orange-300 text-orange-700 font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
+                      >
+                        {notifying
+                          ? <span className="w-4 h-4 border-2 border-orange-400/40 border-t-orange-600 rounded-full animate-spin" />
+                          : <Bell size={14} />}
+                        라이더 재호출
+                      </button>
+                    )}
                     <button
                       disabled={loading}
                       onClick={() => handleStatus("ready")}
-                      className="flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-green-500 text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
+                      className="w-full flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-green-500 text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
                     >
                       {loading
                         ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />

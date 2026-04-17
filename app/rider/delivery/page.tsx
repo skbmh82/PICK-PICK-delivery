@@ -5,7 +5,7 @@ import { MapPin, Package, CheckCircle, X, Clock, Bike, RefreshCw, Navigation, Ma
 import { openKakaoNavi, openKakaoRoute } from "@/lib/kakao/maps";
 
 // ── 타입 ──────────────────────────────────────────────
-type DBStatus = "ready" | "picked_up" | "delivering" | "delivered" | "cancelled";
+type DBStatus = "calling_rider" | "ready" | "picked_up" | "delivering" | "delivered" | "cancelled";
 
 interface DeliveryOrder {
   id: string;
@@ -36,11 +36,12 @@ interface AvailableOrder {
 
 // ── 상태 설정 ─────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  ready:      { label: "수락 대기", color: "text-blue-600",  bg: "bg-blue-50",  border: "border-blue-200" },
-  picked_up:  { label: "픽업 이동", color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200" },
-  delivering: { label: "배달 중",  color: "text-sky-600",   bg: "bg-sky-50",   border: "border-sky-200" },
-  delivered:  { label: "배달 완료", color: "text-gray-400",  bg: "bg-gray-50",  border: "border-gray-200" },
-  cancelled:  { label: "취소",     color: "text-gray-400",  bg: "bg-gray-50",  border: "border-gray-100" },
+  calling_rider: { label: "조리 대기", color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-200" },
+  ready:         { label: "수락 대기", color: "text-blue-600",   bg: "bg-blue-50",   border: "border-blue-200" },
+  picked_up:     { label: "픽업 이동", color: "text-amber-600",  bg: "bg-amber-50",  border: "border-amber-200" },
+  delivering:    { label: "배달 중",   color: "text-sky-600",    bg: "bg-sky-50",    border: "border-sky-200" },
+  delivered:     { label: "배달 완료", color: "text-gray-400",   bg: "bg-gray-50",   border: "border-gray-200" },
+  cancelled:     { label: "취소",      color: "text-gray-400",   bg: "bg-gray-50",   border: "border-gray-100" },
 };
 
 // ── 배달 가능 주문 카드 ────────────────────────────────
@@ -313,6 +314,14 @@ function DeliveryCard({
 
         {!isDone && (
           <>
+            {order.status === "calling_rider" && (
+              <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3">
+                <Clock size={16} className="text-orange-500 flex-shrink-0" />
+                <span className="text-sm font-bold text-orange-600">
+                  매장 도착 후 조리 완료를 기다려주세요 🍳
+                </span>
+              </div>
+            )}
             {order.status === "picked_up" && (
               <button
                 disabled={loading}
@@ -437,7 +446,7 @@ export default function RiderDeliveryPage() {
     }
   };
 
-  const activeCount    = myDeliveries.filter((o) => ["picked_up","delivering"].includes(o.status)).length;
+  const activeCount    = myDeliveries.filter((o) => ["calling_rider","picked_up","delivering"].includes(o.status)).length;
   const availableCount = availableOrders.length;
 
   return (

@@ -56,10 +56,13 @@ export async function POST(
 
   // 조건부 UPDATE — (status=ready OR calling_rider) AND rider_id IS NULL 인 경우만 업데이트
   // SELECT → UPDATE 사이 Race Condition 방지 (두 라이더 동시 수락 차단)
+  // - ready: 조리 완료 → 바로 picked_up
+  // - calling_rider: 조리 중 라이더 호출 → rider_id만 배정, 상태는 유지 (사장님이 조리완료 눌러야 ready)
+  const nextStatus = orderCheck.status === "ready" ? "picked_up" : "calling_rider";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: updated, error: updateError } = await (admin as any)
     .from("orders")
-    .update({ rider_id: profile.id, status: "picked_up", updated_at: new Date().toISOString() })
+    .update({ rider_id: profile.id, status: nextStatus, updated_at: new Date().toISOString() })
     .eq("id", orderId)
     .in("status", ["ready", "calling_rider"])
     .is("rider_id", null)
