@@ -276,7 +276,9 @@ export default function RiderDashboardPage() {
       if (statsRes.ok)  setStats(await statsRes.json());
       if (ordersRes.ok) {
         const { orders } = await ordersRes.json();
-        setAvailableOrders(orders ?? []);
+        const list: AvailableOrder[] = orders ?? [];
+        setAvailableOrders(list);
+        prevOrderCountRef.current = list.length; // 초기 카운트 동기화
       }
     } finally {
       setLoading(false);
