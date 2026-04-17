@@ -97,7 +97,42 @@ BEGIN
 END;
 $$;
 
--- ── 4. PICK 차감 RPC alias (주문 생성 시 호출) ───────────────────
+-- ── 4. PICK 환불 RPC (주문 취소 시 호출) ─────────────────────────
+-- app/api/orders/[orderId]/cancel/route.ts 에서 refund_pick 으로 호출
+CREATE OR REPLACE FUNCTION refund_pick(
+  p_user_id   UUID,
+  p_amount    DECIMAL,
+  p_order_id  UUID    DEFAULT NULL,
+  p_desc      TEXT    DEFAULT '환불'
+)
+RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_wallet_id   UUID;
+  v_new_balance DECIMAL;
+BEGIN
+  SELECT id, pick_balance INTO v_wallet_id, v_new_balance
+  FROM wallets WHERE user_id = p_user_id FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE WARNING 'refund_pick: wallet not found for user %', p_user_id;
+    RETURN;
+  END IF;
+
+  v_new_balance := COALESCE(v_new_balance, 0) + p_amount;
+
+  UPDATE wallets SET
+    pick_balance = v_new_balance,
+    updated_at   = NOW()
+  WHERE user_id = p_user_id;
+
+  INSERT INTO wallet_transactions
+    (wallet_id, type, amount, balance_after, ref_order_id, description)
+  VALUES
+    (v_wallet_id, 'refund', p_amount, v_new_balance, p_order_id, p_desc);
+END;
+$$;
+
+-- ── 5. PICK 차감 RPC alias (주문 생성 시 호출) ───────────────────
 -- app/api/orders/route.ts 에서 deduct_pick 으로 호출
 CREATE OR REPLACE FUNCTION deduct_pick(
   p_user_id   UUID,
