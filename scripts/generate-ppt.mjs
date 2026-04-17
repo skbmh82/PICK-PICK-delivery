@@ -64,7 +64,7 @@ const C = {
     fill: { color: C.purpleLight }, line: { color: C.purpleLight },
   });
 
-  slide.addText("2026년 4월 16일  |  레퍼럴 재설계 · 리뷰보상 연동 · 라이더 5km 필터 · 자동오프라인 Cron", {
+  slide.addText("2026년 4월 17일  |  주문 취소 감지 개선 · 라이더 상태 흐름 수정 · 알림 즉시 중단", {
     x: 1, y: 3.6, w: 11.6, h: 0.5,
     fontSize: 14, color: "C4B5FD",
     align: "center",
@@ -88,7 +88,7 @@ const C = {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("📊  PICK PICK 진행 현황 (4/16 최신)", {
+  slide.addText("📊  PICK PICK 진행 현황 (4/17 최신)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 26, bold: true, color: C.purpleDark,
   });
@@ -119,6 +119,7 @@ const C = {
     { label: "친구 초대 리워드 역할별 배치 (사용자·사장님·라이더)", pct: 100, color: C.green },
     { label: "레퍼럴 재설계: 초대자 5K 고정 · 역할별 웰컴 보너스",  pct: 100, color: C.green },
     { label: "라이더 5km 반경 필터링 + 10분 자동오프라인 Cron",      pct: 100, color: C.green },
+    { label: "주문 취소 즉시 반영 · calling_rider 상태 흐름 재설계",  pct: 100, color: C.green },
   ];
 
   progressItems.forEach((item, i) => {
@@ -149,7 +150,7 @@ const C = {
 
   // 우측 요약 박스
   const summary = [
-    { icon: "✅", label: "완료 기능",  value: "60개+", color: C.green,  pale: C.greenPale },
+    { icon: "✅", label: "완료 기능",  value: "65개+", color: C.green,  pale: C.greenPale },
     { icon: "🚧", label: "진행 중",    value: "0개",   color: C.yellow, pale: "FFFBEB" },
     { icon: "⏳", label: "미착수",     value: "0개",   color: C.textSub, pale: "F3F4F6" },
   ];
@@ -941,12 +942,94 @@ const C = {
   });
 }
 
-// ── 슬라이드 13 — 완료된 기능 전체 목록 (4/16 기준) ───
+// ── 슬라이드 13 — Day 12 작업 내역 (4/17) ─────────────
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("✅  완료된 기능 전체 목록 (4/16 최신)", {
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 2.9, h: 0.55,
+    fill: { color: "F0FDFA" }, line: { color: "0D9488" },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 04. 17 (Day 12)", {
+    x: 0.4, y: 0.18, w: 2.9, h: 0.55,
+    fontSize: 11, bold: true, color: "0D9488", align: "center",
+  });
+
+  slide.addText("🔧  주문 취소 즉시 반영 · calling_rider 상태 흐름 재설계 · RLS 정책 추가", {
+    x: 3.5, y: 0.22, w: 10.1, h: 0.55,
+    fontSize: 17, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day12 = [
+    {
+      emoji: "🚫", title: "주문현황보기 홈이동 버그 수정",
+      desc: "clearLastOrder() onClick 제거\n취소 클릭 시 useEffect(!lastOrder)\n→ /home 강제 이동 원인 차단\n주문 현황 페이지 정상 이동",
+    },
+    {
+      emoji: "🔔", title: "취소 감지 즉시 반영",
+      desc: "사장님·라이더 대시보드\nPolling 10s → 5s 단축\n취소 주문 감지 즉시 알림 중단\nuseStoreOrderStatusRealtime 연동",
+    },
+    {
+      emoji: "🔄", title: "calling_rider 상태 흐름 재설계",
+      desc: "수락 API: 상태별 분기 처리\n  ready → picked_up 즉시 전환\n  calling_rider → 상태 유지\nrider_id만 배정, 조리완료 대기",
+    },
+    {
+      emoji: "🛵", title: "라이더 배달 페이지 개선",
+      desc: "calling_rider: '조리 대기' 레이블\nready: '픽업 대기' + 픽업완료 버튼\nactiveStatuses에 calling_rider·ready 추가\n조리완료 후 주문 사라짐 버그 수정",
+    },
+    {
+      emoji: "🛡️", title: "Supabase RLS 정책 추가",
+      desc: "라이더 미배정 주문 조회 권한\nriders_can_read_available_orders\nstatus IN (ready, calling_rider)\nAND rider_id IS NULL 조건 추가",
+    },
+    {
+      emoji: "⚙️", title: "activeStatuses 전반 수정",
+      desc: "owner API: calling_rider 누락 추가\nrider deliveries: ready 누락 추가\nrider dashboard: 취소 감지 폴링 개선\nprevOrderCountRef 초기화 버그 수정",
+    },
+  ];
+
+  day12.forEach((item, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
+    const y = 1.0 + row * 2.55;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.1, h: 2.35,
+      fill: { color: "F0FDFA" }, line: { color: "99F6E4" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: y + 0.2, w: 0.58, h: 0.58,
+      fill: { color: C.white }, line: { color: "99F6E4" },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.18, y: y + 0.18, w: 0.6, h: 0.6,
+      fontSize: 18, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
+      fontSize: 12, bold: true, color: "0D9488",
+    });
+    slide.addText(item.desc, {
+      x: x + 0.22, y: y + 0.78, w: 3.65, h: 1.42,
+      fontSize: 10, color: C.textDark, wrap: true,
+    });
+  });
+}
+
+// ── 슬라이드 14 — 완료된 기능 전체 목록 (4/17 기준) ───
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addText("✅  완료된 기능 전체 목록 (4/17 최신)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 24, bold: true, color: C.purpleDark,
   });
@@ -1008,6 +1091,7 @@ const C = {
         "배달 수락 → PICK 자동 지급 + 위치 공유",
         "라이더 5km 반경 필터링 + 거리순 정렬",
         "10분 자동오프라인 Cron (매 5분 실행)",
+        "calling_rider 상태 흐름 재설계 + 픽업완료 버튼",
         "FCM 푸시 알림 + 관리자 일괄 발송",
         "PWA 오프라인 캐싱 (Serwist) + Sentry 모니터링",
       ],
@@ -1018,6 +1102,7 @@ const C = {
       items: [
         "DB 인덱스 30개+ (GIN 전문검색 포함)",
         "운영 RLS 정책 + Storage 버킷 정책",
+        "RLS 라이더 미배정 주문 조회 정책 추가",
         "관리자 5탭: 통계·회원·가게·쿠폰·FCM 푸시",
         "404·에러·로딩·스플래시 페이지",
         "다크모드 + Tailwind dark: 클래스 전면 적용",
@@ -1074,7 +1159,7 @@ const C = {
     fill: { color: C.greenPale }, line: { color: C.green },
     rectRadius: 0.12,
   });
-  slide.addText("🎉  Phase 1~3 완성! 55개+ 기능 구현 · 미착수 기능 0개 · Pi Network 연동만 남음", {
+  slide.addText("🎉  Phase 1~3 완성! 65개+ 기능 구현 · 미착수 기능 0개 · Pi Network 연동만 남음", {
     x: 0.4, y: 1.0, w: 13.2, h: 0.6,
     fontSize: 14, bold: true, color: C.green, align: "center",
   });
