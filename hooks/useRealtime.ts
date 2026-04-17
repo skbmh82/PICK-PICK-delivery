@@ -15,11 +15,12 @@ export function useOrderRealtime(
   onStatusChange: (newStatus: OrderStatus) => void
 ) {
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const cbRef      = useRef(onStatusChange);
+  cbRef.current    = onStatusChange;
 
   useEffect(() => {
     if (!orderId) return;
 
-    // 기존 채널 정리
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
     }
@@ -32,11 +33,10 @@ export function useOrderRealtime(
           event:  "UPDATE",
           schema: "public",
           table:  "orders",
-          filter: `id=eq.${orderId}`,
         },
         (payload) => {
-          const newStatus = (payload.new as { status: OrderStatus }).status;
-          if (newStatus) onStatusChange(newStatus);
+          const row = payload.new as { id: string; status: OrderStatus };
+          if (row.id === orderId && row.status) cbRef.current(row.status);
         }
       )
       .subscribe();
@@ -92,12 +92,16 @@ export function useStoreOrderRealtime(
   }, [storeId]);
 }
 
-// ── 가맹점 주문 상태 변경 실시간 (라이더 픽업·배달 완료 등) ──
+// ── 가맹점 주문 상태 변경 실시간 (고객 취소·라이더 픽업·배달 완료 등) ──
+// NOTE: UPDATE 이벤트에 서버사이드 filter를 쓰면 REPLICA IDENTITY 미설정 시
+//       이벤트가 묵음 처리됨. 필터 없이 받아서 클라이언트에서 store_id 확인.
 export function useStoreOrderStatusRealtime(
   storeId: string | null,
   onStatusChange: (orderId: string, newStatus: OrderStatus) => void
 ) {
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const cbRef      = useRef(onStatusChange);
+  cbRef.current    = onStatusChange; // 항상 최신 콜백 유지
 
   useEffect(() => {
     if (!storeId) return;
@@ -114,11 +118,13 @@ export function useStoreOrderStatusRealtime(
           event:  "UPDATE",
           schema: "public",
           table:  "orders",
-          filter: `store_id=eq.${storeId}`,
+          // 필터 없이 수신 후 클라이언트에서 store_id 검증
         },
         (payload) => {
-          const { id, status } = payload.new as { id: string; status: OrderStatus };
-          if (id && status) onStatusChange(id, status);
+          const row = payload.new as { id: string; status: OrderStatus; store_id: string };
+          if (row.store_id === storeId && row.id && row.status) {
+            cbRef.current(row.id, row.status);
+          }
         }
       )
       .subscribe();
