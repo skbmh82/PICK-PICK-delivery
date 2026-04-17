@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Bike, TrendingUp, MapPin, CheckCircle, Clock, Star, RefreshCw, Volume2 } from "lucide-react";
-import { useRiderAvailableOrderRealtime } from "@/hooks/useRealtime";
+import { useRiderAvailableOrderRealtime, useRiderAvailableOrderStatusRealtime } from "@/hooks/useRealtime";
 import { useOrderSound } from "@/lib/useOrderSound";
 
 // ── 타입 ──────────────────────────────────────────────
@@ -302,21 +302,41 @@ export default function RiderDashboardPage() {
     }).catch(() => {/* 무시 */});
   });
 
-  // 폴링 백업: 10초마다 가능 주문 수 확인 → 증가하면 알림음 (Realtime 누락 대비)
+  // 배달 가능 주문의 상태 변경 감지 (취소 등) → 목록에서 제거 + 소리 중단
+  const availableOrdersRef = useRef(availableOrders);
+  useEffect(() => { availableOrdersRef.current = availableOrders; }, [availableOrders]);
+
+  useRiderAvailableOrderStatusRealtime(
+    availableOrders.map((o) => o.id),
+    (orderId, newStatus) => {
+      if (newStatus === "cancelled" || newStatus === "confirmed" || newStatus === "picked_up") {
+        setAvailableOrders((prev) => {
+          const next = prev.filter((o) => o.id !== orderId);
+          if (next.length === 0) stopSound();
+          return next;
+        });
+      }
+    }
+  );
+
+  // 폴링 백업: 5초마다 가능 주문 수 확인 (Realtime 누락 대비)
   useEffect(() => {
     const interval = setInterval(async () => {
       const r = await fetch("/api/rider/available-orders").catch(() => null);
       if (!r?.ok) return;
-      const { orders } = await r.json() as { orders?: unknown[] };
-      const count = orders?.length ?? 0;
+      const { orders } = await r.json() as { orders?: AvailableOrder[] };
+      const fresh = orders ?? [];
+      const count = fresh.length;
       if (count > prevOrderCountRef.current) {
         playSound();
-        setAvailableOrders(orders as AvailableOrder[]);
+      } else if (count < prevOrderCountRef.current && count === 0) {
+        stopSound();
       }
       prevOrderCountRef.current = count;
-    }, 10000);
+      setAvailableOrders(fresh);
+    }, 5000);
     return () => clearInterval(interval);
-  }, [playSound]);
+  }, [playSound, stopSound]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

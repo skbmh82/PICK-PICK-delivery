@@ -183,6 +183,49 @@ export function useRiderAvailableOrderRealtime(
   }, [enabled]);
 }
 
+// ── 라이더: 배달 가능 주문의 상태 변경 감지 (취소 등) ──
+// availableOrderIds 목록에 포함된 주문의 status 가 바뀌면 fires
+export function useRiderAvailableOrderStatusRealtime(
+  orderIds: string[],
+  onStatusChange: (orderId: string, newStatus: OrderStatus) => void
+) {
+  const cbRef      = useRef(onStatusChange);
+  cbRef.current    = onStatusChange;
+  const idsRef     = useRef(orderIds);
+  idsRef.current   = orderIds;
+  const channelRef = useRef<RealtimeChannel | null>(null);
+
+  useEffect(() => {
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+    }
+
+    const channel = supabase
+      .channel("rider:available-order-status")
+      .on(
+        "postgres_changes",
+        {
+          event:  "UPDATE",
+          schema: "public",
+          table:  "orders",
+        },
+        (payload) => {
+          const row = payload.new as { id: string; status: OrderStatus };
+          if (row.id && row.status && idsRef.current.includes(row.id)) {
+            cbRef.current(row.id, row.status);
+          }
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []); // 한 번만 구독, orderIds 는 ref 로 관리
+}
+
 // ── 라이더 위치 실시간 구독 (배달 중인 사용자용) ────────
 export function useRiderLocationRealtime(
   riderId: string | null,
