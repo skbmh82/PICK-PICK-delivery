@@ -555,13 +555,43 @@ export default function OwnerOrdersPage() {
     if (tab === "active") fetchOrders("active");
   });
 
-  // 주문 상태 UPDATE 실시간 반영 (고객 취소·라이더 픽업·배달 완료 등)
+  // 주문 상태 UPDATE 실시간 반영 — Realtime 보조
   useStoreOrderStatusRealtime(storeId, (orderId, newStatus) => {
     if (newStatus === "cancelled") stopOrderSound();
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
     );
   });
+
+  // 폴링 — 15초마다 active 탭 자동 갱신 (Realtime 누락 대비)
+  // 고객 취소 등 외부 변경이 최대 15초 내에 반영됨
+  const ordersRef = useRef(orders);
+  useEffect(() => { ordersRef.current = orders; }, [orders]);
+
+  useEffect(() => {
+    if (!storeId) return;
+    const interval = setInterval(async () => {
+      if (tab !== "active") return;
+      const res = await fetch("/api/stores/my/orders?tab=active");
+      if (!res.ok) return;
+      const data = await res.json();
+      const fresh: Order[] = data.orders ?? [];
+
+      // 이전에 pending 이었던 주문이 사라지거나 cancelled 가 되면 소리 중단
+      const prevPendingIds = ordersRef.current
+        .filter((o) => o.status === "pending")
+        .map((o) => o.id);
+      const freshMap = new Map(fresh.map((o) => [o.id, o]));
+      const hasCancelledPending = prevPendingIds.some(
+        (id) => !freshMap.has(id) || freshMap.get(id)?.status === "cancelled"
+      );
+      if (hasCancelledPending) stopOrderSound();
+
+      setOrders(fresh);
+    }, 15000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeId, tab]);
 
   const handleStatusChange = async (id: string, status: OrderStatus, estimatedTime?: number) => {
     const res = await fetch(`/api/orders/${id}/status`, {
