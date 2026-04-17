@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
   const tab = request.nextUrl.searchParams.get("tab") ?? "active";
 
-  const activeStatuses = ["calling_rider", "picked_up", "delivering"];
+  const activeStatuses = ["calling_rider", "ready", "picked_up", "delivering"];
   const doneStatuses   = ["delivered", "cancelled"];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

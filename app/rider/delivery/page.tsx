@@ -5,7 +5,7 @@ import { MapPin, Package, CheckCircle, X, Clock, Bike, RefreshCw, Navigation, Ma
 import { openKakaoNavi, openKakaoRoute } from "@/lib/kakao/maps";
 
 // ── 타입 ──────────────────────────────────────────────
-type DBStatus = "calling_rider" | "ready" | "picked_up" | "delivering" | "delivered" | "cancelled";
+type DBStatus = "calling_rider" | "ready" | "picked_up" | "delivering" | "delivered" | "cancelled" | "refunded";
 
 interface DeliveryOrder {
   id: string;
@@ -37,7 +37,7 @@ interface AvailableOrder {
 // ── 상태 설정 ─────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
   calling_rider: { label: "조리 대기", color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-200" },
-  ready:         { label: "수락 대기", color: "text-blue-600",   bg: "bg-blue-50",   border: "border-blue-200" },
+  ready:         { label: "픽업 대기", color: "text-blue-600",   bg: "bg-blue-50",   border: "border-blue-200" },
   picked_up:     { label: "픽업 이동", color: "text-amber-600",  bg: "bg-amber-50",  border: "border-amber-200" },
   delivering:    { label: "배달 중",   color: "text-sky-600",    bg: "bg-sky-50",    border: "border-sky-200" },
   delivered:     { label: "배달 완료", color: "text-gray-400",   bg: "bg-gray-50",   border: "border-gray-200" },
@@ -322,6 +322,19 @@ function DeliveryCard({
                 </span>
               </div>
             )}
+            {order.status === "ready" && (
+              <button
+                disabled={loading}
+                onClick={() => onStatusChange(order.id, "picked_up")}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-blue-500 text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
+              >
+                {loading
+                  ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  : <Package size={15} />
+                }
+                픽업 완료 🛵
+              </button>
+            )}
             {order.status === "picked_up" && (
               <button
                 disabled={loading}
@@ -446,7 +459,7 @@ export default function RiderDeliveryPage() {
     }
   };
 
-  const activeCount    = myDeliveries.filter((o) => ["calling_rider","picked_up","delivering"].includes(o.status)).length;
+  const activeCount    = myDeliveries.filter((o) => ["calling_rider","ready","picked_up","delivering"].includes(o.status)).length;
   const availableCount = availableOrders.length;
 
   return (
