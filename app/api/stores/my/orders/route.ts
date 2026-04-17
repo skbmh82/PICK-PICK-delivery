@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
   const tab = request.nextUrl.searchParams.get("tab") ?? "active";
   const doneStatuses    = ["delivered", "cancelled", "refunded"];
-  const activeStatuses  = ["pending", "confirmed", "preparing", "ready", "picked_up", "delivering"];
+  const activeStatuses  = ["pending", "confirmed", "preparing", "calling_rider", "ready", "picked_up", "delivering"];
 
   const { data: orders, error } = await admin
     .from("orders")

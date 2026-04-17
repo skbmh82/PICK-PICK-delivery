@@ -563,8 +563,7 @@ export default function OwnerOrdersPage() {
     );
   });
 
-  // 폴링 — 15초마다 active 탭 자동 갱신 (Realtime 누락 대비)
-  // 고객 취소 등 외부 변경이 최대 15초 내에 반영됨
+  // 폴링 — 5초마다 active 탭 자동 갱신 (Realtime 누락 대비)
   const ordersRef = useRef(orders);
   useEffect(() => { ordersRef.current = orders; }, [orders]);
 
@@ -576,19 +575,22 @@ export default function OwnerOrdersPage() {
       if (!res.ok) return;
       const data = await res.json();
       const fresh: Order[] = data.orders ?? [];
-
-      // 이전에 pending 이었던 주문이 사라지거나 cancelled 가 되면 소리 중단
-      const prevPendingIds = ordersRef.current
-        .filter((o) => o.status === "pending")
-        .map((o) => o.id);
       const freshMap = new Map(fresh.map((o) => [o.id, o]));
-      const hasCancelledPending = prevPendingIds.some(
+
+      // 이전에 활성 상태였던 주문이 사라지거나 cancelled 가 되면 소리 중단
+      const hadActive = ordersRef.current.some((o) =>
+        !["delivered", "cancelled", "refunded"].includes(o.status)
+      );
+      const prevActiveIds = ordersRef.current
+        .filter((o) => !["delivered", "cancelled", "refunded"].includes(o.status))
+        .map((o) => o.id);
+      const hasCancellation = prevActiveIds.some(
         (id) => !freshMap.has(id) || freshMap.get(id)?.status === "cancelled"
       );
-      if (hasCancelledPending) stopOrderSound();
+      if (hadActive && hasCancellation) stopOrderSound();
 
       setOrders(fresh);
-    }, 15000);
+    }, 5000);
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId, tab]);
