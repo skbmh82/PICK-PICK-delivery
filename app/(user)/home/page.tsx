@@ -100,9 +100,6 @@ function SponsoredStoreCard({ store }: { store: AdStore }) {
       <div className="px-4 pt-3 pb-4">
         <div className="flex items-start justify-between gap-2 mb-2">
           <h3 className="font-black text-pick-text text-base leading-snug flex-1">{store.name}</h3>
-          <span className="flex-shrink-0 text-xs font-black bg-pick-yellow-light text-pick-yellow-dark px-2.5 py-1 rounded-full">
-            +{store.pick_reward_rate}%
-          </span>
         </div>
         {store.description && (
           <p className="text-xs text-pick-text-sub mb-2 line-clamp-1">{store.description}</p>
@@ -322,13 +319,9 @@ function StoreCard({ store }: { store: StoreRow }) {
           <h3 className={`font-black text-base leading-snug flex-1 ${closed ? "text-gray-400" : "text-pick-text"}`}>
             {store.name}
           </h3>
-          {closed ? (
+          {closed && (
             <span className="flex-shrink-0 text-xs font-black bg-gray-100 text-gray-400 px-2.5 py-1 rounded-full">
               영업종료
-            </span>
-          ) : (
-            <span className="flex-shrink-0 text-xs font-black bg-pick-yellow-light text-pick-yellow-dark px-2.5 py-1 rounded-full">
-              +{store.pick_reward_rate}%
             </span>
           )}
         </div>

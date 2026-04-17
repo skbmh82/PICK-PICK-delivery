@@ -46,7 +46,7 @@ const EMPTY_STORE: StoreInfo = {
   storeEmoji: "",
   deliveryFee: 0,
   minOrderAmount: 0,
-  pickRewardRate: 1,
+  pickRewardRate: 0,
 };
 
 export const useCartStore = create<CartState>((set, get) => ({

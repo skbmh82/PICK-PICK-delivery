@@ -21,7 +21,6 @@ interface StoreData {
   minOrderAmount:        number;
   deliveryTime:          number;
   deliveryRadiusKm:      number;
-  pickRewardRate:        number;
   photoReviewRewardKrw:  number;
   isApproved:            boolean;
   rating:                number;
@@ -663,7 +662,6 @@ export default function StoreSettingsPage() {
   const [minOrderAmount,   setMinOrderAmount]   = useState("");
   const [deliveryTime,     setDeliveryTime]     = useState("");
   const [deliveryRadiusKm, setDeliveryRadiusKm] = useState("5");
-  const [pickRewardRate,        setPickRewardRate]        = useState("1.0"); // 기본값 유지, UI 미노출
   const [photoReviewRewardKrw,  setPhotoReviewRewardKrw]  = useState(0);
   const [imageUrl,       setImageUrl]       = useState<string | null>(null);
   const [bannerUrl,      setBannerUrl]      = useState<string | null>(null);
@@ -691,7 +689,6 @@ export default function StoreSettingsPage() {
         minOrderAmount:       Number(s.min_order_amount),
         deliveryTime:         Number(s.delivery_time),
         deliveryRadiusKm:     Number(s.delivery_radius_km ?? 5),
-        pickRewardRate:       Number(s.pick_reward_rate),
         photoReviewRewardKrw: Number(s.photo_review_reward_krw ?? 0),
         isApproved:           s.is_approved,
         rating:               Number(s.rating),
@@ -711,7 +708,6 @@ export default function StoreSettingsPage() {
       setMinOrderAmount(String(data.minOrderAmount));
       setDeliveryTime(String(data.deliveryTime));
       setDeliveryRadiusKm(String(data.deliveryRadiusKm));
-      setPickRewardRate(String(data.pickRewardRate));
       setPhotoReviewRewardKrw(data.photoReviewRewardKrw);
       setImageUrl(data.imageUrl);
       setBannerUrl(data.bannerUrl);
@@ -747,7 +743,6 @@ export default function StoreSettingsPage() {
     const min    = parseInt(minOrderAmount,   10);
     const time   = parseInt(deliveryTime,     10);
     const radius = parseFloat(deliveryRadiusKm);
-    const rate   = parseFloat(pickRewardRate);
 
     if (isNaN(fee)    || fee    < 0)                return setError("배달비를 올바르게 입력해주세요");
     if (isNaN(min)    || min    < 0)                return setError("최소 주문금액을 올바르게 입력해주세요");
@@ -770,7 +765,6 @@ export default function StoreSettingsPage() {
           minOrderAmount:   min,
           deliveryTime:     time,
           deliveryRadiusKm: radius,
-          pickRewardRate:   rate,
           imageUrl,
           bannerUrl,
         }),

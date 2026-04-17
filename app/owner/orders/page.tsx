@@ -74,21 +74,61 @@ const ETA_OPTIONS = [10, 15, 20, 25, 30, 40, 50, 60];
 function OrderCard({
   order,
   onStatusChange,
+  onCancel,
 }: {
   order: Order;
   onStatusChange: (id: string, status: OrderStatus, estimatedTime?: number) => Promise<void>;
+  onCancel: (id: string) => Promise<void>;
 }) {
   const [expanded,    setExpanded]    = useState(order.status === "pending");
   const [loading,     setLoading]     = useState(false);
   const [eta,         setEta]         = useState(30);
   const [showReject,  setShowReject]  = useState(false);
+  const [showCancel,  setShowCancel]  = useState(false);
+  const [notifying,   setNotifying]   = useState(false);
+  const loadingRef  = useRef(false); // 즉각 잠금 (React 렌더 전에도 작동)
+  const notifyRef   = useRef(false);
   const cfg = STATUS_CONFIG[order.status];
 
   const handleStatus = async (status: OrderStatus, estimatedTime?: number) => {
+    if (loadingRef.current) return; // 즉각 중복 방지
+    loadingRef.current = true;
     setLoading(true);
     await onStatusChange(order.id, status, estimatedTime);
+    loadingRef.current = false;
     setLoading(false);
     setShowReject(false);
+    setShowCancel(false);
+  };
+
+  const handleCancelConfirm = async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    setLoading(true);
+    await onCancel(order.id);
+    loadingRef.current = false;
+    setLoading(false);
+    setShowCancel(false);
+  };
+
+  const handleNotifyRiders = async () => {
+    if (notifyRef.current) return;
+    notifyRef.current = true;
+    setNotifying(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/notify-riders`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        alert(data.notified > 0
+          ? `${data.notified}명의 라이더에게 재요청을 보냈어요 🛵`
+          : (data.message ?? "근처 라이더가 없어요"));
+      } else {
+        alert(data.error ?? "라이더 재호출에 실패했습니다");
+      }
+    } finally {
+      notifyRef.current = false;
+      setNotifying(false);
+    }
   };
 
   const timeStr = new Date(order.created_at).toLocaleTimeString("ko-KR", {
@@ -271,30 +311,62 @@ function OrderCard({
                 <Clock size={14} className="text-amber-500 animate-spin flex-shrink-0" style={{ animationDuration: "3s" }} />
                 <span className="text-xs text-amber-600 font-bold">조리 중...</span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                {/* 라이더 미리 호출 → calling_rider (조리는 계속, 라이더만 출발) */}
-                <button
-                  disabled={loading}
-                  onClick={() => handleStatus("calling_rider")}
-                  className="flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-gradient-to-r from-purple-500 to-pick-purple text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
-                >
-                  {loading
-                    ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                    : <Bike size={14} />}
-                  라이더 호출
-                </button>
-                {/* 조리 완료 → ready (라이더 픽업 가능) */}
-                <button
-                  disabled={loading}
-                  onClick={() => handleStatus("ready")}
-                  className="flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-green-500 text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
-                >
-                  {loading
-                    ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                    : <ChefHat size={14} />}
-                  조리 완료
-                </button>
-              </div>
+              {!showCancel ? (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* 라이더 미리 호출 → calling_rider (조리는 계속, 라이더만 출발) */}
+                    <button
+                      disabled={loading}
+                      onClick={() => handleStatus("calling_rider")}
+                      className="flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-gradient-to-r from-purple-500 to-pick-purple text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
+                    >
+                      {loading
+                        ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                        : <Bike size={14} />}
+                      라이더 호출
+                    </button>
+                    {/* 조리 완료 → ready (라이더 픽업 가능) */}
+                    <button
+                      disabled={loading}
+                      onClick={() => handleStatus("ready")}
+                      className="flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-green-500 text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
+                    >
+                      {loading
+                        ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                        : <ChefHat size={14} />}
+                      조리 완료
+                    </button>
+                  </div>
+                  <button
+                    disabled={loading}
+                    onClick={() => setShowCancel(true)}
+                    className="w-full text-xs text-gray-400 underline py-1 active:opacity-60 transition-opacity"
+                  >
+                    주문 취소
+                  </button>
+                </>
+              ) : (
+                <div className="bg-red-50 border-2 border-red-200 rounded-2xl px-4 py-3">
+                  <p className="text-sm font-bold text-red-700 mb-3 text-center">정말 취소하시겠어요?</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setShowCancel(false)}
+                      className="py-2.5 rounded-2xl border-2 border-pick-border text-pick-text-sub font-bold text-sm active:scale-95 transition-transform"
+                    >
+                      돌아가기
+                    </button>
+                    <button
+                      disabled={loading}
+                      onClick={handleCancelConfirm}
+                      className="py-2.5 rounded-2xl bg-red-500 text-white font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
+                    >
+                      {loading
+                        ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin mx-auto block" />
+                        : "취소 확인"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -305,25 +377,115 @@ function OrderCard({
                 <Bike size={14} className="text-orange-500 flex-shrink-0" />
                 <span className="text-xs text-orange-600 font-bold">라이더 출발 중 — 조리 마무리하세요</span>
               </div>
-              <button
-                disabled={loading}
-                onClick={() => handleStatus("ready")}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-500 text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
-              >
-                {loading
-                  ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  : <ChefHat size={16} />}
-                조리 완료 (픽업 준비 완료)
-              </button>
+              {!showCancel ? (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      disabled={notifying}
+                      onClick={handleNotifyRiders}
+                      className="flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-orange-100 border-2 border-orange-300 text-orange-700 font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
+                    >
+                      {notifying
+                        ? <span className="w-4 h-4 border-2 border-orange-400/40 border-t-orange-600 rounded-full animate-spin" />
+                        : <Bell size={14} />}
+                      라이더 재호출
+                    </button>
+                    <button
+                      disabled={loading}
+                      onClick={() => handleStatus("ready")}
+                      className="flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-green-500 text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
+                    >
+                      {loading
+                        ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                        : <ChefHat size={14} />}
+                      조리 완료
+                    </button>
+                  </div>
+                  <button
+                    disabled={loading}
+                    onClick={() => setShowCancel(true)}
+                    className="w-full text-xs text-gray-400 underline py-1 active:opacity-60 transition-opacity"
+                  >
+                    주문 취소
+                  </button>
+                </>
+              ) : (
+                <div className="bg-red-50 border-2 border-red-200 rounded-2xl px-4 py-3">
+                  <p className="text-sm font-bold text-red-700 mb-3 text-center">정말 취소하시겠어요?</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setShowCancel(false)}
+                      className="py-2.5 rounded-2xl border-2 border-pick-border text-pick-text-sub font-bold text-sm active:scale-95 transition-transform"
+                    >
+                      돌아가기
+                    </button>
+                    <button
+                      disabled={loading}
+                      onClick={handleCancelConfirm}
+                      className="py-2.5 rounded-2xl bg-red-500 text-white font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
+                    >
+                      {loading
+                        ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin mx-auto block" />
+                        : "취소 확인"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {order.status === "ready" && (
-            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-2xl px-4 py-3">
-              <CheckCircle size={16} className="text-green-600" />
-              <span className="text-sm font-bold text-green-700">
-                {order.rider_id ? "조리 완료 — 라이더 픽업 대기 중" : "조리 완료 — 라이더 배정 중"}
-              </span>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-2xl px-4 py-3">
+                <CheckCircle size={16} className="text-green-600" />
+                <span className="text-sm font-bold text-green-700">
+                  {order.rider_id ? "조리 완료 — 라이더 픽업 대기 중" : "조리 완료 — 라이더 배정 중"}
+                </span>
+              </div>
+              {!showCancel ? (
+                <>
+                  {!order.rider_id && (
+                    <button
+                      disabled={notifying}
+                      onClick={handleNotifyRiders}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-orange-100 border-2 border-orange-300 text-orange-700 font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
+                    >
+                      {notifying
+                        ? <span className="w-4 h-4 border-2 border-orange-400/40 border-t-orange-600 rounded-full animate-spin" />
+                        : <Bell size={14} />}
+                      라이더 재호출 🛵
+                    </button>
+                  )}
+                  <button
+                    disabled={loading}
+                    onClick={() => setShowCancel(true)}
+                    className="w-full text-xs text-gray-400 underline py-1 active:opacity-60 transition-opacity"
+                  >
+                    주문 취소
+                  </button>
+                </>
+              ) : (
+                <div className="bg-red-50 border-2 border-red-200 rounded-2xl px-4 py-3">
+                  <p className="text-sm font-bold text-red-700 mb-3 text-center">정말 취소하시겠어요?</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setShowCancel(false)}
+                      className="py-2.5 rounded-2xl border-2 border-pick-border text-pick-text-sub font-bold text-sm active:scale-95 transition-transform"
+                    >
+                      돌아가기
+                    </button>
+                    <button
+                      disabled={loading}
+                      onClick={handleCancelConfirm}
+                      className="py-2.5 rounded-2xl bg-red-500 text-white font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
+                    >
+                      {loading
+                        ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin mx-auto block" />
+                        : "취소 확인"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -393,8 +555,9 @@ export default function OwnerOrdersPage() {
     if (tab === "active") fetchOrders("active");
   });
 
-  // 주문 상태 UPDATE 실시간 반영 (라이더 픽업·배달 완료 등)
+  // 주문 상태 UPDATE 실시간 반영 (고객 취소·라이더 픽업·배달 완료 등)
   useStoreOrderStatusRealtime(storeId, (orderId, newStatus) => {
+    if (newStatus === "cancelled") stopOrderSound();
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
     );
@@ -419,6 +582,18 @@ export default function OwnerOrdersPage() {
     } else {
       const err = await res.json().catch(() => ({}));
       alert(err.error ?? "상태 변경에 실패했습니다");
+    }
+  };
+
+  const handleCancel = async (id: string) => {
+    const res = await fetch(`/api/orders/${id}/cancel`, { method: "POST" });
+    if (res.ok) {
+      setOrders((prev) =>
+        prev.map((o) => (o.id === id ? { ...o, status: "cancelled" as OrderStatus } : o))
+      );
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error ?? "주문 취소에 실패했습니다");
     }
   };
 
@@ -519,6 +694,7 @@ export default function OwnerOrdersPage() {
               key={order.id}
               order={order}
               onStatusChange={handleStatusChange}
+              onCancel={handleCancel}
             />
           ))
         )}

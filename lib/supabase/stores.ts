@@ -17,7 +17,6 @@ export interface StoreRow {
   delivery_time: number;
   delivery_fee: number;
   min_order_amount: number;
-  pick_reward_rate: number;
   is_open: boolean;
 }
 
@@ -83,7 +82,7 @@ export async function fetchStoresByCategory(
   const { col, asc } = SORT_MAP[sort] ?? SORT_MAP.rating;
   let query = supabase
     .from("stores")
-    .select("id, name, category, description, address, lat, lng, image_url, banner_url, rating, review_count, delivery_time, delivery_fee, min_order_amount, pick_reward_rate, is_open")
+    .select("id, name, category, description, address, lat, lng, image_url, banner_url, rating, review_count, delivery_time, delivery_fee, min_order_amount, is_open")
     .eq("category", category)
     .eq("is_approved", true);
 
@@ -130,7 +129,7 @@ export async function fetchStoreById(id: string): Promise<StoreRow | null> {
   const supabase = createServerClient();
   const { data, error } = await supabase
     .from("stores")
-    .select("id, name, category, description, address, phone, lat, lng, image_url, banner_url, rating, review_count, delivery_time, delivery_fee, min_order_amount, pick_reward_rate, is_open")
+    .select("id, name, category, description, address, phone, lat, lng, image_url, banner_url, rating, review_count, delivery_time, delivery_fee, min_order_amount, is_open")
     .eq("id", id)
     .eq("is_approved", true)
     .single();
@@ -147,7 +146,7 @@ export async function fetchTopStores(limit = 8): Promise<StoreRow[]> {
   const supabase = createServerClient();
   const { data, error } = await supabase
     .from("stores")
-    .select("id, name, category, description, address, lat, lng, image_url, banner_url, rating, review_count, delivery_time, delivery_fee, min_order_amount, pick_reward_rate, is_open")
+    .select("id, name, category, description, address, lat, lng, image_url, banner_url, rating, review_count, delivery_time, delivery_fee, min_order_amount, is_open")
     .eq("is_approved", true)
     .eq("is_open", true)
     .order("rating", { ascending: false })
@@ -186,7 +185,7 @@ export async function fetchSponsoredStores(): Promise<AdStore[]> {
       stores (
         id, name, category, description, address, lat, lng,
         rating, review_count, delivery_time, delivery_fee,
-        min_order_amount, pick_reward_rate, is_open
+        min_order_amount, is_open
       )
     `)
     .eq("status", "active")

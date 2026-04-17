@@ -32,9 +32,9 @@ export function getGradeInfo(totalEarned: number): GradeInfo {
 }
 
 /**
- * 주문 금액과 가맹점 기본 적립률, 사용자 등급 배율을 적용한 PICK 적립량을 계산합니다.
+ * 주문 금액과 기본 적립률, 사용자 등급 배율을 적용한 PICK 적립량을 계산합니다.
  * @param orderAmount  주문 금액 + 배달비 합산
- * @param baseRate     가맹점 pick_reward_rate (%)  예: 1.0 = 1%
+ * @param baseRate     기본 적립률 (%)  예: 1.0 = 1%
  * @param totalEarned  사용자 누적 적립량 (등급 결정용)
  */
 export function calcPickReward(

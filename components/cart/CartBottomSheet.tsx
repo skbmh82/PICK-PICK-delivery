@@ -628,12 +628,12 @@ export default function CartBottomSheet({ onClose }: Props) {
               <span className="font-black text-pick-text">최종 결제</span>
               <span className="font-black text-pick-text text-lg">{totalPaid.toLocaleString()}원</span>
             </div>
-            <p className="text-xs text-pick-text-sub text-right">
-              주문 후 {pickReward.toLocaleString()} PICK 적립 예정 ✨
-              {(extraReward > 0 || couponFixedPick > 0) && (
+            {pickReward > 0 && (
+              <p className="text-xs text-pick-text-sub text-right">
+                주문 후 {pickReward.toLocaleString()} PICK 적립 예정 ✨
                 <span className="text-pick-purple font-bold"> (쿠폰 포함)</span>
-              )}
-            </p>
+              </p>
+            )}
           </div>
 
           {isBelowMin && (

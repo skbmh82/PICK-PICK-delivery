@@ -598,7 +598,7 @@ export default function OrdersPage() {
       storeEmoji:     getCategoryEmoji(order.stores.category),
       deliveryFee:    Number(order.delivery_fee),
       minOrderAmount: 0,
-      pickRewardRate: 1,
+      pickRewardRate: 0,
     };
     cartStore.clearCart();
     order.order_items.forEach((item) => {

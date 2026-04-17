@@ -154,7 +154,6 @@ export default async function StoreDetailPage({
     deliveryTime:   storeRow.delivery_time,
     deliveryFee:    storeRow.delivery_fee,
     minOrderAmount: storeRow.min_order_amount,
-    pickRewardRate: storeRow.pick_reward_rate,
     tags:           storeRow.description ? [storeRow.description] : [],
     address:        storeRow.address,
     phone:          (storeRow as unknown as { phone?: string | null }).phone ?? null,

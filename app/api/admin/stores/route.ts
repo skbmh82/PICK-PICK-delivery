@@ -24,7 +24,7 @@ export async function GET() {
       id, name, category, address, phone,
       is_open, is_approved, rating, review_count,
       delivery_fee, min_order_amount, delivery_time,
-      pick_reward_rate, created_at,
+      created_at,
       owner:owner_id ( id, name, email )
     `)
     .order("is_approved", { ascending: true })   // 미승인 먼저
@@ -47,7 +47,6 @@ export async function GET() {
     deliveryFee:    Number(s.delivery_fee),
     minOrderAmount: Number(s.min_order_amount),
     deliveryTime:   s.delivery_time,
-    pickRewardRate: Number(s.pick_reward_rate),
     createdAt:      s.created_at,
     owner: {
       id:    s.owner?.id,

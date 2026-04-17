@@ -93,7 +93,6 @@ export interface StoreDetail {
   deliveryTime: number;
   deliveryFee: number;
   minOrderAmount: number;
-  pickRewardRate: number;
   tags: string[];
   menus: MenuItem[];
   // 위치 정보
@@ -591,7 +590,7 @@ export default function StoreDetailClient({
     storeEmoji:     store.emoji,
     deliveryFee:    store.deliveryFee,
     minOrderAmount: store.minOrderAmount,
-    pickRewardRate: store.pickRewardRate,
+    pickRewardRate: 0,
   };
 
   const handleAddMenu = (menu: MenuItem) => {
@@ -712,11 +711,6 @@ export default function StoreDetailClient({
               {store.deliveryFee === 0
                 ? "무료배달"
                 : `배달비 ${store.deliveryFee.toLocaleString()}원`}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 bg-pick-yellow-light/30 border border-pick-yellow-light rounded-full px-3.5 py-2">
-            <span className="text-xs font-black text-pick-yellow-dark">
-              +{store.pickRewardRate}% PICK 적립
             </span>
           </div>
         </div>

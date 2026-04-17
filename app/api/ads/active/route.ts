@@ -25,7 +25,6 @@ export async function GET() {
         delivery_fee,
         delivery_time,
         min_order_amount,
-        pick_reward_rate,
         description,
         image_url
       )

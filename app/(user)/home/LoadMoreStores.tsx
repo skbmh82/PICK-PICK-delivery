@@ -17,7 +17,6 @@ interface StoreRow {
   delivery_time: number;
   delivery_fee: number;
   min_order_amount: number;
-  pick_reward_rate: number;
   is_open: boolean;
 }
 
@@ -39,9 +38,6 @@ function StoreCard({ store }: { store: StoreRow }) {
       <div className="px-4 pt-3 pb-4">
         <div className="flex items-start justify-between gap-2 mb-2">
           <h3 className="font-black text-pick-text text-base leading-snug flex-1">{store.name}</h3>
-          <span className="flex-shrink-0 text-xs font-black bg-pick-yellow-light text-pick-yellow-dark px-2.5 py-1 rounded-full">
-            +{store.pick_reward_rate}%
-          </span>
         </div>
         {store.description && (
           <p className="text-xs text-pick-text-sub mb-2 line-clamp-1">{store.description}</p>

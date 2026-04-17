@@ -20,7 +20,6 @@ const UpdateStoreSchema = z.object({
   deliveryTime:           z.number().int().min(5).max(120).optional(),
   deliveryRadiusKm:       z.number().min(1).max(30).optional(),
   isOpen:                 z.boolean().optional(),
-  pickRewardRate:         z.number().min(0.1).max(10).optional(),
   photoReviewRewardKrw:   z.number().min(0).max(100000).optional(),
   imageUrl:               z.string().url().nullable().optional(),
   bannerUrl:              z.string().url().nullable().optional(),
@@ -130,7 +129,7 @@ export async function GET() {
   // 미승인 가게를 우선, 없으면 최신 가게를 반환
   const { data: stores } = await admin
     .from("stores")
-    .select("id, name, category, description, phone, address, is_open, delivery_fee, min_order_amount, delivery_time, delivery_radius_km, pick_reward_rate, photo_review_reward_krw, is_approved, rating, review_count, image_url, banner_url")
+    .select("id, name, category, description, phone, address, is_open, delivery_fee, min_order_amount, delivery_time, delivery_radius_km, photo_review_reward_krw, is_approved, rating, review_count, image_url, banner_url")
     .eq("owner_id", profile.id)
     .order("is_approved", { ascending: true })
     .order("created_at", { ascending: false })
@@ -191,7 +190,6 @@ export async function PATCH(request: NextRequest) {
   if (d.deliveryTime     !== undefined) updates.delivery_time     = d.deliveryTime;
   if (d.deliveryRadiusKm !== undefined) updates.delivery_radius_km = d.deliveryRadiusKm;
   if (d.isOpen           !== undefined) updates.is_open           = d.isOpen;
-  if (d.pickRewardRate       !== undefined) updates.pick_reward_rate        = d.pickRewardRate;
   if (d.photoReviewRewardKrw !== undefined) updates.photo_review_reward_krw = d.photoReviewRewardKrw;
   if (d.imageUrl             !== undefined) updates.image_url               = d.imageUrl;
   if (d.bannerUrl            !== undefined) updates.banner_url              = d.bannerUrl;

@@ -3,7 +3,6 @@ import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createNotification } from "@/lib/notifications";
-import { calcPickReward } from "@/lib/pick-grade";
 import { geocodeAddress } from "@/lib/kakao/geocode";
 
 const OrderItemSchema = z.object({
@@ -67,7 +66,7 @@ export async function POST(request: NextRequest) {
   // 4. 가맹점 존재/영업 여부 확인
   const { data: store } = await admin
     .from("stores")
-    .select("id, is_open, min_order_amount, delivery_fee, delivery_time, pick_reward_rate")
+    .select("id, is_open, min_order_amount, delivery_fee, delivery_time")
     .eq("id", storeId)
     .single();
 
@@ -92,8 +91,7 @@ export async function POST(request: NextRequest) {
   }
 
   // 6. 쿠폰 검증
-  let couponExtraPickRate = 0;
-  let couponFixedPick     = 0;
+  let couponFixedPick = 0;
   if (userCouponId) {
     const { data: uc } = await admin
       .from("user_coupons")
@@ -116,19 +114,12 @@ export async function POST(request: NextRequest) {
     if (totalAmount < Number(coupon.min_order ?? 0)) {
       return NextResponse.json({ error: "쿠폰 최소 주문금액을 충족하지 않습니다" }, { status: 400 });
     }
-    if (coupon.type === "pick_rate")  couponExtraPickRate = Number(coupon.value);
-    if (coupon.type === "fixed_pick") couponFixedPick     = Number(coupon.value);
+    if (coupon.type === "fixed_pick") couponFixedPick = Number(coupon.value);
     // free_delivery: client already sent deliveryFee=0
   }
 
-  // 7. 등급 반영 적립 PICK 계산
-  const totalEarned = Number(wallet?.total_earned ?? 0);
-  const baseReward  = calcPickReward(
-    totalAmount + deliveryFee,
-    Number(store.pick_reward_rate),
-    totalEarned
-  );
-  const pickReward  = baseReward + Math.floor(baseReward * couponExtraPickRate / 100) + couponFixedPick;
+  // 7. PICK 적립 — 기본 적립 없음, 쿠폰 fixed_pick 발급분만 적립
+  const pickReward = couponFixedPick;
 
   // 8. 배달 좌표 확정 — 클라이언트 제공 우선, 없으면 서버 지오코딩
   let finalLat = deliveryLat ?? null;

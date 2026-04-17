@@ -429,7 +429,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
     const storeInfo = {
       storeId: order.stores.id, storeName: order.stores.name,
       storeEmoji: getCategoryEmoji(order.stores.category),
-      deliveryFee: Number(order.delivery_fee), minOrderAmount: 0, pickRewardRate: 1,
+      deliveryFee: Number(order.delivery_fee), minOrderAmount: 0, pickRewardRate: 0,
     };
     order.order_items.forEach((item) => {
       for (let i = 0; i < item.quantity; i++) {

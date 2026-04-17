@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from("stores")
-    .select("id, name, category, description, address, lat, lng, image_url, banner_url, rating, review_count, delivery_time, delivery_fee, min_order_amount, pick_reward_rate, is_open")
+    .select("id, name, category, description, address, lat, lng, image_url, banner_url, rating, review_count, delivery_time, delivery_fee, min_order_amount, is_open")
     .eq("is_approved", true)
     .order(col, { ascending: asc })
     .range(offset, offset + limit - 1);
