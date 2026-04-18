@@ -419,6 +419,18 @@ export default function RiderDeliveryPage() {
 
   useEffect(() => { fetchTab(tab); }, [fetchTab, tab]);
 
+  // active 탭: 5초 폴링 — owner가 calling_rider→ready로 바꿀 때 즉시 반영
+  useEffect(() => {
+    if (tab !== "active") return;
+    const id = setInterval(async () => {
+      const res = await fetch("/api/rider/deliveries?tab=active").catch(() => null);
+      if (!res?.ok) return;
+      const { orders } = await res.json() as { orders?: DeliveryOrder[] };
+      if (orders) setMyDeliveries(orders);
+    }, 5000);
+    return () => clearInterval(id);
+  }, [tab]);
+
   const handleAccept = async (orderId: string) => {
     setAcceptingId(orderId);
     try {
