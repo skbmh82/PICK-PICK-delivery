@@ -46,7 +46,7 @@ interface Order {
 
 // ── 상태 레이블 / 색상 ────────────────────────────────
 const STATUS_CONFIG: Record<OrderStatus, { label: string; emoji: string; color: string; bg: string }> = {
-  pending:    { label: "결제 확인 중",     emoji: "⏳", color: "text-yellow-600",  bg: "bg-yellow-50 border-yellow-200" },
+  pending:    { label: "사장님 수락 대기", emoji: "⏳", color: "text-yellow-600",  bg: "bg-yellow-50 border-yellow-200" },
   confirmed:  { label: "주문 수락됨",      emoji: "✅", color: "text-blue-600",    bg: "bg-blue-50 border-blue-200" },
   preparing:  { label: "조리 중",          emoji: "🍳", color: "text-orange-600",  bg: "bg-orange-50 border-orange-200" },
   ready:      { label: "픽업 대기 중",     emoji: "📦", color: "text-purple-600",  bg: "bg-purple-50 border-purple-200" },

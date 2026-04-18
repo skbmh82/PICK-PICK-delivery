@@ -609,7 +609,7 @@ export default function OwnerOrdersPage() {
     });
     if (res.ok) {
       // 수락(preparing) 또는 취소 시 알림음 중단
-      if (["preparing", "calling_rider", "cancelled"].includes(status)) stopOrderSound();
+      if (["confirmed", "preparing", "calling_rider", "cancelled"].includes(status)) stopOrderSound();
       setOrders((prev) =>
         prev.map((o) =>
           o.id === id
