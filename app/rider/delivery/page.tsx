@@ -343,9 +343,9 @@ function DeliveryCard({
               >
                 {loading
                   ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  : <Package size={15} />
+                  : <Bike size={15} />
                 }
-                픽업 완료
+                배달 출발 🛵
               </button>
             )}
             {order.status === "delivering" && (
