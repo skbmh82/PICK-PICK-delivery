@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Navigation, Bike, Wallet, ChevronLeft, User } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuthStore } from "@/stores/authStore";
 
 const RIDER_NAV = [
@@ -19,6 +19,8 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
   const [isOnline, setIsOnline] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [name,     setName]     = useState("라이더");
+  const lastLatRef = useRef(0);
+  const lastLngRef = useRef(0);
 
   // 최초 진입 시 현재 온라인 상태 + 이름 조회
   useEffect(() => {
@@ -31,17 +33,48 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
       .catch(() => {/* 비로그인 등 무시 */});
   }, [user]);
 
+  // GPS 위치 가져오기 (실패 시 마지막 저장 좌표 사용)
+  const getLocation = (): Promise<{ lat: number; lng: number }> =>
+    new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        resolve({ lat: lastLatRef.current, lng: lastLngRef.current });
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          lastLatRef.current = pos.coords.latitude;
+          lastLngRef.current = pos.coords.longitude;
+          resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        },
+        () => resolve({ lat: lastLatRef.current, lng: lastLngRef.current }),
+        { timeout: 5000, maximumAge: 60000 },
+      );
+    });
+
+  const sendLocationPatch = async (isActive: boolean) => {
+    const { lat, lng } = await getLocation();
+    await fetch("/api/rider/location", {
+      method:  "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ lat, lng, isActive }),
+    }).catch(() => {});
+  };
+
+  // 온라인 상태일 때 8분마다 heartbeat — Cron 자동 오프라인(10분 기준) 방지
+  useEffect(() => {
+    if (!isOnline) return;
+    const id = setInterval(() => void sendLocationPatch(true), 8 * 60 * 1000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnline]);
+
   const handleToggle = async () => {
     if (toggling) return;
     setToggling(true);
     const next = !isOnline;
     try {
-      const res = await fetch("/api/rider/location", {
-        method:  "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ lat: 0, lng: 0, isActive: next }),
-      });
-      if (res.ok) setIsOnline(next);
+      await sendLocationPatch(next);
+      setIsOnline(next);
     } finally {
       setToggling(false);
     }
