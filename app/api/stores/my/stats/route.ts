@@ -60,8 +60,8 @@ export async function GET() {
   const cancelStatuses  = ["cancelled", "refunded"];
   const inProgressStatuses = ["preparing", "ready", "picked_up", "delivering"];
 
-  // confirmed = 결제 완료, 사장님 조리 시작 대기 (PICK 즉시 확정 + TOSS 결제 완료 후)
-  const newOrders    = orders.filter((o: { status: string }) => o.status === "confirmed").length;
+  // pending = 사장님 수락 대기, confirmed = 수락됨(조리 시작 대기)
+  const newOrders    = orders.filter((o: { status: string }) => o.status === "pending").length;
   const inProgress   = orders.filter((o: { status: string }) => inProgressStatuses.includes(o.status)).length;
   const completed    = orders.filter((o: { status: string }) => doneStatuses.includes(o.status)).length;
   const cancelled    = orders.filter((o: { status: string }) => cancelStatuses.includes(o.status)).length;
@@ -72,9 +72,9 @@ export async function GET() {
     .filter((o: { status: string }) => doneStatuses.includes(o.status))
     .reduce((sum: number, o: { pick_reward: number }) => sum + Number(o.pick_reward ?? 0), 0);
 
-  // 신규 주문 목록 (confirmed — 결제 완료, 사장님 수락 대기)
+  // 신규 주문 목록 (pending — 사장님 수락 대기)
   const pendingOrders = orders
-    .filter((o: { status: string }) => o.status === "confirmed")
+    .filter((o: { status: string }) => o.status === "pending")
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .map((o: any) => ({
       id: o.id,

@@ -914,8 +914,9 @@ export default function OwnerDashboardPage() {
     fetchDashboard();
   });
 
-  // 주문 상태 변경 실시간 (고객 취소 포함) → 대시보드 재조회
-  useStoreOrderStatusRealtime(storeId, (_orderId, _newStatus) => {
+  // 주문 상태 변경 실시간 (고객 취소 포함) → 즉시 소리 중단 + 대시보드 재조회
+  useStoreOrderStatusRealtime(storeId, (_orderId, newStatus) => {
+    if (newStatus === "cancelled" || newStatus === "refunded") stopOrderSound();
     fetchDashboard();
   });
 
@@ -928,13 +929,12 @@ export default function OwnerDashboardPage() {
       if (!res?.ok) return;
       const fresh = await res.json() as { pendingOrders?: unknown[] };
       const count = fresh.pendingOrders?.length ?? 0;
-      if (count !== prevPendingRef.current) {
-        fetchDashboard();
-      }
+      if (count === 0) stopOrderSound();
+      if (count !== prevPendingRef.current) fetchDashboard();
       prevPendingRef.current = count;
     }, 5000);
     return () => clearInterval(interval);
-  }, [storeId, fetchDashboard]);
+  }, [storeId, fetchDashboard, stopOrderSound]);
 
   // 신규 주문이 모두 처리되면 알림음 중단
   const pendingCount = data?.pendingOrders?.length ?? 0;
