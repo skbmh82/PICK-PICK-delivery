@@ -64,7 +64,7 @@ const C = {
     fill: { color: C.purpleLight }, line: { color: C.purpleLight },
   });
 
-  slide.addText("2026년 4월 17일  |  주문 취소 감지 개선 · 라이더 상태 흐름 수정 · 알림 즉시 중단", {
+  slide.addText("2026년 4월 20일  |  주문 pending 흐름 · 라이더 자동오프라인 방지 · 조리완료 실시간 반영", {
     x: 1, y: 3.6, w: 11.6, h: 0.5,
     fontSize: 14, color: "C4B5FD",
     align: "center",
@@ -88,7 +88,7 @@ const C = {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("📊  PICK PICK 진행 현황 (4/17 최신)", {
+  slide.addText("📊  PICK PICK 진행 현황 (4/20 최신)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 26, bold: true, color: C.purpleDark,
   });
@@ -120,6 +120,7 @@ const C = {
     { label: "레퍼럴 재설계: 초대자 5K 고정 · 역할별 웰컴 보너스",  pct: 100, color: C.green },
     { label: "라이더 5km 반경 필터링 + 10분 자동오프라인 Cron",      pct: 100, color: C.green },
     { label: "주문 취소 즉시 반영 · calling_rider 상태 흐름 재설계",  pct: 100, color: C.green },
+    { label: "주문 pending 흐름 · 라이더 heartbeat · Pi Network 플랜", pct: 100, color: C.green },
   ];
 
   progressItems.forEach((item, i) => {
@@ -150,7 +151,7 @@ const C = {
 
   // 우측 요약 박스
   const summary = [
-    { icon: "✅", label: "완료 기능",  value: "65개+", color: C.green,  pale: C.greenPale },
+    { icon: "✅", label: "완료 기능",  value: "70개+", color: C.green,  pale: C.greenPale },
     { icon: "🚧", label: "진행 중",    value: "0개",   color: C.yellow, pale: "FFFBEB" },
     { icon: "⏳", label: "미착수",     value: "0개",   color: C.textSub, pale: "F3F4F6" },
   ];
@@ -1024,12 +1025,94 @@ const C = {
   });
 }
 
-// ── 슬라이드 14 — 완료된 기능 전체 목록 (4/17 기준) ───
+// ── 슬라이드 14 — Day 13 작업 내역 (4/20) ─────────────
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("✅  완료된 기능 전체 목록 (4/17 최신)", {
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 2.9, h: 0.55,
+    fill: { color: "F0FDF4" }, line: { color: "16A34A" },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 04. 20 (Day 13)", {
+    x: 0.4, y: 0.18, w: 2.9, h: 0.55,
+    fontSize: 11, bold: true, color: "16A34A", align: "center",
+  });
+
+  slide.addText("🔧  주문 흐름 재설계 · 라이더 안정성 · Pi Network 연동 플랜 수립", {
+    x: 3.5, y: 0.22, w: 10.1, h: 0.55,
+    fontSize: 17, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day13 = [
+    {
+      emoji: "⏳", title: "주문 pending 흐름 재설계",
+      desc: "PICK 결제도 pending으로 시작\n사장님 수락 후 confirmed 전환\n유저 화면: '사장님 수락 대기' 표시\n사장님 stats API pending 감지",
+    },
+    {
+      emoji: "🔔", title: "사장님 대시보드 알람 개선",
+      desc: "신규주문 카운트 pending 기준 수정\n유저 취소 시 알람 즉시 중단\n취소 감지 3중 보호 구조\n(Realtime + 폴링 + pendingCount)",
+    },
+    {
+      emoji: "🛵", title: "라이더 자동오프라인 방지",
+      desc: "온라인 상태 시 8분마다 heartbeat\nGPS 좌표 자동 갱신\nCron 10분 기준 절대 미도달\n앱 닫으면 자동오프라인 유지",
+    },
+    {
+      emoji: "📦", title: "조리완료 → 라이더 즉시 반영",
+      desc: "active 탭 5초 폴링 추가\n사장님 조리완료 → 최대 5초 내\n라이더 화면 픽업 완료 버튼 출현\n배달 출발 버튼 라벨 수정",
+    },
+    {
+      emoji: "🔄", title: "버튼 라벨 정확화",
+      desc: "픽업 완료(파랑) ready→picked_up\n배달 출발(주황) picked_up→delivering\n배달 완료(초록) delivering→delivered\n직관적 흐름으로 개선",
+    },
+    {
+      emoji: "🌐", title: "Pi Network 연동 마스터 플랜",
+      desc: "Open Network 현황 조사 완료\nVercel 유지 + Pi SDK 추가 구조 확정\n5단계 로드맵 수립\nfeature/pi-integration 브랜치 전략",
+    },
+  ];
+
+  day13.forEach((item, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
+    const y = 1.0 + row * 2.55;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.1, h: 2.35,
+      fill: { color: "F0FDF4" }, line: { color: "86EFAC" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: y + 0.2, w: 0.58, h: 0.58,
+      fill: { color: C.white }, line: { color: "86EFAC" },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.18, y: y + 0.18, w: 0.6, h: 0.6,
+      fontSize: 18, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
+      fontSize: 12, bold: true, color: "16A34A",
+    });
+    slide.addText(item.desc, {
+      x: x + 0.22, y: y + 0.78, w: 3.65, h: 1.42,
+      fontSize: 10, color: C.textDark, wrap: true,
+    });
+  });
+}
+
+// ── 슬라이드 15 — 완료된 기능 전체 목록 (4/20 기준) ───
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addText("✅  완료된 기능 전체 목록 (4/20 최신)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 24, bold: true, color: C.purpleDark,
   });
@@ -1092,6 +1175,7 @@ const C = {
         "라이더 5km 반경 필터링 + 거리순 정렬",
         "10분 자동오프라인 Cron (매 5분 실행)",
         "calling_rider 상태 흐름 재설계 + 픽업완료 버튼",
+        "주문 pending 흐름 · 라이더 heartbeat · 조리완료 폴링",
         "FCM 푸시 알림 + 관리자 일괄 발송",
         "PWA 오프라인 캐싱 (Serwist) + Sentry 모니터링",
       ],
@@ -1159,7 +1243,7 @@ const C = {
     fill: { color: C.greenPale }, line: { color: C.green },
     rectRadius: 0.12,
   });
-  slide.addText("🎉  Phase 1~3 완성! 65개+ 기능 구현 · 미착수 기능 0개 · Pi Network 연동만 남음", {
+  slide.addText("🎉  Phase 1~3 완성! 70개+ 기능 구현 · 미착수 기능 0개 · Pi Network 연동 플랜 수립 완료", {
     x: 0.4, y: 1.0, w: 13.2, h: 0.6,
     fontSize: 14, bold: true, color: C.green, align: "center",
   });
