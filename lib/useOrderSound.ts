@@ -108,17 +108,14 @@ export function useOrderSound(ttsMessage?: string) {
   }, []);
 
   /**
-   * 🔔 버튼 클릭 (user gesture) → AudioElement 잠금 해제
-   * WAV가 이미 렌더링되어 있으므로 동기적으로 play() 호출 가능.
-   * await 없이 처리 → user gesture 컨텍스트 유지 → 모바일에서도 정상 작동.
+   * 🔔 버튼 클릭 (user gesture) → AudioElement 잠금 해제 + 확인음 재생
+   * pause() 없이 비프를 끝까지 재생 → iOS/Android에서 audio 잠금이 완전히 해제됨.
+   * 이후 Realtime 이벤트(비-gesture)에서도 play() 호출 가능.
    */
   const unlock = useCallback(() => {
     if (!_blobUrl) {
-      // 아직 렌더링 중이면 완료 후 재시도
       if (_renderPromise) {
-        _renderPromise.then(() => {
-          if (_blobUrl) unlock();
-        });
+        _renderPromise.then(() => { if (_blobUrl) unlock(); });
       }
       return;
     }
@@ -126,18 +123,12 @@ export function useOrderSound(ttsMessage?: string) {
     if (!_audioEl) {
       _audioEl = new Audio(_blobUrl);
       _audioEl.preload = "auto";
-      _audioEl.loop    = true;
     }
 
-    // 동기 play → user gesture 컨텍스트에서 즉시 실행
-    const p = _audioEl.play();
-    if (p) {
-      p.then(() => {
-        // 재생 시작 확인 후 즉시 pause (잠금 해제 목적)
-        _audioEl!.pause();
-        _audioEl!.currentTime = 0;
-      }).catch(() => {});
-    }
+    // loop OFF — 확인음 1회만 재생 (끝까지 들려야 잠금 해제 완료)
+    _audioEl.loop = false;
+    _audioEl.currentTime = 0;
+    _audioEl.play().catch(() => {});
 
     speakTts("픽픽 알림 소리가 켜졌습니다");
   }, []);
