@@ -3,21 +3,21 @@
 import { useCallback } from "react";
 
 // ── 모듈 레벨 싱글톤 ─────────────────────────────────
-let _audioEl: HTMLAudioElement | null = null;
-let _blobUrl: string | null = null;
-let _orderInterval: ReturnType<typeof setInterval> | null = null;
-let _ttsMessage = "픽픽 주문이 들어왔습니다";
-let _unlockMessage = "픽픽 알림 소리가 켜졌습니다";
+let _audioEl:    HTMLAudioElement | null = null;
+let _blobUrl:    string | null = null;
+let _isPlaying = false;
+let _ttsInterval: ReturnType<typeof setInterval> | null = null;
+let _ttsMessage  = "픽픽 주문이 들어왔습니다";
 
 /** AudioBuffer → WAV ArrayBuffer 변환 */
 function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
-  const numCh   = buffer.numberOfChannels;
+  const numCh      = buffer.numberOfChannels;
   const sampleRate = buffer.sampleRate;
-  const numFrames = buffer.length;
+  const numFrames  = buffer.length;
   const bytesPerSample = 2;
   const dataLen = numFrames * numCh * bytesPerSample;
   const wavLen  = 44 + dataLen;
-  const out = new ArrayBuffer(wavLen);
+  const out  = new ArrayBuffer(wavLen);
   const view = new DataView(out);
 
   const write = (off: number, str: string) => {
@@ -28,7 +28,7 @@ function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
   write(8, "WAVE");
   write(12, "fmt ");
   view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);           // PCM
+  view.setUint16(20, 1,  true);
   view.setUint16(22, numCh, true);
   view.setUint32(24, sampleRate, true);
   view.setUint32(28, sampleRate * numCh * bytesPerSample, true);
@@ -48,11 +48,14 @@ function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
   return out;
 }
 
-/** OfflineAudioContext로 픽픽딩동 비프를 WAV Blob URL로 사전 렌더링 */
+/**
+ * OfflineAudioContext로 "픽픽딩동(1초) + 무음(2초)" WAV를 사전 렌더링.
+ * loop=true 로 재생하면 3초 주기로 자동 반복 — setInterval 불필요.
+ */
 async function renderBeepUrl(): Promise<string> {
   const sr  = 44100;
-  const dur = 1.0;
-  const off = new OfflineAudioContext(1, sr * dur, sr);
+  const dur = 3.0;          // 1s 비프 + 2s 무음 → 루프 주기 3초
+  const off = new OfflineAudioContext(1, Math.round(sr * dur), sr);
 
   const note = (freq: number, start: number, noteDur: number) => {
     const osc  = off.createOscillator();
@@ -72,89 +75,81 @@ async function renderBeepUrl(): Promise<string> {
   note(880, 0.18, 0.10);  // 픽
   note(523, 0.38, 0.20);  // 딩
   note(784, 0.55, 0.28);  // ↗동
+  // 0.9 ~ 3.0 는 무음 (gap)
 
   const buffer = await off.startRendering();
   const wav    = audioBufferToWav(buffer);
   return URL.createObjectURL(new Blob([wav], { type: "audio/wav" }));
 }
 
-function playAudio() {
-  if (!_audioEl || !_blobUrl) return;
-  _audioEl.currentTime = 0;
-  _audioEl.play().catch(() => {/* 무시 */});
-
-  // Chrome은 페이지 포커스를 잃으면 speechSynthesis를 일시정지함
-  // → cancel() + resume() 후 speak() 하면 재활성화됨
-  if ("speechSynthesis" in window) {
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.resume();
-    const u = new SpeechSynthesisUtterance(_ttsMessage);
-    u.lang = "ko-KR";
-    u.rate = 1.0;
-    u.volume = 1.0;
-    window.speechSynthesis.speak(u);
-  }
+function speakTts() {
+  if (!("speechSynthesis" in window)) return;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.resume();
+  const u = new SpeechSynthesisUtterance(_ttsMessage);
+  u.lang = "ko-KR";
+  u.rate = 1.0;
+  u.volume = 1.0;
+  window.speechSynthesis.speak(u);
 }
 
 // ─────────────────────────────────────────────────────
 
-/** ttsMessage: 신규 알림 재생 시 읽어줄 문구 (기본값: "픽픽 주문이 들어왔습니다") */
 export function useOrderSound(ttsMessage?: string) {
-  // 메시지 설정 (모듈 싱글톤에 반영)
-  if (ttsMessage)         _ttsMessage    = ttsMessage;
-  if (ttsMessage)         _unlockMessage = `픽픽 알림 소리가 켜졌습니다`;
+  if (ttsMessage) _ttsMessage = ttsMessage;
 
   /**
-   * 🔔 버튼 클릭 (user gesture) →
-   * 1) 픽픽딩동 WAV 사전 렌더링
-   * 2) HTMLAudioElement 생성 후 user gesture로 play/pause → 이후 언제든 재생 가능
-   * 3) TTS 확인 메시지
+   * 버튼 클릭(user gesture) → AudioElement 잠금 해제
+   * 한 번 클릭해야 이후 자동 재생 허용됨 (모바일 autoplay 정책)
    */
   const unlock = useCallback(async () => {
     try {
-      // 이미 초기화됐으면 스킵
-      if (_audioEl) {
-        // 재확인용 재생
-        playAudio();
-        return;
+      if (!_audioEl) {
+        _blobUrl = await renderBeepUrl();
+        _audioEl = new Audio(_blobUrl);
+        _audioEl.preload = "auto";
+        _audioEl.loop    = true;
       }
-
-      _blobUrl = await renderBeepUrl();
-      _audioEl = new Audio(_blobUrl);
-      _audioEl.preload = "auto";
-
-      // user gesture로 play 후 즉시 pause → HTMLAudioElement 잠금 해제
+      // user gesture로 play 후 즉시 pause → AudioElement 잠금 해제
       await _audioEl.play();
       _audioEl.pause();
       _audioEl.currentTime = 0;
 
-      // TTS 확인 (user gesture이므로 확실히 동작)
-      if ("speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(_unlockMessage);
-        u.lang = "ko-KR"; u.rate = 1.0; u.volume = 1.0;
-        window.speechSynthesis.speak(u);
-      }
+      speakTts();
     } catch (e) {
       console.error("[useOrderSound] unlock 실패:", e);
     }
   }, []);
 
-  /** 신규 주문 → 3초마다 픽픽딩동 반복 */
+  /** 신규 주문 → loop 재생 시작 (브라우저가 루프 관리 → setInterval 불필요) */
   const play = useCallback(() => {
     if (typeof window === "undefined") return;
-    if (_orderInterval) return;
+    if (_isPlaying) return;
+    if (!_audioEl || !_blobUrl) return;
 
-    playAudio();
-    _orderInterval = setInterval(playAudio, 3000);
+    _isPlaying = true;
+    _audioEl.loop = true;
+    _audioEl.currentTime = 0;
+    _audioEl.play().catch(() => {/* autoplay 정책으로 막히면 무시 */});
+
+    // TTS: 즉시 1회 + 30초마다 반복
+    speakTts();
+    if (_ttsInterval) clearInterval(_ttsInterval);
+    _ttsInterval = setInterval(speakTts, 30_000);
   }, []);
 
-  /** 수락/취소 → 반복 중단 */
+  /** 수락/취소 → loop 중단 */
   const stop = useCallback(() => {
-    if (_orderInterval) {
-      clearInterval(_orderInterval);
-      _orderInterval = null;
+    _isPlaying = false;
+    if (_audioEl) {
+      _audioEl.pause();
+      _audioEl.currentTime = 0;
     }
+    if (_ttsInterval) {
+      clearInterval(_ttsInterval);
+      _ttsInterval = null;
+    }
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   }, []);
 
   return { play, stop, unlock };
