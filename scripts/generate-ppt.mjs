@@ -1107,7 +1107,286 @@ const C = {
   });
 }
 
-// ── 슬라이드 15 — 완료된 기능 전체 목록 (4/20 기준) ───
+// ── 슬라이드 15 — Pi Network 현황 & 아키텍처 ───────────
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fill: { color: "FFF7ED" }, line: { color: "EA580C" },
+    rectRadius: 0.1,
+  });
+  slide.addText("🌐  Pi Network 연동 마스터 플랜", {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fontSize: 11, bold: true, color: "EA580C", align: "center",
+  });
+  slide.addText("Pi Network × PICK PICK 통합 전략", {
+    x: 3.8, y: 0.22, w: 9.8, h: 0.55,
+    fontSize: 22, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  // 왼쪽: Pi 현황
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.3, y: 0.92, w: 4.0, h: 5.7,
+    fill: { color: "FFF7ED" }, line: { color: "FED7AA" },
+    rectRadius: 0.15,
+  });
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.42, y: 1.02, w: 3.76, h: 0.42,
+    fill: { color: "EA580C" }, line: { color: "EA580C" },
+    rectRadius: 0.08,
+  });
+  slide.addText("📡  Pi Network 현황 (4/20)", {
+    x: 0.42, y: 1.02, w: 3.76, h: 0.42,
+    fontSize: 11, bold: true, color: C.white, align: "center",
+  });
+  const piStatus = [
+    { icon: "✅", text: "Open Network 가동 중\n(2025.02.20 출시)" },
+    { icon: "✅", text: "Pi SDK 사용 가능\n(U2A/A2U 결제, 로그인)" },
+    { icon: "✅", text: "KYC 완료 1,750만+\nFast Track KYC 지원" },
+    { icon: "🧪", text: "Pi DEX/AMM/토큰생성\nTestnet 라이브" },
+    { icon: "⏳", text: "Protocol 23 (스마트컨트랙트)\n출시 예정" },
+    { icon: "💰", text: "Pi 현재가격 ~$0.187\n(2026.02 기준)" },
+  ];
+  piStatus.forEach((s, i) => {
+    slide.addText(`${s.icon}  ${s.text}`, {
+      x: 0.55, y: 1.55 + i * 0.74, w: 3.5, h: 0.66,
+      fontSize: 10, color: C.textDark, wrap: true,
+    });
+  });
+
+  // 중간: 아키텍처
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 4.55, y: 0.92, w: 4.2, h: 5.7,
+    fill: { color: C.purplePale }, line: { color: C.borderPurple },
+    rectRadius: 0.15,
+  });
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 4.67, y: 1.02, w: 3.96, h: 0.42,
+    fill: { color: C.purple }, line: { color: C.purple },
+    rectRadius: 0.08,
+  });
+  slide.addText("🏗️  연동 아키텍처", {
+    x: 4.67, y: 1.02, w: 3.96, h: 0.42,
+    fontSize: 11, bold: true, color: C.white, align: "center",
+  });
+  const archLines = [
+    { bold: true,  text: "기존 인프라 100% 유지" },
+    { bold: false, text: "Vercel (Next.js) 그대로" },
+    { bold: false, text: "Supabase DB 그대로" },
+    { bold: false, text: "PICK 토큰 시스템 그대로" },
+    { bold: false, text: "토스페이먼츠 그대로" },
+    { bold: true,  text: "추가되는 것" },
+    { bold: false, text: "Pi SDK 스크립트 1줄 추가" },
+    { bold: false, text: "Pi 로그인 버튼 (선택)" },
+    { bold: false, text: "Pi 결제 옵션 추가" },
+    { bold: false, text: "Pi 보상 지급 API" },
+    { bold: true,  text: "Pi Browser = 그냥 브라우저" },
+    { bold: false, text: "URL 열면 Vercel에서 서빙" },
+    { bold: false, text: "Pi 노드 = 거래 검증만" },
+  ];
+  archLines.forEach((line, i) => {
+    slide.addText((line.bold ? "▶  " : "    ") + line.text, {
+      x: 4.72, y: 1.54 + i * 0.3, w: 3.85, h: 0.28,
+      fontSize: line.bold ? 10.5 : 9.5,
+      bold: line.bold,
+      color: line.bold ? C.purple : C.textDark,
+    });
+  });
+
+  // 오른쪽: 지금 vs 나중
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 9.0, y: 0.92, w: 4.55, h: 5.7,
+    fill: { color: C.bluePale }, line: { color: C.blueLight },
+    rectRadius: 0.15,
+  });
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 9.12, y: 1.02, w: 4.31, h: 0.42,
+    fill: { color: C.blue }, line: { color: C.blue },
+    rectRadius: 0.08,
+  });
+  slide.addText("🗓️  지금 vs 나중", {
+    x: 9.12, y: 1.02, w: 4.31, h: 0.42,
+    fontSize: 11, bold: true, color: C.white, align: "center",
+  });
+  const nowLater = [
+    { now: true,  text: "Pi 로그인", sub: "SDK 제공 · Mainnet 가동" },
+    { now: true,  text: "U2A Pi 결제", sub: "유저 → 앱 결제" },
+    { now: true,  text: "A2U Pi 지급", sub: "라이더·리뷰 보상" },
+    { now: true,  text: "Testnet 앱 등록", sub: "개발/테스트 가능" },
+    { now: false, text: "PICK 온체인 토큰", sub: "Protocol 23 후" },
+    { now: false, text: "PICK↔Pi DEX 스왑", sub: "Mainnet 배포 후" },
+    { now: false, text: "에코시스템 공개 등재", sub: "Pi Only 조건 검토" },
+  ];
+  nowLater.forEach((item, i) => {
+    const y = 1.55 + i * 0.68;
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: 9.15, y, w: 4.25, h: 0.58,
+      fill: { color: item.now ? C.greenPale : "FEF3C7" },
+      line: { color: item.now ? C.green : C.yellow },
+      rectRadius: 0.1,
+    });
+    slide.addText(`${item.now ? "✅" : "⏳"}  ${item.text}`, {
+      x: 9.22, y: y + 0.04, w: 4.1, h: 0.28,
+      fontSize: 10.5, bold: true,
+      color: item.now ? C.green : C.yellow,
+    });
+    slide.addText(item.sub, {
+      x: 9.38, y: y + 0.3, w: 3.94, h: 0.22,
+      fontSize: 9, color: C.textSub,
+    });
+  });
+}
+
+// ── 슬라이드 16 — Pi Network 5단계 연동 시퀀스 ─────────
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fill: { color: "FFF7ED" }, line: { color: "EA580C" },
+    rectRadius: 0.1,
+  });
+  slide.addText("🌐  Pi Network 연동 마스터 플랜", {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fontSize: 11, bold: true, color: "EA580C", align: "center",
+  });
+  slide.addText("5단계 개발 시퀀스 (feature/pi-integration 브랜치)", {
+    x: 3.8, y: 0.22, w: 9.8, h: 0.55,
+    fontSize: 20, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const steps = [
+    {
+      step: "STEP 1", week: "Week 1 · 1~2일",
+      title: "사전 준비",
+      color: C.purple, pale: C.purplePale, border: C.borderPurple,
+      items: [
+        "Pi Developer Portal 앱 2개 등록",
+        "PICK PICK Dev (Testnet)",
+        "PICK PICK (Mainnet)",
+        "API Key 발급 → .env.local 저장",
+        "Pi SDK 스크립트 layout.tsx 추가",
+        "Pi Browser 감지 유틸 작성",
+      ],
+    },
+    {
+      step: "STEP 2", week: "Week 1 · 2~3일",
+      title: "Pi 로그인",
+      color: C.blue, pale: C.bluePale, border: C.blueLight,
+      items: [
+        "Pi.authenticate() 클라이언트 연동",
+        "POST /api/auth/pi-login 서버 API",
+        "GET /v2/me 로 uid 검증",
+        "users 테이블 pi_uid 컬럼 활성화",
+        "기존 이메일 로그인과 병행 운영",
+        "Pi Browser에서만 버튼 노출",
+      ],
+    },
+    {
+      step: "STEP 3", week: "Week 2 · 3~4일",
+      title: "U2A Pi 결제",
+      color: C.green, pale: C.greenPale, border: "86EFAC",
+      items: [
+        "Pi.createPayment() 장바구니 연동",
+        "POST /api/payments/pi/approve",
+        "POST /api/payments/pi/complete",
+        "orders 테이블 payment_pi_id 추가",
+        "원화 → Pi 환율 실시간 적용",
+        "결제 수단에 Pi 옵션 추가",
+      ],
+    },
+    {
+      step: "STEP 4", week: "Week 3 · 2~3일",
+      title: "A2U Pi 지급",
+      color: C.yellow, pale: "FFFBEB", border: "FCD34D",
+      items: [
+        "POST /api/payments/pi/payout",
+        "라이더 배달완료 → Pi 수익 지급",
+        "리뷰 작성 → Pi 보상 지급",
+        "친구 초대 → Pi 레퍼럴 보상",
+        "미완료 결제 주기적 확인 Cron",
+        "rider_earnings Pi 수익 기록",
+      ],
+    },
+    {
+      step: "STEP 5", week: "추후 · Protocol 23 후",
+      title: "PICK 온체인 토큰",
+      color: C.orange, pale: C.orangePale, border: "FED7AA",
+      items: [
+        "Pi DEX/AMM Mainnet 배포 확인",
+        "PICK 토큰 Pi 생태계 발행",
+        "PICK/PI 유동성 풀 등록",
+        "기존 DB PICK → 온체인 마이그레이션",
+        "에코시스템 공개 등재 신청",
+        "Pi Only 앱 별도 버전 검토",
+      ],
+    },
+  ];
+
+  steps.forEach((s, i) => {
+    const x = 0.22 + i * 2.64;
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y: 0.92, w: 2.52, h: 5.75,
+      fill: { color: s.pale }, line: { color: s.color },
+      rectRadius: 0.15,
+    });
+    // 스텝 헤더
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.1, y: 1.02, w: 2.32, h: 0.72,
+      fill: { color: s.color }, line: { color: s.color },
+      rectRadius: 0.1,
+    });
+    slide.addText(s.step, {
+      x: x + 0.1, y: 1.04, w: 2.32, h: 0.3,
+      fontSize: 12, bold: true, color: C.white, align: "center",
+    });
+    slide.addText(s.title, {
+      x: x + 0.1, y: 1.32, w: 2.32, h: 0.3,
+      fontSize: 10.5, bold: true, color: C.white, align: "center",
+    });
+    // 주차
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: 1.82, w: 2.16, h: 0.3,
+      fill: { color: C.white }, line: { color: s.border },
+      rectRadius: 0.07,
+    });
+    slide.addText(s.week, {
+      x: x + 0.18, y: 1.82, w: 2.16, h: 0.3,
+      fontSize: 8.5, color: s.color, align: "center", bold: true,
+    });
+    // 아이템
+    s.items.forEach((item, j) => {
+      slide.addText(`• ${item}`, {
+        x: x + 0.2, y: 2.22 + j * 0.68, w: 2.12, h: 0.62,
+        fontSize: 9.5, color: C.textDark, wrap: true,
+      });
+    });
+  });
+
+  // 하단 브랜치 전략 배너
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 6.75, w: 12.8, h: 0.52,
+    fill: { color: C.purplePale }, line: { color: C.purple },
+    rectRadius: 0.1,
+  });
+  slide.addText("🌿  브랜치 전략: main (운영 유지) → feature/pi-integration (Pi 개발) → 테스트 완료 후 PR 머지  |  Vercel 브랜치별 독립 URL 자동 생성", {
+    x: 0.4, y: 6.75, w: 12.8, h: 0.52,
+    fontSize: 11, color: C.purple, align: "center", bold: true,
+  });
+}
+
+// ── 슬라이드 17 — 완료된 기능 전체 목록 (4/20 기준) ───
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
