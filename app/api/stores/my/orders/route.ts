@@ -26,13 +26,13 @@ export async function GET(request: NextRequest) {
     .from("stores")
     .select("id")
     .eq("owner_id", profile.id)
-    .order("created_at", { ascending: false })
-    .limit(1);
+    .order("created_at", { ascending: false });
 
-  const store = storeList?.[0] ?? null;
-  if (!store) {
+  if (!storeList || storeList.length === 0) {
     return NextResponse.json({ orders: [], storeId: null });
   }
+
+  const storeIds = storeList.map((s: { id: string }) => s.id);
 
   const tab = request.nextUrl.searchParams.get("tab") ?? "active";
   const doneStatuses    = ["delivered", "cancelled", "refunded"];
@@ -42,11 +42,11 @@ export async function GET(request: NextRequest) {
     .from("orders")
     .select(`
       id, status, total_amount, delivery_fee, pick_used,
-      delivery_address, delivery_note, estimated_time, created_at, rider_id,
+      delivery_address, delivery_note, estimated_time, created_at, rider_id, store_id,
       users!orders_user_id_fkey ( id, name, phone ),
       order_items ( id, menu_name, price, quantity )
     `)
-    .eq("store_id", store.id)
+    .in("store_id", storeIds)
     .in("status", tab === "done" ? doneStatuses : activeStatuses)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -56,5 +56,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "주문 조회에 실패했습니다" }, { status: 500 });
   }
 
-  return NextResponse.json({ orders: orders ?? [], storeId: store.id });
+  return NextResponse.json({ orders: orders ?? [], storeId: storeIds[0], storeIds });
 }

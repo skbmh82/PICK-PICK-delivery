@@ -527,6 +527,7 @@ type Tab = "active" | "done";
 export default function OwnerOrdersPage() {
   const [orders,   setOrders]   = useState<Order[]>([]);
   const [storeId,  setStoreId]  = useState<string | null>(null);
+  const [storeIds, setStoreIds] = useState<string[]>([]);
   const [tab,      setTab]      = useState<Tab>("active");
   const [loading,  setLoading]  = useState(true);
   const [newAlert, setNewAlert] = useState(0);   // 신규 주문 건수
@@ -542,6 +543,7 @@ export default function OwnerOrdersPage() {
         const data = await res.json();
         setOrders(data.orders ?? []);
         if (data.storeId) setStoreId(data.storeId);
+        if (data.storeIds?.length) setStoreIds(data.storeIds);
       }
     } finally {
       setLoading(false);
@@ -554,15 +556,17 @@ export default function OwnerOrdersPage() {
   // newAlert ref 동기화 (클로저 stale 방지)
   useEffect(() => { alertRef.current = newAlert; }, [newAlert]);
 
+  const realtimeTarget = storeIds.length > 0 ? storeIds : storeId;
+
   // 신규 주문 INSERT 알림 + 소리
-  useStoreOrderRealtime(storeId, () => {
+  useStoreOrderRealtime(realtimeTarget, () => {
     setNewAlert((n) => n + 1);
     if (soundOn) playOrderSound();
     if (tab === "active") fetchOrders("active");
   });
 
   // 주문 상태 UPDATE 실시간 반영 — Realtime 보조
-  useStoreOrderStatusRealtime(storeId, (orderId, newStatus) => {
+  useStoreOrderStatusRealtime(realtimeTarget, (orderId, newStatus) => {
     if (newStatus === "cancelled") stopOrderSound();
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))

@@ -52,33 +52,36 @@ export function useOrderRealtime(
 
 // ── 가맹점 신규 주문 알림 (사장님용) ──────────────────
 export function useStoreOrderRealtime(
-  storeId: string | null,
+  storeId: string | string[] | null,
   onNewOrder: (orderId: string) => void
 ) {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const cbRef      = useRef(onNewOrder);
   cbRef.current    = onNewOrder; // 항상 최신 콜백 유지
 
+  const storeIdKey = Array.isArray(storeId) ? storeId.join(",") : (storeId ?? "");
+
   useEffect(() => {
-    if (!storeId) return;
+    if (!storeIdKey) return;
+
+    const storeIdSet = new Set(storeIdKey.split(","));
 
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
     }
 
     const channel = supabase
-      .channel(`store:${storeId}:orders`)
+      .channel(`store:${storeIdKey}:orders`)
       .on(
         "postgres_changes",
         {
           event:  "INSERT",
           schema: "public",
           table:  "orders",
-          filter: `store_id=eq.${storeId}`,
         },
         (payload) => {
-          const orderId = (payload.new as { id: string }).id;
-          if (orderId) cbRef.current(orderId);
+          const row = payload.new as { id: string; store_id: string };
+          if (row.id && storeIdSet.has(row.store_id)) cbRef.current(row.id);
         }
       )
       .subscribe();
@@ -89,40 +92,43 @@ export function useStoreOrderRealtime(
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId]);
+  }, [storeIdKey]);
 }
 
 // ── 가맹점 주문 상태 변경 실시간 (고객 취소·라이더 픽업·배달 완료 등) ──
 // NOTE: UPDATE 이벤트에 서버사이드 filter를 쓰면 REPLICA IDENTITY 미설정 시
 //       이벤트가 묵음 처리됨. 필터 없이 받아서 클라이언트에서 store_id 확인.
 export function useStoreOrderStatusRealtime(
-  storeId: string | null,
+  storeId: string | string[] | null,
   onStatusChange: (orderId: string, newStatus: OrderStatus) => void
 ) {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const cbRef      = useRef(onStatusChange);
   cbRef.current    = onStatusChange; // 항상 최신 콜백 유지
 
+  const storeIdKey = Array.isArray(storeId) ? storeId.join(",") : (storeId ?? "");
+
   useEffect(() => {
-    if (!storeId) return;
+    if (!storeIdKey) return;
+
+    const storeIdSet = new Set(storeIdKey.split(","));
 
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
     }
 
     const channel = supabase
-      .channel(`store:${storeId}:status`)
+      .channel(`store:${storeIdKey}:status`)
       .on(
         "postgres_changes",
         {
           event:  "UPDATE",
           schema: "public",
           table:  "orders",
-          // 필터 없이 수신 후 클라이언트에서 store_id 검증
         },
         (payload) => {
           const row = payload.new as { id: string; status: OrderStatus; store_id: string };
-          if (row.store_id === storeId && row.id && row.status) {
+          if (storeIdSet.has(row.store_id) && row.id && row.status) {
             cbRef.current(row.id, row.status);
           }
         }
@@ -135,7 +141,7 @@ export function useStoreOrderStatusRealtime(
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId]);
+  }, [storeIdKey]);
 }
 
 // ── 라이더 배달 요청 알림 (status → ready 변경 감지) ────

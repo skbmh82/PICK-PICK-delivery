@@ -28,11 +28,9 @@ export async function GET() {
     .from("stores")
     .select("id, name")
     .eq("owner_id", profile.id)
-    .order("created_at", { ascending: false })
-    .limit(1);
+    .order("created_at", { ascending: false });
 
-  const store = storeList?.[0] ?? null;
-  if (!store) {
+  if (!storeList || storeList.length === 0) {
     return NextResponse.json({
       storeName: null,
       today: { newOrders: 0, inProgress: 0, completed: 0, cancelled: 0, totalRevenue: 0, pickEarned: 0 },
@@ -40,6 +38,9 @@ export async function GET() {
       pendingOrders: [],
     });
   }
+
+  const store = storeList[0];
+  const storeIds = storeList.map((s: { id: string }) => s.id);
 
   // 오늘 시작 시각 (KST → UTC)
   const now = new Date();
@@ -50,7 +51,7 @@ export async function GET() {
   const { data: todayOrders } = await (admin as any)
     .from("orders")
     .select("id, status, total_amount, pick_reward, created_at, users!orders_user_id_fkey(id, name, phone), order_items(id, menu_name, price, quantity)")
-    .eq("store_id", store.id)
+    .in("store_id", storeIds)
     .gte("created_at", todayStart)
     .order("created_at", { ascending: false });
 
@@ -98,7 +99,7 @@ export async function GET() {
     const { data: dayOrders } = await (admin as any)
       .from("orders")
       .select("total_amount, status")
-      .eq("store_id", store.id)
+      .in("store_id", storeIds)
       .eq("status", "delivered")
       .gte("created_at", start)
       .lt("created_at", end);
@@ -114,6 +115,8 @@ export async function GET() {
 
   return NextResponse.json({
     storeName: store.name,
+    storeId: store.id,
+    storeIds,
     today: { newOrders, inProgress, completed, cancelled, totalRevenue, pickEarned },
     weekly,
     pendingOrders,

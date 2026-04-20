@@ -877,6 +877,7 @@ export default function OwnerDashboardPage() {
   const [data,          setData]          = useState<DashboardData | null>(null);
   const [loading,       setLoading]       = useState(true);
   const [storeId,       setStoreId]       = useState<string | null>(null);
+  const [storeIds,      setStoreIds]      = useState<string[]>([]);
   const [hasStore,      setHasStore]      = useState<boolean | null>(null);
   const [isApproved,    setIsApproved]    = useState<boolean | null>(null);
   const [registerOpen,  setRegisterOpen]  = useState(false);
@@ -898,8 +899,9 @@ export default function OwnerDashboardPage() {
         }
       }
       if (statsRes.ok) {
-        const stats: DashboardData = await statsRes.json();
+        const stats: DashboardData & { storeIds?: string[] } = await statsRes.json();
         setData(stats);
+        if (stats.storeIds?.length) setStoreIds(stats.storeIds);
       }
     } finally {
       setLoading(false);
@@ -909,13 +911,13 @@ export default function OwnerDashboardPage() {
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
   // 신규 주문 실시간 알림 → 대시보드 자동 갱신 + 음성 반복 시작
-  useStoreOrderRealtime(storeId, () => {
+  useStoreOrderRealtime(storeIds.length > 0 ? storeIds : storeId, () => {
     playOrderSound();
     fetchDashboard();
   });
 
   // 주문 상태 변경 실시간 (고객 취소 포함) → 즉시 소리 중단 + 대시보드 재조회
-  useStoreOrderStatusRealtime(storeId, (_orderId, newStatus) => {
+  useStoreOrderStatusRealtime(storeIds.length > 0 ? storeIds : storeId, (_orderId, newStatus) => {
     if (newStatus === "cancelled" || newStatus === "refunded") stopOrderSound();
     fetchDashboard();
   });
