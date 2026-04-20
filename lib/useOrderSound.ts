@@ -3,85 +3,54 @@
 import { useCallback, useEffect } from "react";
 
 // ── 모듈 레벨 싱글톤 ─────────────────────────────────
-let _audioEl:     HTMLAudioElement | null = null;
-let _blobUrl:     string | null = null;
-let _renderPromise: Promise<void> | null = null;
-let _isPlaying  = false;
-let _ttsInterval: ReturnType<typeof setInterval> | null = null;
+let _ctx:        AudioContext | null = null;
+let _isPlaying = false;
+let _beepInterval: ReturnType<typeof setInterval> | null = null;
+let _ttsInterval:  ReturnType<typeof setInterval> | null = null;
 let _ttsMessage  = "픽픽 주문이 들어왔습니다";
 
-/** AudioBuffer → WAV ArrayBuffer 변환 */
-function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
-  const numCh      = buffer.numberOfChannels;
-  const sampleRate = buffer.sampleRate;
-  const numFrames  = buffer.length;
-  const bytesPerSample = 2;
-  const dataLen = numFrames * numCh * bytesPerSample;
-  const wavLen  = 44 + dataLen;
-  const out  = new ArrayBuffer(wavLen);
-  const view = new DataView(out);
+type WindowWithWebkit = Window & { webkitAudioContext?: typeof AudioContext };
 
-  const write = (off: number, str: string) => {
-    for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i));
-  };
-  write(0, "RIFF");
-  view.setUint32(4,  wavLen - 8, true);
-  write(8, "WAVE");
-  write(12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1,  true);
-  view.setUint16(22, numCh, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * numCh * bytesPerSample, true);
-  view.setUint16(32, numCh * bytesPerSample, true);
-  view.setUint16(34, 16, true);
-  write(36, "data");
-  view.setUint32(40, dataLen, true);
-
-  let offset = 44;
-  for (let i = 0; i < numFrames; i++) {
-    for (let ch = 0; ch < numCh; ch++) {
-      const s = Math.max(-1, Math.min(1, buffer.getChannelData(ch)[i]));
-      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-      offset += 2;
-    }
-  }
-  return out;
+function getCtx(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  if (_ctx) return _ctx;
+  const W = window as WindowWithWebkit;
+  const AC = window.AudioContext ?? W.webkitAudioContext;
+  if (!AC) return null;
+  _ctx = new AC();
+  return _ctx;
 }
 
-/**
- * "픽픽딩동(1초) + 무음(2초)" WAV를 사전 렌더링.
- * loop=true 로 재생 시 3초 주기 자동 반복.
- * OfflineAudioContext는 user gesture 없이 사용 가능하므로 미리 실행.
- */
-async function renderAndCache(): Promise<void> {
-  if (_blobUrl) return; // 이미 완료
-  const sr  = 44100;
-  const dur = 3.0;
-  const off = new OfflineAudioContext(1, Math.round(sr * dur), sr);
-
-  const note = (freq: number, start: number, noteDur: number) => {
-    const osc  = off.createOscillator();
-    const gain = off.createGain();
+/** Web Audio API로 픽픽딩동 비프 1회 재생 */
+function playBeep(ctx: AudioContext) {
+  const now = ctx.currentTime;
+  const notes: [number, number, number][] = [
+    [880, 0.00, 0.10],
+    [880, 0.18, 0.10],
+    [523, 0.38, 0.20],
+    [784, 0.55, 0.28],
+  ];
+  notes.forEach(([freq, start, dur]) => {
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
     osc.type = "sine";
     osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0, start);
-    gain.gain.linearRampToValueAtTime(0.5, start + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.001, start + noteDur);
+    gain.gain.setValueAtTime(0, now + start);
+    gain.gain.linearRampToValueAtTime(0.8, now + start + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + start + dur);
     osc.connect(gain);
-    gain.connect(off.destination);
-    osc.start(start);
-    osc.stop(start + noteDur + 0.02);
-  };
+    gain.connect(ctx.destination);
+    osc.start(now + start);
+    osc.stop(now + start + dur + 0.05);
+  });
+}
 
-  note(880, 0.00, 0.10);
-  note(880, 0.18, 0.10);
-  note(523, 0.38, 0.20);
-  note(784, 0.55, 0.28);
-
-  const buffer = await off.startRendering();
-  const wav    = audioBufferToWav(buffer);
-  _blobUrl = URL.createObjectURL(new Blob([wav], { type: "audio/wav" }));
+/** AudioContext가 suspended면 resume 후 비프 재생 */
+async function tryPlayBeep() {
+  const ctx = getCtx();
+  if (!ctx) return;
+  if (ctx.state === "suspended") await ctx.resume();
+  playBeep(ctx);
 }
 
 function speakTts(msg = _ttsMessage) {
@@ -98,68 +67,46 @@ function speakTts(msg = _ttsMessage) {
 export function useOrderSound(ttsMessage?: string) {
   if (ttsMessage) _ttsMessage = ttsMessage;
 
-  // 페이지 마운트 시 WAV 미리 렌더링 (user gesture 불필요)
+  // 페이지 포커스 복귀 시 suspended AudioContext 자동 resume
   useEffect(() => {
-    if (!_renderPromise) {
-      _renderPromise = renderAndCache().catch((e) =>
-        console.error("[useOrderSound] WAV 렌더링 실패:", e)
-      );
-    }
+    const onVisible = () => {
+      if (_ctx?.state === "suspended") void _ctx.resume();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
 
   /**
-   * 🔔 버튼 클릭 (user gesture) → AudioElement 잠금 해제 + 확인음 재생
-   * pause() 없이 비프를 끝까지 재생 → iOS/Android에서 audio 잠금이 완전히 해제됨.
-   * 이후 Realtime 이벤트(비-gesture)에서도 play() 호출 가능.
+   * 🔔 버튼 클릭 (user gesture)
+   * AudioContext를 생성·resume하고 비프 1회 재생 — 이후 자동 재생 허용됨.
    */
-  const unlock = useCallback(() => {
-    if (!_blobUrl) {
-      if (_renderPromise) {
-        _renderPromise.then(() => { if (_blobUrl) unlock(); });
-      }
-      return;
-    }
-
-    if (!_audioEl) {
-      _audioEl = new Audio(_blobUrl);
-      _audioEl.preload = "auto";
-    }
-
-    // loop OFF — 확인음 1회만 재생 (끝까지 들려야 잠금 해제 완료)
-    _audioEl.loop = false;
-    _audioEl.currentTime = 0;
-    _audioEl.play().catch(() => {});
-
+  const unlock = useCallback(async () => {
+    const ctx = getCtx();
+    if (!ctx) return;
+    if (ctx.state === "suspended") await ctx.resume();
+    playBeep(ctx);
     speakTts("픽픽 알림 소리가 켜졌습니다");
   }, []);
 
-  /** 신규 주문 → loop 재생 시작 */
+  /** 신규 주문 → 3초마다 비프 반복 */
   const play = useCallback(() => {
     if (typeof window === "undefined") return;
     if (_isPlaying) return;
-    if (!_audioEl || !_blobUrl) return;
-
     _isPlaying = true;
-    _audioEl.loop = true;
-    _audioEl.currentTime = 0;
-    _audioEl.play().catch(() => {});
+
+    void tryPlayBeep();
+    _beepInterval = setInterval(() => void tryPlayBeep(), 3000);
 
     speakTts();
     if (_ttsInterval) clearInterval(_ttsInterval);
-    _ttsInterval = setInterval(speakTts, 30_000);
+    _ttsInterval = setInterval(() => speakTts(), 30_000);
   }, []);
 
-  /** 수락/취소 → loop 중단 */
+  /** 수락/취소 → 반복 중단 */
   const stop = useCallback(() => {
     _isPlaying = false;
-    if (_audioEl) {
-      _audioEl.pause();
-      _audioEl.currentTime = 0;
-    }
-    if (_ttsInterval) {
-      clearInterval(_ttsInterval);
-      _ttsInterval = null;
-    }
+    if (_beepInterval) { clearInterval(_beepInterval); _beepInterval = null; }
+    if (_ttsInterval)  { clearInterval(_ttsInterval);  _ttsInterval  = null; }
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   }, []);
 
