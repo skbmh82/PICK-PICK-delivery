@@ -64,7 +64,7 @@ const C = {
     fill: { color: C.purpleLight }, line: { color: C.purpleLight },
   });
 
-  slide.addText("2026년 4월 20일  |  주문 pending 흐름 · 라이더 자동오프라인 방지 · 조리완료 실시간 반영", {
+  slide.addText("2026년 4월 20일  |  사장님 다중 가게 지원 · 안드로이드 알람 Web Audio 선예약 · Vercel 정리", {
     x: 1, y: 3.6, w: 11.6, h: 0.5,
     fontSize: 14, color: "C4B5FD",
     align: "center",
@@ -121,6 +121,7 @@ const C = {
     { label: "라이더 5km 반경 필터링 + 10분 자동오프라인 Cron",      pct: 100, color: C.green },
     { label: "주문 취소 즉시 반영 · calling_rider 상태 흐름 재설계",  pct: 100, color: C.green },
     { label: "주문 pending 흐름 · 라이더 heartbeat · Pi Network 플랜", pct: 100, color: C.green },
+    { label: "다중 가게 통합 조회 · 안드로이드 알람 Web Audio 선예약", pct: 100, color: C.green },
   ];
 
   progressItems.forEach((item, i) => {
@@ -1107,7 +1108,89 @@ const C = {
   });
 }
 
-// ── 슬라이드 15 — Pi Network 현황 & 아키텍처 ───────────
+// ── 슬라이드 15 — Day 14 작업 내역 (4/20 추가) ──────────
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fill: { color: "EFF6FF" }, line: { color: "2563EB" },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 04. 20 (Day 14)", {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fontSize: 11, bold: true, color: "2563EB", align: "center",
+  });
+
+  slide.addText("🔧  다중 가게 주문 통합 · 안드로이드 알람 안정화 · Vercel 정리", {
+    x: 3.8, y: 0.22, w: 9.8, h: 0.55,
+    fontSize: 17, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day14 = [
+    {
+      emoji: "🏪", title: "사장님 다중 가게 버그 수정",
+      desc: "limit(1) → 전체 가게 IN 쿼리\n모든 소유 가게 주문 통합 조회\nRealtime도 storeIds 배열 지원\n핸드폰 주문 사장님 화면 미표시 해결",
+    },
+    {
+      emoji: "🔔", title: "안드로이드 알람 Web Audio 전환",
+      desc: "HTMLAudioElement → AudioContext\nWeb Audio 선예약 방식 도입\n30초 분량 비프 미리 스케줄링\nJS 타이머 throttle 완전 우회",
+    },
+    {
+      emoji: "🎵", title: "AudioContext 안정성 강화",
+      desc: "suspended → resume() 자동 처리\nvisibilitychange로 포그라운드 복구\nOfflineAudioContext 미리 렌더링\nuser gesture 컨텍스트 유지",
+    },
+    {
+      emoji: "🗂️", title: "Vercel 중복 프로젝트 정리",
+      desc: "3개 중복 배포 → 1개로 통합\npickpick-delivery 삭제\npickpick-business 삭제\npick-pick-delivery 단일 운영",
+    },
+    {
+      emoji: "💡", title: "Pi Network PICK 토큰 전략",
+      desc: "현재: DB 포인트로 카운팅\n파이 메인넷 오픈 후 실 토큰 전환\nTGE 에어드랍 방식 확정\n기존 사용자 소급 적용 가능",
+    },
+    {
+      emoji: "🔄", title: "Realtime 훅 배열 지원",
+      desc: "useStoreOrderRealtime 개선\nstring | string[] 타입 지원\nstoreIds 배열로 멀티 가게 감지\nINSERT/UPDATE 이벤트 모두 적용",
+    },
+  ];
+
+  day14.forEach((item, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
+    const y = 1.0 + row * 2.55;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.1, h: 2.35,
+      fill: { color: "EFF6FF" }, line: { color: "93C5FD" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: y + 0.2, w: 0.58, h: 0.58,
+      fill: { color: C.white }, line: { color: "93C5FD" },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.18, y: y + 0.18, w: 0.6, h: 0.6,
+      fontSize: 18, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
+      fontSize: 12, bold: true, color: "2563EB",
+    });
+    slide.addText(item.desc, {
+      x: x + 0.22, y: y + 0.78, w: 3.65, h: 1.42,
+      fontSize: 10, color: C.textDark, wrap: true,
+    });
+  });
+}
+
+// ── 슬라이드 17 — Pi Network 현황 & 아키텍처 ───────────
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
@@ -1243,7 +1326,7 @@ const C = {
   });
 }
 
-// ── 슬라이드 16 — Pi Network 5단계 연동 시퀀스 ─────────
+// ── 슬라이드 18 — Pi Network 5단계 연동 시퀀스 ─────────
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
@@ -1386,12 +1469,12 @@ const C = {
   });
 }
 
-// ── 슬라이드 17 — 완료된 기능 전체 목록 (4/20 기준) ───
+// ── 슬라이드 19 — 완료된 기능 전체 목록 (4/20 기준) ───
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("✅  완료된 기능 전체 목록 (4/20 최신)", {
+  slide.addText("✅  완료된 기능 전체 목록 (Day 14 최신)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 24, bold: true, color: C.purpleDark,
   });
@@ -1455,6 +1538,8 @@ const C = {
         "10분 자동오프라인 Cron (매 5분 실행)",
         "calling_rider 상태 흐름 재설계 + 픽업완료 버튼",
         "주문 pending 흐름 · 라이더 heartbeat · 조리완료 폴링",
+        "다중 가게 통합 조회 · Realtime storeIds 배열 지원",
+        "안드로이드 알람 Web Audio 선예약 (JS throttle 우회)",
         "FCM 푸시 알림 + 관리자 일괄 발송",
         "PWA 오프라인 캐싱 (Serwist) + Sentry 모니터링",
       ],
@@ -1522,7 +1607,7 @@ const C = {
     fill: { color: C.greenPale }, line: { color: C.green },
     rectRadius: 0.12,
   });
-  slide.addText("🎉  Phase 1~3 완성! 70개+ 기능 구현 · 미착수 기능 0개 · Pi Network 연동 플랜 수립 완료", {
+  slide.addText("🎉  Phase 1~3 완성! 75개+ 기능 구현 · 안드로이드 알람 안정화 · Pi PICK 토큰 전환 전략 확정", {
     x: 0.4, y: 1.0, w: 13.2, h: 0.6,
     fontSize: 14, bold: true, color: C.green, align: "center",
   });
