@@ -47,6 +47,7 @@ interface PiAuthResult {
 }
 
 interface PiSDK {
+  init(config: { version: string; sandbox?: boolean }): void;
   authenticate(
     scopes: string[],
     onIncompletePaymentFound: (payment: PiPaymentDTO) => void

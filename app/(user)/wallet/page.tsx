@@ -280,6 +280,7 @@ function usePiPayment(onSuccess: () => void) {
     if (!window.Pi) { setPiError("Pi Browser에서만 사용 가능합니다"); return; }
     setPiStatus("auth"); setPiError("");
     try {
+      window.Pi.init({ version: "2.0", sandbox: true });
       await window.Pi.authenticate(["payments"], async (incompletePmt) => {
         // 미완료 결제 처리
         if (incompletePmt.status.developer_approved && !incompletePmt.status.developer_completed) {

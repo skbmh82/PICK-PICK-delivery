@@ -12,8 +12,13 @@ export default function PiTestPage() {
   useEffect(() => {
     const check = () => {
       if (typeof window !== "undefined" && window.Pi) {
-        setHasPi(true);
-        addLog("✅ Pi SDK 감지됨");
+        try {
+          window.Pi.init({ version: "2.0", sandbox: true });
+          setHasPi(true);
+          addLog("✅ Pi SDK 초기화 완료");
+        } catch (e) {
+          addLog(`❌ init 오류: ${e instanceof Error ? e.message : String(e)}`);
+        }
       } else {
         addLog("⚠️ Pi SDK 없음 — Pi Browser에서 열어주세요");
       }
