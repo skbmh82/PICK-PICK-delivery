@@ -4,7 +4,19 @@
  * - 지도 SDK 로더 (NEXT_PUBLIC_KAKAO_MAP_KEY 필요)
  */
 
-/** 카카오맵 앱 딥링크 → 웹 폴백 순서로 내비게이션 열기 */
+/** a 태그로 새 탭 열기 — window.open() 대신 사용 (모바일 팝업 차단 우회) */
+function openLink(url: string) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => document.body.removeChild(a), 500);
+}
+
+/** 카카오맵 내비게이션 열기 */
 export function openKakaoNavi({
   name,
   lat,
@@ -17,26 +29,13 @@ export function openKakaoNavi({
   address?: string;
 }) {
   if (lat && lng) {
-    // 웹 URL (항상 새 탭에서 열림)
-    const webUrl = `https://map.kakao.com/link/map/${encodeURIComponent(name)},${lat},${lng}`;
-    window.open(webUrl, "_blank");
-
-    // 앱 딥링크 (카카오맵 설치된 경우 — 숨겨진 a 태그로 시도, 앱이동시켜도 현재 페이지 유지)
-    try {
-      const a = document.createElement("a");
-      a.href = `kakaomap://look?p=${lat},${lng}`;
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => document.body.removeChild(a), 1000);
-    } catch { /* 무시 */ }
+    openLink(`https://map.kakao.com/link/map/${encodeURIComponent(name)},${lat},${lng}`);
   } else if (address) {
-    const webUrl = `https://map.kakao.com/link/search/${encodeURIComponent(address)}`;
-    window.open(webUrl, "_blank");
+    openLink(`https://map.kakao.com/link/search/${encodeURIComponent(address)}`);
   }
 }
 
-/** 픽업지(가게)→배달지 경로 안내 URL */
+/** 픽업지(가게)→배달지 경로 안내 */
 export function openKakaoRoute({
   pickupName, pickupLat, pickupLng,
   destName,   destLat,   destLng,
@@ -44,20 +43,9 @@ export function openKakaoRoute({
   pickupName: string; pickupLat: number; pickupLng: number;
   destName:   string; destLat:   number; destLng:   number;
 }) {
-  // 웹 URL (항상 새 탭)
-  const webUrl =
-    `https://map.kakao.com/link/from/${encodeURIComponent(pickupName)},${pickupLat},${pickupLng}/to/${encodeURIComponent(destName)},${destLat},${destLng}`;
-  window.open(webUrl, "_blank");
-
-  // 앱 딥링크 시도 (현재 페이지 유지)
-  try {
-    const a = document.createElement("a");
-    a.href = `kakaomap://route?sp=${pickupLat},${pickupLng}&ep=${destLat},${destLng}&by=CAR`;
-    a.style.display = "none";
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => document.body.removeChild(a), 1000);
-  } catch { /* 무시 */ }
+  openLink(
+    `https://map.kakao.com/link/from/${encodeURIComponent(pickupName)},${pickupLat},${pickupLng}/to/${encodeURIComponent(destName)},${destLat},${destLng}`
+  );
 }
 
 /** 카카오맵 SDK 스크립트 동적 로드 */
