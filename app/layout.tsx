@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import AuthProvider from "@/components/providers/AuthProvider";
 import ThemeProvider, { ThemeScript } from "@/components/providers/ThemeProvider";
@@ -56,6 +57,8 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
+        {/* Pi Network SDK — Pi Browser에서만 활성화됨 */}
+        <Script src="https://sdk.minepi.com/pi-sdk.js" strategy="afterInteractive" />
       </body>
     </html>
   );
