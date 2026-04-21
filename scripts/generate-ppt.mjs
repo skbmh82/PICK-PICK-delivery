@@ -64,7 +64,7 @@ const C = {
     fill: { color: C.purpleLight }, line: { color: C.purpleLight },
   });
 
-  slide.addText("2026년 4월 20일  |  사장님 다중 가게 지원 · 안드로이드 알람 Web Audio 선예약 · Vercel 정리", {
+  slide.addText("2026년 4월 22일  |  Pi Network SDK 연동 · 개발자 체크리스트 10/10 · Ecosystem Listing 신청", {
     x: 1, y: 3.6, w: 11.6, h: 0.5,
     fontSize: 14, color: "C4B5FD",
     align: "center",
@@ -88,7 +88,7 @@ const C = {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("📊  PICK PICK 진행 현황 (4/20 최신)", {
+  slide.addText("📊  PICK PICK 진행 현황 (4/22 최신)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 26, bold: true, color: C.purpleDark,
   });
@@ -122,6 +122,7 @@ const C = {
     { label: "주문 취소 즉시 반영 · calling_rider 상태 흐름 재설계",  pct: 100, color: C.green },
     { label: "주문 pending 흐름 · 라이더 heartbeat · Pi Network 플랜", pct: 100, color: C.green },
     { label: "다중 가게 통합 조회 · 안드로이드 알람 Web Audio 선예약", pct: 100, color: C.green },
+    { label: "Pi SDK 통합 · 개발자 체크리스트 10/10 · Ecosystem Listing 신청", pct: 100, color: C.green },
   ];
 
   progressItems.forEach((item, i) => {
@@ -152,7 +153,7 @@ const C = {
 
   // 우측 요약 박스
   const summary = [
-    { icon: "✅", label: "완료 기능",  value: "70개+", color: C.green,  pale: C.greenPale },
+    { icon: "✅", label: "완료 기능",  value: "80개+", color: C.green,  pale: C.greenPale },
     { icon: "🚧", label: "진행 중",    value: "0개",   color: C.yellow, pale: "FFFBEB" },
     { icon: "⏳", label: "미착수",     value: "0개",   color: C.textSub, pale: "F3F4F6" },
   ];
@@ -1190,6 +1191,88 @@ const C = {
   });
 }
 
+// ── 슬라이드 16 — Day 15 작업 내역 (4/22) ───────────────
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fill: { color: "F0FDF4" }, line: { color: "16A34A" },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 04. 22 (Day 15)", {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fontSize: 11, bold: true, color: "16A34A", align: "center",
+  });
+
+  slide.addText("π  Pi Network SDK 연동 · 개발자 체크리스트 10/10 완료", {
+    x: 3.8, y: 0.22, w: 9.8, h: 0.55,
+    fontSize: 17, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day15 = [
+    {
+      emoji: "π", title: "Pi SDK 앱 통합",
+      desc: "pi-sdk.js layout에 Script 로드\ntypes/pi.d.ts 타입 선언 추가\nPi.init() + Pi.authenticate() 구현\nusePiPayment 커스텀 훅 작성",
+    },
+    {
+      emoji: "✅", title: "개발자 체크리스트 10/10",
+      desc: "앱 등록 ~ Domain Validation 완료\nPiNet 서브도메인 (plckplck1042)\n테스트 결제 트랜잭션 완료\nCompleted Steps: 10 of 10 달성",
+    },
+    {
+      emoji: "🔌", title: "Pi 결제 서버 API",
+      desc: "POST /api/pi/approve 구현\nPOST /api/pi/complete 구현\nPI_API_KEY 환경변수 설정\nVercel Production 환경 적용",
+    },
+    {
+      emoji: "🧪", title: "Pi 결제 테스트 페이지",
+      desc: "/pi-test 전용 페이지 생성\n로그인 없이 결제 테스트 가능\n실시간 로그 화면 출력\n0.001π Testnet 결제 성공",
+    },
+    {
+      emoji: "🎨", title: "Pi Ecosystem Listing 준비",
+      desc: "/brand/intro (400×400 OG 이미지)\n/brand/preview (750×1500 프리뷰)\n/privacy 개인정보처리방침 페이지\n/terms 이용약관 페이지 생성",
+    },
+    {
+      emoji: "📋", title: "Ecosystem Listing 신청",
+      desc: "Privacy Policy URL 등록\nTerms of Service URL 등록\nApp Name · Subtitle · Category 입력\nApply for Unverified Listing 진행 중",
+    },
+  ];
+
+  day15.forEach((item, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
+    const y = 1.0 + row * 2.55;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.1, h: 2.35,
+      fill: { color: "F0FDF4" }, line: { color: "86EFAC" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: y + 0.2, w: 0.58, h: 0.58,
+      fill: { color: C.white }, line: { color: "86EFAC" },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.18, y: y + 0.18, w: 0.6, h: 0.6,
+      fontSize: 18, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
+      fontSize: 12, bold: true, color: "16A34A",
+    });
+    slide.addText(item.desc, {
+      x: x + 0.22, y: y + 0.78, w: 3.65, h: 1.42,
+      fontSize: 10, color: C.textDark, wrap: true,
+    });
+  });
+}
+
 // ── 슬라이드 17 — Pi Network 현황 & 아키텍처 ───────────
 {
   const slide = prs.addSlide();
@@ -1474,7 +1557,7 @@ const C = {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("✅  완료된 기능 전체 목록 (Day 14 최신)", {
+  slide.addText("✅  완료된 기능 전체 목록 (Day 15 최신)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 24, bold: true, color: C.purpleDark,
   });
@@ -1545,6 +1628,19 @@ const C = {
       ],
     },
     {
+      title: "π Pi Network 연동",
+      color: "7C3AED", pale: C.purplePale,
+      items: [
+        "Pi SDK 앱 통합 (pi-sdk.js + types/pi.d.ts)",
+        "Pi.init() + Pi.authenticate() + Pi.createPayment()",
+        "서버 API: /api/pi/approve · /api/pi/complete",
+        "개발자 체크리스트 10/10 완료",
+        "Pi Ecosystem Listing 신청 진행 중",
+        "/pi-test 전용 테스트 페이지",
+        "/privacy · /terms · 브랜드 OG 이미지 생성",
+      ],
+    },
+    {
       title: "🛡️ DB / 보안 / 관리자",
       color: C.orange, pale: C.orangePale,
       items: [
@@ -1607,7 +1703,7 @@ const C = {
     fill: { color: C.greenPale }, line: { color: C.green },
     rectRadius: 0.12,
   });
-  slide.addText("🎉  Phase 1~3 완성! 75개+ 기능 구현 · 안드로이드 알람 안정화 · Pi PICK 토큰 전환 전략 확정", {
+  slide.addText("🎉  Phase 1~4 진입! 80개+ 기능 구현 · Pi SDK 연동 · 개발자 체크리스트 10/10 · Ecosystem Listing 신청", {
     x: 0.4, y: 1.0, w: 13.2, h: 0.6,
     fontSize: 14, bold: true, color: C.green, align: "center",
   });
