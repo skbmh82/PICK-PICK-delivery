@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,6 +21,45 @@ export default function LoginPage() {
   const redirectTo   = searchParams.get("redirect") ?? "/home";
   const [showPw,      setShowPw]      = useState(false);
   const [serverError, setServerError] = useState("");
+  const [isPiBrowser, setIsPiBrowser] = useState(false);
+  const [piLoading,   setPiLoading]   = useState(false);
+
+  useEffect(() => {
+    setIsPiBrowser(
+      typeof window !== "undefined" &&
+      !!window.Pi &&
+      /PiBrowser/i.test(navigator.userAgent)
+    );
+  }, []);
+
+  const handlePiLogin = async () => {
+    if (!window.Pi) return;
+    setPiLoading(true);
+    setServerError("");
+    try {
+      window.Pi.init({ version: "2.0", sandbox: true });
+      const auth = await window.Pi.authenticate(["username", "payments"], async () => {});
+      const res = await fetch("/api/auth/pi-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: auth.accessToken }),
+      });
+      const json = await res.json() as { access_token?: string; refresh_token?: string; error?: string };
+      if (!res.ok || !json.access_token) {
+        setServerError(json.error ?? "Pi 로그인 실패");
+        return;
+      }
+      await supabase.auth.setSession({
+        access_token:  json.access_token,
+        refresh_token: json.refresh_token ?? "",
+      });
+      router.replace(redirectTo);
+    } catch (e) {
+      setServerError(e instanceof Error ? e.message : "Pi 로그인 중 오류가 발생했어요");
+    } finally {
+      setPiLoading(false);
+    }
+  };
 
   const {
     register,
@@ -130,6 +169,32 @@ export default function LoginPage() {
           </Link>
         </div>
       </div>
+
+      {/* Pi 로그인 버튼 — Pi Browser에서만 표시 */}
+      {isPiBrowser && (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-pick-border" />
+            <span className="text-xs text-pick-text-sub font-medium">또는</span>
+            <div className="flex-1 h-px bg-pick-border" />
+          </div>
+          <button
+            onClick={() => void handlePiLogin()}
+            disabled={piLoading}
+            className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-[#7C3AED] to-[#D97706] text-white font-black py-4 rounded-full shadow-lg active:scale-95 transition-all disabled:opacity-60"
+          >
+            {piLoading ? (
+              <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            ) : (
+              <span className="text-xl font-black" style={{ fontFamily: "serif" }}>π</span>
+            )}
+            {piLoading ? "Pi 인증 중..." : "Pi 계정으로 로그인"}
+          </button>
+          <p className="text-center text-xs text-pick-text-sub">
+            Pi Network 계정으로 바로 로그인됩니다
+          </p>
+        </div>
+      )}
 
       {/* 회원가입 링크 */}
       <p className="text-center text-sm text-pick-text-sub">

@@ -1,4 +1,5 @@
 import { createServerClient as _createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -31,4 +32,13 @@ export function createServerClient() {
   return _createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: { getAll: () => [], setAll: () => {} },
   });
+}
+
+// Service Role 어드민 클라이언트 (서버 전용 — Pi 로그인, 세션 생성 등)
+export function createAdminClient() {
+  return createClient(
+    supabaseUrl,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
 }
