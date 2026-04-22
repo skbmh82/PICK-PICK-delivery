@@ -351,12 +351,12 @@ function PiCalculator() {
   const [krwInput, setKrwInput] = useState("");
   const [piInput,  setPiInput]  = useState("");
 
-  // 실시간 환율 자동 조회 (마운트 시 1회)
+  // 실시간 환율 자동 조회 (마운트 시 1회) — ExchangeRate-API 사용 (KRW 지원)
   useEffect(() => {
     setRateLoading(true);
-    fetch("https://api.frankfurter.app/latest?from=USD&to=KRW")
+    fetch("https://api.exchangerate-api.com/v4/latest/USD")
       .then((r) => r.json())
-      .then((data: { rates?: { KRW?: number }; date?: string }) => {
+      .then((data: { rates?: Record<string, number>; date?: string }) => {
         const fetched = data.rates?.KRW;
         if (fetched) {
           const rounded = Math.round(fetched).toString();
