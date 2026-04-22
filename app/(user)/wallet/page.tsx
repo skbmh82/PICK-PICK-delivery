@@ -351,12 +351,11 @@ function PiCalculator() {
   const [krwInput, setKrwInput] = useState("");
   const [piInput,  setPiInput]  = useState("");
 
-  // 실시간 환율 조회 — 소수점 포함 정밀값 적용
+  // 실시간 환율 조회 — 한국수출입은행 공식 API (서버 라우트 경유)
   useEffect(() => {
     setRateLoading(true);
 
     const applyRate = (fetched: number, date: string) => {
-      // 소수점 2자리까지 표시 (더 정확)
       const rounded = fetched.toFixed(2);
       setUsdKrw(rounded);
       localStorage.setItem("usd_krw", rounded);
@@ -369,20 +368,19 @@ function PiCalculator() {
       }
     };
 
-    // Primary: fawazahmed0 currency API (커뮤니티 정밀 데이터, 소수점 제공)
-    fetch("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json")
+    // Primary: 한국수출입은행 공식 환율 (서버 API 라우트)
+    fetch("/api/exchange-rate")
       .then((r) => r.json())
-      .then((data: { date?: string; usd?: Record<string, number> }) => {
-        const fetched = data.usd?.krw;
-        if (fetched) { applyRate(fetched, data.date ?? ""); return; }
-        throw new Error("no KRW");
+      .then((data: { rate?: number; date?: string; error?: string }) => {
+        if (data.rate) { applyRate(data.rate, data.date ?? ""); return; }
+        throw new Error(data.error ?? "no rate");
       })
       .catch(() =>
-        // Fallback: exchangerate-api
-        fetch("https://api.exchangerate-api.com/v4/latest/USD")
+        // Fallback: fawazahmed0 CDN
+        fetch("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json")
           .then((r) => r.json())
-          .then((data: { rates?: Record<string, number>; date?: string }) => {
-            const fetched = data.rates?.KRW;
+          .then((data: { date?: string; usd?: Record<string, number> }) => {
+            const fetched = data.usd?.krw;
             if (fetched) applyRate(fetched, data.date ?? "");
           })
           .catch(() => { /* 실패 시 기존 저장값 유지 */ })
