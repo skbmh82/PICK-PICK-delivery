@@ -333,20 +333,48 @@ function usePiPayment(onSuccess: () => void) {
 // ── Pi ↔ 달러 ↔ 원화 환율 계산기 ─────────────────────
 function PiCalculator() {
   // USD/KRW 환율
-  const [usdKrw, setUsdKrw] = useState<string>(() =>
+  const [usdKrw,      setUsdKrw]      = useState<string>(() =>
     typeof window !== "undefined" ? (localStorage.getItem("usd_krw") ?? "1380") : "1380"
   );
+  const [rateLoading, setRateLoading] = useState(false);
+  const [rateDate,    setRateDate]    = useState<string>("");
+
   // Pi 달러 가격
   const [piUsd, setPiUsd] = useState<string>(() =>
     typeof window !== "undefined" ? (localStorage.getItem("pi_price_usd") ?? "") : ""
   );
-  // Pi 원화 가격 (piUsd * usdKrw에서 파생)
+  // Pi 원화 가격
   const [piKrw, setPiKrw] = useState<string>(() =>
     typeof window !== "undefined" ? (localStorage.getItem("pi_price_krw") ?? "") : ""
   );
 
   const [krwInput, setKrwInput] = useState("");
   const [piInput,  setPiInput]  = useState("");
+
+  // 실시간 환율 자동 조회 (마운트 시 1회)
+  useEffect(() => {
+    setRateLoading(true);
+    fetch("https://api.frankfurter.app/latest?from=USD&to=KRW")
+      .then((r) => r.json())
+      .then((data: { rates?: { KRW?: number }; date?: string }) => {
+        const fetched = data.rates?.KRW;
+        if (fetched) {
+          const rounded = Math.round(fetched).toString();
+          setUsdKrw(rounded);
+          localStorage.setItem("usd_krw", rounded);
+          setRateDate(data.date ?? "");
+          // 달러 시세가 있으면 원화도 즉시 재계산
+          const usd = parseFloat(localStorage.getItem("pi_price_usd") ?? "");
+          if (!isNaN(usd) && usd > 0) {
+            const krwNum = Math.round(usd * fetched);
+            setPiKrw(krwNum.toString());
+            localStorage.setItem("pi_price_krw", krwNum.toString());
+          }
+        }
+      })
+      .catch(() => { /* 실패 시 기존 저장값 유지 */ })
+      .finally(() => setRateLoading(false));
+  }, []);
 
   const rate  = parseFloat(usdKrw) || 0;
   const price = parseFloat(piKrw.replace(/,/g, "")) || 0;
@@ -446,14 +474,16 @@ function PiCalculator() {
             <p className="text-xs text-pick-text-sub">달러 또는 원화 입력 시 자동 환산</p>
           </div>
         </div>
-        <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">환율 설정</span>
+        {rateLoading
+          ? <span className="text-[10px] font-black text-blue-500 bg-blue-50 px-2.5 py-1 rounded-full animate-pulse">환율 조회 중...</span>
+          : <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">실시간 환율</span>
+        }
       </div>
 
       <div className="px-5 pb-5 flex flex-col gap-3">
-        {/* USD/KRW 환율 설정 */}
+        {/* USD/KRW 환율 — 자동 조회 + 수동 수정 가능 */}
         <div className="flex items-center gap-2 bg-gray-50 rounded-2xl px-4 py-2.5 border border-gray-200">
-          <span className="text-[11px] font-black text-gray-500 whitespace-nowrap">💱 달러 환율</span>
-          <span className="text-xs text-gray-400 whitespace-nowrap">1 $ =</span>
+          <span className="text-[11px] font-black text-gray-500 whitespace-nowrap">💱 1 $ =</span>
           <input
             type="number"
             value={usdKrw}
@@ -462,6 +492,7 @@ function PiCalculator() {
             className="flex-1 border border-gray-200 rounded-xl px-3 py-1.5 text-sm font-black text-pick-text outline-none focus:border-pick-purple text-right bg-white"
           />
           <span className="text-xs font-black text-gray-500 whitespace-nowrap">원</span>
+          {rateDate && <span className="text-[10px] text-gray-400 whitespace-nowrap">{rateDate}</span>}
         </div>
 
         {/* Pi 시세 설정 — 달러 ↔ 원화 */}
