@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,26 +21,13 @@ export default function LoginPage() {
   const redirectTo   = searchParams.get("redirect") ?? "/home";
   const [showPw,      setShowPw]      = useState(false);
   const [serverError, setServerError] = useState("");
-  const [isPiBrowser, setIsPiBrowser] = useState(false);
-  const [piLoading,   setPiLoading]   = useState(false);
-
-  useEffect(() => {
-    // Pi SDK가 afterInteractive로 로드되므로 잠시 대기
-    const timer = setTimeout(() => {
-      if (typeof window !== "undefined" && window.Pi) {
-        try {
-          window.Pi.init({ version: "2.0", sandbox: true });
-          setIsPiBrowser(true);
-        } catch {
-          setIsPiBrowser(false);
-        }
-      }
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, []);
+  const [piLoading, setPiLoading] = useState(false);
 
   const handlePiLogin = async () => {
-    if (!window.Pi) return;
+    if (!window.Pi) {
+      setServerError("Pi Browser에서만 사용 가능합니다. Pi 앱에서 열어주세요.");
+      return;
+    }
     setPiLoading(true);
     setServerError("");
     try {
@@ -177,31 +164,29 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Pi 로그인 버튼 — Pi Browser에서만 표시 */}
-      {isPiBrowser && (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-pick-border" />
-            <span className="text-xs text-pick-text-sub font-medium">또는</span>
-            <div className="flex-1 h-px bg-pick-border" />
-          </div>
-          <button
-            onClick={() => void handlePiLogin()}
-            disabled={piLoading}
-            className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-[#7C3AED] to-[#D97706] text-white font-black py-4 rounded-full shadow-lg active:scale-95 transition-all disabled:opacity-60"
-          >
-            {piLoading ? (
-              <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-            ) : (
-              <span className="text-xl font-black" style={{ fontFamily: "serif" }}>π</span>
-            )}
-            {piLoading ? "Pi 인증 중..." : "Pi 계정으로 로그인"}
-          </button>
-          <p className="text-center text-xs text-pick-text-sub">
-            Pi Network 계정으로 바로 로그인됩니다
-          </p>
+      {/* Pi 로그인 버튼 — 항상 표시, 클릭 시 Pi Browser 여부 체크 */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-pick-border" />
+          <span className="text-xs text-pick-text-sub font-medium">또는</span>
+          <div className="flex-1 h-px bg-pick-border" />
         </div>
-      )}
+        <button
+          onClick={() => void handlePiLogin()}
+          disabled={piLoading}
+          className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-[#7C3AED] to-[#D97706] text-white font-black py-4 rounded-full shadow-lg active:scale-95 transition-all disabled:opacity-60"
+        >
+          {piLoading ? (
+            <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+          ) : (
+            <span className="text-xl font-black" style={{ fontFamily: "serif" }}>π</span>
+          )}
+          {piLoading ? "Pi 인증 중..." : "Pi 계정으로 로그인"}
+        </button>
+        <p className="text-center text-xs text-pick-text-sub">
+          Pi Browser에서 Pi 계정으로 바로 로그인됩니다
+        </p>
+      </div>
 
       {/* 회원가입 링크 */}
       <p className="text-center text-sm text-pick-text-sub">
