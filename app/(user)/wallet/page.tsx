@@ -351,44 +351,64 @@ function PiCalculator() {
   const rate  = parseFloat(usdKrw) || 0;
   const price = parseFloat(piKrw.replace(/,/g, "")) || 0;
 
-  // 달러 입력 → 원화 자동계산
+  // 시세가 바뀌면 이미 입력된 변환 섹션 즉시 재계산
+  const recalcConversion = (newPrice: number) => {
+    if (newPrice <= 0) return;
+    if (krwInput) {
+      const krw = parseFloat(krwInput.replace(/,/g, ""));
+      if (!isNaN(krw)) {
+        const pi = krw / newPrice;
+        setPiInput(pi % 1 === 0 ? String(pi) : pi.toFixed(6).replace(/\.?0+$/, ""));
+      }
+    } else if (piInput) {
+      const pi = parseFloat(piInput);
+      if (!isNaN(pi)) {
+        setKrwInput(Math.round(pi * newPrice).toLocaleString());
+      }
+    }
+  };
+
+  // 달러 입력 → 원화 자동계산 + 변환 섹션 재계산
   const handlePiUsdChange = (v: string) => {
     setPiUsd(v);
     localStorage.setItem("pi_price_usd", v);
     const usd = parseFloat(v);
     if (!isNaN(usd) && rate > 0) {
-      const krw = Math.round(usd * rate).toString();
-      setPiKrw(krw);
-      localStorage.setItem("pi_price_krw", krw);
+      const krwNum = Math.round(usd * rate);
+      setPiKrw(krwNum.toString());
+      localStorage.setItem("pi_price_krw", krwNum.toString());
+      recalcConversion(krwNum);
     } else {
       setPiKrw("");
     }
   };
 
-  // 원화 입력 → 달러 자동계산
+  // 원화 입력 → 달러 자동계산 + 변환 섹션 재계산
   const handlePiKrwChange = (v: string) => {
     setPiKrw(v);
     localStorage.setItem("pi_price_krw", v);
-    const krw = parseFloat(v);
-    if (!isNaN(krw) && rate > 0) {
-      const usd = (krw / rate).toFixed(2);
+    const krwNum = parseFloat(v);
+    if (!isNaN(krwNum) && rate > 0) {
+      const usd = (krwNum / rate).toFixed(2);
       setPiUsd(usd);
       localStorage.setItem("pi_price_usd", usd);
+      recalcConversion(krwNum);
     } else {
       setPiUsd("");
     }
   };
 
-  // USD/KRW 환율 변경 → 달러 기준으로 원화 재계산
+  // USD/KRW 환율 변경 → 달러 기준 원화 재계산 + 변환 섹션 재계산
   const handleUsdKrwChange = (v: string) => {
     setUsdKrw(v);
     localStorage.setItem("usd_krw", v);
     const newRate = parseFloat(v);
     const usd = parseFloat(piUsd);
     if (!isNaN(usd) && !isNaN(newRate) && newRate > 0) {
-      const krw = Math.round(usd * newRate).toString();
-      setPiKrw(krw);
-      localStorage.setItem("pi_price_krw", krw);
+      const krwNum = Math.round(usd * newRate);
+      setPiKrw(krwNum.toString());
+      localStorage.setItem("pi_price_krw", krwNum.toString());
+      recalcConversion(krwNum);
     }
   };
 
