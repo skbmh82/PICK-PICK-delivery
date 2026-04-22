@@ -332,15 +332,16 @@ function usePiPayment(onSuccess: () => void) {
 
 // ── Pi ↔ 원화 환율 계산기 ────────────────────────────
 function PiCalculator() {
-  const [piPrice, setPiPrice] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("pi_price_krw") ?? "100000";
-    }
-    return "100000";
-  });
+  const [usdPrice, setUsdPrice] = useState<string>(() =>
+    typeof window !== "undefined" ? (localStorage.getItem("pi_price_usd") ?? "") : ""
+  );
+  const [piPrice, setPiPrice] = useState<string>(() =>
+    typeof window !== "undefined" ? (localStorage.getItem("pi_price_krw") ?? "100000") : "100000"
+  );
   const [krwInput, setKrwInput] = useState("");
   const [piInput,  setPiInput]  = useState("");
 
+  const usd   = parseFloat(usdPrice) || 0;
   const price = parseFloat(piPrice.replace(/,/g, "")) || 0;
 
   const handleKrwChange = (v: string) => {
@@ -362,6 +363,11 @@ function PiCalculator() {
     } else {
       setKrwInput("");
     }
+  };
+
+  const handleUsdChange = (v: string) => {
+    setUsdPrice(v);
+    localStorage.setItem("pi_price_usd", v);
   };
 
   const handlePriceChange = (v: string) => {
@@ -388,21 +394,41 @@ function PiCalculator() {
         {/* Pi 시세 설정 */}
         <div className="bg-gradient-to-r from-amber-50 to-pick-bg rounded-2xl p-4 border border-amber-200">
           <p className="text-[11px] font-black text-amber-700 mb-2">📌 현재 Pi 시세 설정</p>
-          <div className="flex items-center gap-2">
+
+          {/* 1 π = $__ = ₩__ */}
+          <div className="flex items-center gap-1.5 mb-2">
             <span className="text-sm font-black text-amber-600 whitespace-nowrap">1 π =</span>
-            <input
-              type="number"
-              value={piPrice}
-              onChange={(e) => handlePriceChange(e.target.value)}
-              placeholder="100000"
-              className="flex-1 border-2 border-amber-200 rounded-xl px-3 py-2 text-sm font-black text-pick-text outline-none focus:border-amber-400 text-right"
-            />
-            <span className="text-sm font-black text-pick-text-sub whitespace-nowrap">원</span>
+            <div className="flex items-center gap-1 flex-1">
+              <span className="text-sm font-black text-green-600">$</span>
+              <input
+                type="number"
+                value={usdPrice}
+                onChange={(e) => handleUsdChange(e.target.value)}
+                placeholder="50"
+                className="w-0 flex-1 border-2 border-green-200 rounded-xl px-2 py-2 text-sm font-black text-pick-text outline-none focus:border-green-400 text-right"
+              />
+            </div>
+            <span className="text-amber-400 font-black">=</span>
+            <div className="flex items-center gap-1 flex-1">
+              <span className="text-sm font-black text-amber-600">₩</span>
+              <input
+                type="number"
+                value={piPrice}
+                onChange={(e) => handlePriceChange(e.target.value)}
+                placeholder="100000"
+                className="w-0 flex-1 border-2 border-amber-200 rounded-xl px-2 py-2 text-sm font-black text-pick-text outline-none focus:border-amber-400 text-right"
+              />
+            </div>
           </div>
-          {price > 0 && (
-            <p className="text-[10px] text-amber-600 mt-1.5 text-right">
-              1 π = ₩{price.toLocaleString()} · 10 π = ₩{(price * 10).toLocaleString()}
-            </p>
+
+          {/* 요약 표시 */}
+          {(usd > 0 || price > 0) && (
+            <div className="flex items-center justify-center gap-1.5 bg-amber-100 rounded-xl px-3 py-2">
+              <span className="text-base font-black text-amber-600" style={{ fontFamily: "serif" }}>π</span>
+              <span className="text-[11px] font-black text-amber-700">1 Pi</span>
+              {usd > 0 && <><span className="text-[11px] text-amber-500">=</span><span className="text-[11px] font-black text-green-700">${usd.toLocaleString()}</span></>}
+              {price > 0 && <><span className="text-[11px] text-amber-500">=</span><span className="text-[11px] font-black text-amber-700">₩{price.toLocaleString()}</span></>}
+            </div>
           )}
         </div>
 
