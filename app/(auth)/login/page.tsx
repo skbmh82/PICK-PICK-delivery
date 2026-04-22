@@ -21,18 +21,22 @@ export default function LoginPage() {
   const redirectTo   = searchParams.get("redirect") ?? "/home";
   const [showPw,      setShowPw]      = useState(false);
   const [serverError, setServerError] = useState("");
-  const [piLoading, setPiLoading] = useState(false);
+  const [piError,     setPiError]     = useState("");
+  const [piLoading,   setPiLoading]   = useState(false);
 
   const handlePiLogin = async () => {
-    if (!window.Pi) {
-      setServerError("Pi Browser에서만 사용 가능합니다. Pi 앱에서 열어주세요.");
+    const isPiBrowser = typeof navigator !== "undefined" && /PiBrowser/i.test(navigator.userAgent);
+    if (!isPiBrowser) {
+      setPiError("Pi Browser에서만 사용 가능합니다. Pi 앱을 열어 접속해 주세요.");
       return;
     }
     setPiLoading(true);
-    setServerError("");
+    setPiError("");
     try {
-      window.Pi.init({ version: "2.0", sandbox: true });
-      const auth = await window.Pi.authenticate(["username", "payments"], async () => {});
+      const pi = window.Pi;
+      if (!pi) { setPiError("Pi SDK를 불러오지 못했습니다."); return; }
+      pi.init({ version: "2.0", sandbox: true });
+      const auth = await pi.authenticate(["username", "payments"], async () => {});
       const res = await fetch("/api/auth/pi-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -40,7 +44,7 @@ export default function LoginPage() {
       });
       const json = await res.json() as { email?: string; hashed_token?: string; role?: string; error?: string };
       if (!res.ok || !json.email || !json.hashed_token) {
-        setServerError(json.error ?? "Pi 로그인 실패");
+        setPiError(json.error ?? "Pi 로그인 실패");
         return;
       }
       const { error: otpError } = await supabase.auth.verifyOtp({
@@ -49,12 +53,12 @@ export default function LoginPage() {
         type: "email",
       });
       if (otpError) {
-        setServerError(otpError.message ?? "Pi 세션 생성 실패");
+        setPiError(otpError.message ?? "Pi 세션 생성 실패");
         return;
       }
       router.replace(redirectTo);
     } catch (e) {
-      setServerError(e instanceof Error ? e.message : "Pi 로그인 중 오류가 발생했어요");
+      setPiError(e instanceof Error ? e.message : "Pi 로그인 중 오류가 발생했어요");
     } finally {
       setPiLoading(false);
     }
@@ -188,9 +192,13 @@ export default function LoginPage() {
           )}
           {piLoading ? "Pi 인증 중..." : "Pi 계정으로 로그인"}
         </button>
-        <p className="text-center text-xs text-pick-text-sub">
-          Pi Browser에서 Pi 계정으로 바로 로그인됩니다
-        </p>
+        {piError ? (
+          <p className="text-center text-xs text-red-500 font-medium">{piError}</p>
+        ) : (
+          <p className="text-center text-xs text-pick-text-sub">
+            Pi Browser에서 Pi 계정으로 바로 로그인됩니다
+          </p>
+        )}
       </div>
 
       {/* 회원가입 링크 */}
