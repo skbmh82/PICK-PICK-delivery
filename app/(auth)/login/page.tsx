@@ -21,46 +21,6 @@ export default function LoginPage() {
   const redirectTo   = searchParams.get("redirect") ?? "/home";
   const [showPw,      setShowPw]      = useState(false);
   const [serverError, setServerError] = useState("");
-  const [piError,     setPiError]     = useState("");
-  const [piLoading,   setPiLoading]   = useState(false);
-
-  const handlePiLogin = async () => {
-    setPiLoading(true);
-    setPiError("");
-    try {
-      const pi = window.Pi;
-      if (!pi) {
-        setPiError("Pi Browser에서만 사용 가능합니다. Pi 앱을 열어 접속해 주세요.");
-        return;
-      }
-      pi.init({ version: "2.0", sandbox: true });
-      const auth = await pi.authenticate(["username", "payments"], async () => {});
-      const res = await fetch("/api/auth/pi-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: auth.accessToken }),
-      });
-      const json = await res.json() as { email?: string; hashed_token?: string; role?: string; error?: string };
-      if (!res.ok || !json.email || !json.hashed_token) {
-        setPiError(json.error ?? "Pi 로그인 실패");
-        return;
-      }
-      const { error: otpError } = await supabase.auth.verifyOtp({
-        email: json.email,
-        token: json.hashed_token,
-        type: "email",
-      });
-      if (otpError) {
-        setPiError(otpError.message ?? "Pi 세션 생성 실패");
-        return;
-      }
-      router.replace(redirectTo);
-    } catch (e) {
-      setPiError(e instanceof Error ? e.message : "Pi 로그인 중 오류가 발생했어요");
-    } finally {
-      setPiLoading(false);
-    }
-  };
 
   const {
     register,
@@ -147,7 +107,7 @@ export default function LoginPage() {
             )}
           </div>
 
-          {/* 서버 에러 — 실제 메시지 표시 */}
+          {/* 서버 에러 */}
           {serverError && (
             <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-3 flex items-start gap-2">
               <span className="text-sm">⚠️</span>
@@ -169,34 +129,6 @@ export default function LoginPage() {
             비밀번호를 잊으셨나요?
           </Link>
         </div>
-      </div>
-
-      {/* Pi 로그인 버튼 — 항상 표시, 클릭 시 Pi Browser 여부 체크 */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-pick-border" />
-          <span className="text-xs text-pick-text-sub font-medium">또는</span>
-          <div className="flex-1 h-px bg-pick-border" />
-        </div>
-        <button
-          onClick={() => void handlePiLogin()}
-          disabled={piLoading}
-          className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-[#7C3AED] to-[#D97706] text-white font-black py-4 rounded-full shadow-lg active:scale-95 transition-all disabled:opacity-60"
-        >
-          {piLoading ? (
-            <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-          ) : (
-            <span className="text-xl font-black" style={{ fontFamily: "serif" }}>π</span>
-          )}
-          {piLoading ? "Pi 인증 중..." : "Pi 계정으로 로그인"}
-        </button>
-        {piError ? (
-          <p className="text-center text-xs text-red-500 font-medium">{piError}</p>
-        ) : (
-          <p className="text-center text-xs text-pick-text-sub">
-            Pi Browser에서 Pi 계정으로 바로 로그인됩니다
-          </p>
-        )}
       </div>
 
       {/* 회원가입 링크 */}
