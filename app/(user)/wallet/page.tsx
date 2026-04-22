@@ -274,7 +274,10 @@ function WalletSkeleton() {
 function usePiPayment(onSuccess: () => void) {
   const [piStatus, setPiStatus]   = useState<"idle"|"auth"|"paying"|"done"|"error">("idle");
   const [piError,  setPiError]    = useState("");
-  const hasPi = typeof window !== "undefined" && !!window.Pi;
+  // Pi Browser인지 정확히 감지 (일반 브라우저에서 pi-sdk.js가 로드돼도 false 유지)
+  const hasPi = typeof window !== "undefined"
+    && !!window.Pi
+    && /PiBrowser/i.test(navigator.userAgent);
 
   const payWithPi = useCallback(async (amount: number, memo: string) => {
     if (!window.Pi) { setPiError("Pi Browser에서만 사용 가능합니다"); return; }
@@ -351,7 +354,7 @@ export default function WalletPage() {
     } finally { setLoading(false); }
   }, []);
 
-  const { hasPi, piStatus, piError, payWithPi } = usePiPayment(fetchWallet);
+  const { hasPi, piStatus, payWithPi } = usePiPayment(fetchWallet);
 
   const fetchCheckin = useCallback(async () => {
     if (checkinFetched.current) return;
@@ -460,9 +463,6 @@ export default function WalletPage() {
             <span className="text-[10px] text-white/40 bg-white/10 px-2 py-0.5 rounded-full">준비 중</span>
           )}
         </div>
-        {piError && (
-          <p className="text-[10px] text-red-300 bg-red-900/30 rounded-xl px-3 py-1.5 mb-2">{piError}</p>
-        )}
 
         {/* 토큰 기본 정보 */}
         <div className="flex items-center gap-3 bg-white/10 rounded-2xl px-4 py-2.5 mb-5">
