@@ -482,17 +482,21 @@ function PiCalculator() {
 
       <div className="px-5 pb-5 flex flex-col gap-3">
         {/* USD/KRW 환율 — 자동 조회 + 수동 수정 가능 */}
-        <div className="flex items-center gap-2 bg-gray-50 rounded-2xl px-4 py-2.5 border border-gray-200">
-          <span className="text-[11px] font-black text-gray-500 whitespace-nowrap">💱 1 $ =</span>
-          <input
-            type="number"
-            value={usdKrw}
-            onChange={(e) => handleUsdKrwChange(e.target.value)}
-            placeholder="1380"
-            className="flex-1 border border-gray-200 rounded-xl px-3 py-1.5 text-sm font-black text-pick-text outline-none focus:border-pick-purple text-right bg-white"
-          />
-          <span className="text-xs font-black text-gray-500 whitespace-nowrap">원</span>
-          {rateDate && <span className="text-[10px] text-gray-400 whitespace-nowrap">{rateDate}</span>}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2 bg-gray-50 rounded-2xl px-4 py-2.5 border border-gray-200">
+            <span className="text-[11px] font-black text-gray-500 whitespace-nowrap">💱 1 $ =</span>
+            <input
+              type="number"
+              value={usdKrw}
+              onChange={(e) => handleUsdKrwChange(e.target.value)}
+              placeholder="1380"
+              className="flex-1 border border-gray-200 rounded-xl px-3 py-1.5 text-sm font-black text-pick-text outline-none focus:border-pick-purple text-right bg-white"
+            />
+            <span className="text-xs font-black text-gray-500 whitespace-nowrap">원</span>
+          </div>
+          {rateDate && (
+            <p className="text-[10px] text-gray-400 text-right px-1">기준일: {rateDate}</p>
+          )}
         </div>
 
         {/* Pi 시세 설정 — 달러 ↔ 원화 */}
