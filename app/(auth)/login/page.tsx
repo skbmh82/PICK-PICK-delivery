@@ -25,16 +25,14 @@ export default function LoginPage() {
   const [piLoading,   setPiLoading]   = useState(false);
 
   const handlePiLogin = async () => {
-    const isPiBrowser = typeof navigator !== "undefined" && /PiBrowser/i.test(navigator.userAgent);
-    if (!isPiBrowser) {
-      setPiError("Pi Browser에서만 사용 가능합니다. Pi 앱을 열어 접속해 주세요.");
-      return;
-    }
     setPiLoading(true);
     setPiError("");
     try {
       const pi = window.Pi;
-      if (!pi) { setPiError("Pi SDK를 불러오지 못했습니다."); return; }
+      if (!pi) {
+        setPiError("Pi Browser에서만 사용 가능합니다. Pi 앱을 열어 접속해 주세요.");
+        return;
+      }
       pi.init({ version: "2.0", sandbox: true });
       const auth = await pi.authenticate(["username", "payments"], async () => {});
       const res = await fetch("/api/auth/pi-login", {
