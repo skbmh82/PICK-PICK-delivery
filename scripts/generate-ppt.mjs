@@ -1273,7 +1273,89 @@ const C = {
   });
 }
 
-// ── 슬라이드 17 — Pi Network 현황 & 아키텍처 ───────────
+// ── 슬라이드 17 — Day 16 작업 내역 (4/22) ───────────────
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fill: { color: C.purplePale }, line: { color: C.purple },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 04. 22 (Day 16)", {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fontSize: 11, bold: true, color: C.purple, align: "center",
+  });
+
+  slide.addText("💱  Pi ↔ 달러 ↔ 원화 계산기 완성 · 실시간 환율 연동",  {
+    x: 3.8, y: 0.22, w: 9.8, h: 0.55,
+    fontSize: 17, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day16 = [
+    {
+      emoji: "🔧", title: "Pi 로그인 버그 수정",
+      desc: "createSession → generateLink 교체\nGoTrueAdminApi TS 빌드 오류 해결\nverifyOtp(hashed_token) 세션 수립\nVercel 배포 차단 문제 해소",
+    },
+    {
+      emoji: "🚫", title: "Pi 로그인 버튼 제거",
+      desc: "Pi Browser UA 감지 불일치 문제\nPi Network 생태계 차단으로 동작 불가\n테스트넷 승인 후 재추가 예정\n로그인 페이지 이메일 전용으로 원복",
+    },
+    {
+      emoji: "💱", title: "Pi ↔ 달러 ↔ 원화 계산기",
+      desc: "달러 입력 → 원화 자동계산 (환율×)\n원화 입력 → 달러 자동계산 (환율÷)\n시세 변경 시 수량 섹션 즉시 재계산\nlocalStorage에 설정값 자동 저장",
+    },
+    {
+      emoji: "📡", title: "실시간 환율 자동 조회",
+      desc: "open.er-api.com (시간당 갱신)\n달러 환율 자동 적용 · 수동 수정 가능\n기준일 + 출처(실시간/CDN) 표시\nFallback: fawazahmed0 CDN",
+    },
+    {
+      emoji: "🏦", title: "한국수출입은행 API 시도",
+      desc: "공식 매매기준율 API 연동 시도\n해외(Vercel US) IP 차단으로 미작동\nKOREAEXIM_API_KEY 발급·설정 완료\n향후 국내 서버 이전 시 재적용 가능",
+    },
+    {
+      emoji: "🎯", title: "계산기 UI 개선",
+      desc: "1 π = $X = ₩Y 요약 뱃지 표시\n환율 설정 박스 자동완성 UI\n[실시간] 초록 / [CDN] 주황 구분\nPi 수량↔원화 양방향 변환 유지",
+    },
+  ];
+
+  day16.forEach((item, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
+    const y = 1.0 + row * 2.55;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.1, h: 2.35,
+      fill: { color: C.purplePale }, line: { color: C.borderPurple },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: y + 0.2, w: 0.58, h: 0.58,
+      fill: { color: C.white }, line: { color: C.borderPurple },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.18, y: y + 0.18, w: 0.6, h: 0.6,
+      fontSize: 18, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
+      fontSize: 12, bold: true, color: C.purple,
+    });
+    slide.addText(item.desc, {
+      x: x + 0.22, y: y + 0.78, w: 3.65, h: 1.42,
+      fontSize: 10, color: C.textDark, wrap: true,
+    });
+  });
+}
+
+// ── 슬라이드 18 — Pi Network 현황 & 아키텍처 ───────────
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
