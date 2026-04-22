@@ -351,28 +351,42 @@ function PiCalculator() {
   const [krwInput, setKrwInput] = useState("");
   const [piInput,  setPiInput]  = useState("");
 
-  // 실시간 환율 자동 조회 (마운트 시 1회) — ExchangeRate-API 사용 (KRW 지원)
+  // 실시간 환율 조회 — 소수점 포함 정밀값 적용
   useEffect(() => {
     setRateLoading(true);
-    fetch("https://api.exchangerate-api.com/v4/latest/USD")
+
+    const applyRate = (fetched: number, date: string) => {
+      // 소수점 2자리까지 표시 (더 정확)
+      const rounded = fetched.toFixed(2);
+      setUsdKrw(rounded);
+      localStorage.setItem("usd_krw", rounded);
+      setRateDate(date);
+      const usd = parseFloat(localStorage.getItem("pi_price_usd") ?? "");
+      if (!isNaN(usd) && usd > 0) {
+        const krwNum = Math.round(usd * fetched);
+        setPiKrw(krwNum.toString());
+        localStorage.setItem("pi_price_krw", krwNum.toString());
+      }
+    };
+
+    // Primary: fawazahmed0 currency API (커뮤니티 정밀 데이터, 소수점 제공)
+    fetch("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json")
       .then((r) => r.json())
-      .then((data: { rates?: Record<string, number>; date?: string }) => {
-        const fetched = data.rates?.KRW;
-        if (fetched) {
-          const rounded = Math.round(fetched).toString();
-          setUsdKrw(rounded);
-          localStorage.setItem("usd_krw", rounded);
-          setRateDate(data.date ?? "");
-          // 달러 시세가 있으면 원화도 즉시 재계산
-          const usd = parseFloat(localStorage.getItem("pi_price_usd") ?? "");
-          if (!isNaN(usd) && usd > 0) {
-            const krwNum = Math.round(usd * fetched);
-            setPiKrw(krwNum.toString());
-            localStorage.setItem("pi_price_krw", krwNum.toString());
-          }
-        }
+      .then((data: { date?: string; usd?: Record<string, number> }) => {
+        const fetched = data.usd?.krw;
+        if (fetched) { applyRate(fetched, data.date ?? ""); return; }
+        throw new Error("no KRW");
       })
-      .catch(() => { /* 실패 시 기존 저장값 유지 */ })
+      .catch(() =>
+        // Fallback: exchangerate-api
+        fetch("https://api.exchangerate-api.com/v4/latest/USD")
+          .then((r) => r.json())
+          .then((data: { rates?: Record<string, number>; date?: string }) => {
+            const fetched = data.rates?.KRW;
+            if (fetched) applyRate(fetched, data.date ?? "");
+          })
+          .catch(() => { /* 실패 시 기존 저장값 유지 */ })
+      )
       .finally(() => setRateLoading(false));
   }, []);
 
