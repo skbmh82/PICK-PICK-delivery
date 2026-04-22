@@ -38,15 +38,20 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ accessToken: auth.accessToken }),
       });
-      const json = await res.json() as { access_token?: string; refresh_token?: string; error?: string };
-      if (!res.ok || !json.access_token) {
+      const json = await res.json() as { email?: string; hashed_token?: string; role?: string; error?: string };
+      if (!res.ok || !json.email || !json.hashed_token) {
         setServerError(json.error ?? "Pi 로그인 실패");
         return;
       }
-      await supabase.auth.setSession({
-        access_token:  json.access_token,
-        refresh_token: json.refresh_token ?? "",
+      const { error: otpError } = await supabase.auth.verifyOtp({
+        email: json.email,
+        token: json.hashed_token,
+        type: "email",
       });
+      if (otpError) {
+        setServerError(otpError.message ?? "Pi 세션 생성 실패");
+        return;
+      }
       router.replace(redirectTo);
     } catch (e) {
       setServerError(e instanceof Error ? e.message : "Pi 로그인 중 오류가 발생했어요");

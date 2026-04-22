@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
     const { uid: piUid, username: piUsername } = piUser;
 
     const admin = createAdminClient();
+    const piEmail = `pi_${piUid}@pi.pickpick.app`;
 
     // 2. 기존 Pi 사용자 조회
     const { data: existingProfile } = await admin
@@ -42,19 +43,14 @@ export async function POST(req: NextRequest) {
     let role = "user";
 
     if (existingProfile) {
-      // 기존 사용자 — auth_id로 세션 생성
       authUserId = existingProfile.auth_id as string;
       role = (existingProfile.role as string) ?? "user";
-
-      // pi_username 최신화
       await admin
         .from("users")
         .update({ pi_username: piUsername, updated_at: new Date().toISOString() })
         .eq("pi_uid", piUid);
     } else {
       // 신규 Pi 사용자 — Supabase Auth 계정 생성
-      const piEmail = `pi_${piUid}@pi.pickpick.app`;
-
       const { data: authData, error: createError } = await admin.auth.admin.createUser({
         email: piEmail,
         email_confirm: true,
@@ -62,7 +58,6 @@ export async function POST(req: NextRequest) {
       });
 
       if (createError || !authData.user) {
-        // 이미 존재하면 조회
         const { data: { users } } = await admin.auth.admin.listUsers();
         const found = users.find((u) => u.email === piEmail);
         if (!found) {
@@ -73,7 +68,7 @@ export async function POST(req: NextRequest) {
         authUserId = authData.user.id;
       }
 
-      // users 프로필 생성
+      // users 프로필 + 지갑 생성
       const { data: newProfile } = await admin
         .from("users")
         .insert({
@@ -86,27 +81,27 @@ export async function POST(req: NextRequest) {
         .select("id")
         .single();
 
-      // 지갑 자동 생성
       if (newProfile?.id) {
         await admin.from("wallets").insert({ user_id: newProfile.id });
       }
     }
 
-    // 3. 어드민으로 세션 생성
-    const { data: sessionData, error: sessionError } =
-      await admin.auth.admin.createSession({ user_id: authUserId });
+    // 3. Magic link 토큰 생성 → 클라이언트에서 verifyOtp로 세션 수립
+    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+      type: "magiclink",
+      email: piEmail,
+    });
 
-    if (sessionError || !sessionData.session) {
-      return NextResponse.json({ error: "세션 생성 실패" }, { status: 500 });
+    if (linkError || !linkData?.properties?.hashed_token) {
+      return NextResponse.json({ error: "인증 토큰 생성 실패" }, { status: 500 });
     }
 
     const res = NextResponse.json({
-      access_token:  sessionData.session.access_token,
-      refresh_token: sessionData.session.refresh_token,
+      email:        piEmail,
+      hashed_token: linkData.properties.hashed_token,
       role,
     });
 
-    // pick-role 쿠키 설정
     res.cookies.set("pick-role", role, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
