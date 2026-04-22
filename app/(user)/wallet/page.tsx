@@ -330,19 +330,67 @@ function usePiPayment(onSuccess: () => void) {
   return { hasPi, piStatus, piError, payWithPi };
 }
 
-// ── Pi ↔ 원화 환율 계산기 ────────────────────────────
+// ── Pi ↔ 달러 ↔ 원화 환율 계산기 ─────────────────────
 function PiCalculator() {
-  const [usdPrice, setUsdPrice] = useState<string>(() =>
+  // USD/KRW 환율
+  const [usdKrw, setUsdKrw] = useState<string>(() =>
+    typeof window !== "undefined" ? (localStorage.getItem("usd_krw") ?? "1380") : "1380"
+  );
+  // Pi 달러 가격
+  const [piUsd, setPiUsd] = useState<string>(() =>
     typeof window !== "undefined" ? (localStorage.getItem("pi_price_usd") ?? "") : ""
   );
-  const [piPrice, setPiPrice] = useState<string>(() =>
-    typeof window !== "undefined" ? (localStorage.getItem("pi_price_krw") ?? "100000") : "100000"
+  // Pi 원화 가격 (piUsd * usdKrw에서 파생)
+  const [piKrw, setPiKrw] = useState<string>(() =>
+    typeof window !== "undefined" ? (localStorage.getItem("pi_price_krw") ?? "") : ""
   );
+
   const [krwInput, setKrwInput] = useState("");
   const [piInput,  setPiInput]  = useState("");
 
-  const usd   = parseFloat(usdPrice) || 0;
-  const price = parseFloat(piPrice.replace(/,/g, "")) || 0;
+  const rate  = parseFloat(usdKrw) || 0;
+  const price = parseFloat(piKrw.replace(/,/g, "")) || 0;
+
+  // 달러 입력 → 원화 자동계산
+  const handlePiUsdChange = (v: string) => {
+    setPiUsd(v);
+    localStorage.setItem("pi_price_usd", v);
+    const usd = parseFloat(v);
+    if (!isNaN(usd) && rate > 0) {
+      const krw = Math.round(usd * rate).toString();
+      setPiKrw(krw);
+      localStorage.setItem("pi_price_krw", krw);
+    } else {
+      setPiKrw("");
+    }
+  };
+
+  // 원화 입력 → 달러 자동계산
+  const handlePiKrwChange = (v: string) => {
+    setPiKrw(v);
+    localStorage.setItem("pi_price_krw", v);
+    const krw = parseFloat(v);
+    if (!isNaN(krw) && rate > 0) {
+      const usd = (krw / rate).toFixed(2);
+      setPiUsd(usd);
+      localStorage.setItem("pi_price_usd", usd);
+    } else {
+      setPiUsd("");
+    }
+  };
+
+  // USD/KRW 환율 변경 → 달러 기준으로 원화 재계산
+  const handleUsdKrwChange = (v: string) => {
+    setUsdKrw(v);
+    localStorage.setItem("usd_krw", v);
+    const newRate = parseFloat(v);
+    const usd = parseFloat(piUsd);
+    if (!isNaN(usd) && !isNaN(newRate) && newRate > 0) {
+      const krw = Math.round(usd * newRate).toString();
+      setPiKrw(krw);
+      localStorage.setItem("pi_price_krw", krw);
+    }
+  };
 
   const handleKrwChange = (v: string) => {
     setKrwInput(v);
@@ -365,16 +413,7 @@ function PiCalculator() {
     }
   };
 
-  const handleUsdChange = (v: string) => {
-    setUsdPrice(v);
-    localStorage.setItem("pi_price_usd", v);
-  };
-
-  const handlePriceChange = (v: string) => {
-    setPiPrice(v);
-    localStorage.setItem("pi_price_krw", v);
-    if (krwInput) handleKrwChange(krwInput);
-  };
+  const usdNum = parseFloat(piUsd) || 0;
 
   return (
     <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm overflow-hidden">
@@ -383,51 +422,64 @@ function PiCalculator() {
         <div className="flex items-center gap-3">
           <span className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center text-xl font-black text-amber-600" style={{ fontFamily: "serif" }}>π</span>
           <div>
-            <p className="text-sm font-black text-pick-text">Pi ↔ 원화 환율 계산기</p>
-            <p className="text-xs text-pick-text-sub">Pi 시세를 입력하면 자동 환산됩니다</p>
+            <p className="text-sm font-black text-pick-text">Pi ↔ 달러 ↔ 원화 계산기</p>
+            <p className="text-xs text-pick-text-sub">달러 또는 원화 입력 시 자동 환산</p>
           </div>
         </div>
-        <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">실시간</span>
+        <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">환율 설정</span>
       </div>
 
       <div className="px-5 pb-5 flex flex-col gap-3">
-        {/* Pi 시세 설정 */}
-        <div className="bg-gradient-to-r from-amber-50 to-pick-bg rounded-2xl p-4 border border-amber-200">
-          <p className="text-[11px] font-black text-amber-700 mb-2">📌 현재 Pi 시세 설정</p>
+        {/* USD/KRW 환율 설정 */}
+        <div className="flex items-center gap-2 bg-gray-50 rounded-2xl px-4 py-2.5 border border-gray-200">
+          <span className="text-[11px] font-black text-gray-500 whitespace-nowrap">💱 달러 환율</span>
+          <span className="text-xs text-gray-400 whitespace-nowrap">1 $ =</span>
+          <input
+            type="number"
+            value={usdKrw}
+            onChange={(e) => handleUsdKrwChange(e.target.value)}
+            placeholder="1380"
+            className="flex-1 border border-gray-200 rounded-xl px-3 py-1.5 text-sm font-black text-pick-text outline-none focus:border-pick-purple text-right bg-white"
+          />
+          <span className="text-xs font-black text-gray-500 whitespace-nowrap">원</span>
+        </div>
 
-          {/* 1 π = $__ = ₩__ */}
-          <div className="flex items-center gap-1.5 mb-2">
-            <span className="text-sm font-black text-amber-600 whitespace-nowrap">1 π =</span>
-            <div className="flex items-center gap-1 flex-1">
+        {/* Pi 시세 설정 — 달러 ↔ 원화 */}
+        <div className="bg-gradient-to-r from-amber-50 to-pick-bg rounded-2xl p-4 border border-amber-200">
+          <p className="text-[11px] font-black text-amber-700 mb-2.5">📌 1 Pi 시세 설정</p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black text-amber-600 whitespace-nowrap">1 π =</span>
+            {/* 달러 입력 */}
+            <div className="flex items-center gap-1 flex-1 border-2 border-green-200 rounded-xl px-2 py-2 bg-white focus-within:border-green-400">
               <span className="text-sm font-black text-green-600">$</span>
               <input
                 type="number"
-                value={usdPrice}
-                onChange={(e) => handleUsdChange(e.target.value)}
+                value={piUsd}
+                onChange={(e) => handlePiUsdChange(e.target.value)}
                 placeholder="50"
-                className="w-0 flex-1 border-2 border-green-200 rounded-xl px-2 py-2 text-sm font-black text-pick-text outline-none focus:border-green-400 text-right"
+                className="w-0 flex-1 text-sm font-black text-pick-text outline-none text-right bg-transparent"
               />
             </div>
-            <span className="text-amber-400 font-black">=</span>
-            <div className="flex items-center gap-1 flex-1">
+            <span className="text-amber-400 font-black text-sm">=</span>
+            {/* 원화 입력 */}
+            <div className="flex items-center gap-1 flex-1 border-2 border-amber-200 rounded-xl px-2 py-2 bg-white focus-within:border-amber-400">
               <span className="text-sm font-black text-amber-600">₩</span>
               <input
                 type="number"
-                value={piPrice}
-                onChange={(e) => handlePriceChange(e.target.value)}
-                placeholder="100000"
-                className="w-0 flex-1 border-2 border-amber-200 rounded-xl px-2 py-2 text-sm font-black text-pick-text outline-none focus:border-amber-400 text-right"
+                value={piKrw}
+                onChange={(e) => handlePiKrwChange(e.target.value)}
+                placeholder="69000"
+                className="w-0 flex-1 text-sm font-black text-pick-text outline-none text-right bg-transparent"
               />
             </div>
           </div>
-
-          {/* 요약 표시 */}
-          {(usd > 0 || price > 0) && (
-            <div className="flex items-center justify-center gap-1.5 bg-amber-100 rounded-xl px-3 py-2">
+          {/* 요약 뱃지 */}
+          {(usdNum > 0 || price > 0) && (
+            <div className="mt-2.5 flex items-center justify-center gap-2 bg-amber-100 rounded-xl px-3 py-2">
               <span className="text-base font-black text-amber-600" style={{ fontFamily: "serif" }}>π</span>
-              <span className="text-[11px] font-black text-amber-700">1 Pi</span>
-              {usd > 0 && <><span className="text-[11px] text-amber-500">=</span><span className="text-[11px] font-black text-green-700">${usd.toLocaleString()}</span></>}
-              {price > 0 && <><span className="text-[11px] text-amber-500">=</span><span className="text-[11px] font-black text-amber-700">₩{price.toLocaleString()}</span></>}
+              <span className="text-[12px] font-black text-amber-800">1 Pi</span>
+              {usdNum > 0 && <><span className="text-amber-400">=</span><span className="text-[12px] font-black text-green-700">${usdNum.toLocaleString()}</span></>}
+              {price > 0 && <><span className="text-amber-400">=</span><span className="text-[12px] font-black text-amber-800">₩{price.toLocaleString()}</span></>}
             </div>
           )}
         </div>
