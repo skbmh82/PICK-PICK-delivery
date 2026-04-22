@@ -25,11 +25,18 @@ export default function LoginPage() {
   const [piLoading,   setPiLoading]   = useState(false);
 
   useEffect(() => {
-    setIsPiBrowser(
-      typeof window !== "undefined" &&
-      !!window.Pi &&
-      /PiBrowser/i.test(navigator.userAgent)
-    );
+    // Pi SDK가 afterInteractive로 로드되므로 잠시 대기
+    const timer = setTimeout(() => {
+      if (typeof window !== "undefined" && window.Pi) {
+        try {
+          window.Pi.init({ version: "2.0", sandbox: true });
+          setIsPiBrowser(true);
+        } catch {
+          setIsPiBrowser(false);
+        }
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
   }, []);
 
   const handlePiLogin = async () => {
