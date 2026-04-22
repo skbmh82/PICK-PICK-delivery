@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const API_KEY = process.env.NEXT_PUBLIC_KOREAEXIM_API_KEY ?? "";
+const API_KEY = process.env.KOREAEXIM_API_KEY ?? "";
 
 interface EximbankRate {
   result: number;
