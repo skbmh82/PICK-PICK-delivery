@@ -330,6 +330,153 @@ function usePiPayment(onSuccess: () => void) {
   return { hasPi, piStatus, piError, payWithPi };
 }
 
+// ── Pi ↔ 원화 환율 계산기 ────────────────────────────
+function PiCalculator() {
+  const [piPrice, setPiPrice] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("pi_price_krw") ?? "100000";
+    }
+    return "100000";
+  });
+  const [krwInput, setKrwInput] = useState("");
+  const [piInput,  setPiInput]  = useState("");
+
+  const price = parseFloat(piPrice.replace(/,/g, "")) || 0;
+
+  const handleKrwChange = (v: string) => {
+    setKrwInput(v);
+    const krw = parseFloat(v.replace(/,/g, ""));
+    if (!isNaN(krw) && price > 0) {
+      const pi = krw / price;
+      setPiInput(pi % 1 === 0 ? String(pi) : pi.toFixed(6).replace(/\.?0+$/, ""));
+    } else {
+      setPiInput("");
+    }
+  };
+
+  const handlePiChange = (v: string) => {
+    setPiInput(v);
+    const pi = parseFloat(v.replace(/,/g, ""));
+    if (!isNaN(pi) && price > 0) {
+      setKrwInput(Math.round(pi * price).toLocaleString());
+    } else {
+      setKrwInput("");
+    }
+  };
+
+  const handlePriceChange = (v: string) => {
+    setPiPrice(v);
+    localStorage.setItem("pi_price_krw", v);
+    if (krwInput) handleKrwChange(krwInput);
+  };
+
+  return (
+    <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm overflow-hidden">
+      {/* 헤더 */}
+      <div className="px-5 pt-5 pb-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center text-xl font-black text-amber-600" style={{ fontFamily: "serif" }}>π</span>
+          <div>
+            <p className="text-sm font-black text-pick-text">Pi ↔ 원화 환율 계산기</p>
+            <p className="text-xs text-pick-text-sub">Pi 시세를 입력하면 자동 환산됩니다</p>
+          </div>
+        </div>
+        <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">실시간</span>
+      </div>
+
+      <div className="px-5 pb-5 flex flex-col gap-3">
+        {/* Pi 시세 설정 */}
+        <div className="bg-gradient-to-r from-amber-50 to-pick-bg rounded-2xl p-4 border border-amber-200">
+          <p className="text-[11px] font-black text-amber-700 mb-2">📌 현재 Pi 시세 설정</p>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-black text-amber-600 whitespace-nowrap">1 π =</span>
+            <input
+              type="number"
+              value={piPrice}
+              onChange={(e) => handlePriceChange(e.target.value)}
+              placeholder="100000"
+              className="flex-1 border-2 border-amber-200 rounded-xl px-3 py-2 text-sm font-black text-pick-text outline-none focus:border-amber-400 text-right"
+            />
+            <span className="text-sm font-black text-pick-text-sub whitespace-nowrap">원</span>
+          </div>
+          {price > 0 && (
+            <p className="text-[10px] text-amber-600 mt-1.5 text-right">
+              1 π = ₩{price.toLocaleString()} · 10 π = ₩{(price * 10).toLocaleString()}
+            </p>
+          )}
+        </div>
+
+        {/* 구분선 */}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-px bg-pick-border" />
+          <span className="text-[10px] text-pick-text-sub font-bold">변환</span>
+          <div className="flex-1 h-px bg-pick-border" />
+        </div>
+
+        {/* 원화 → Pi */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[11px] font-black text-pick-text-sub flex items-center gap-1">
+            <span>₩ 원화 입력</span>
+            <span className="text-[9px] text-pick-text-sub/60">(결제 금액)</span>
+          </label>
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-black text-pick-text-sub">₩</span>
+            <input
+              type="number"
+              value={krwInput}
+              onChange={(e) => handleKrwChange(e.target.value)}
+              placeholder="20000"
+              className="flex-1 border-2 border-pick-border rounded-2xl px-4 py-3 text-sm font-black text-pick-text outline-none focus:border-pick-purple"
+            />
+          </div>
+        </div>
+
+        {/* 화살표 */}
+        <div className="flex items-center justify-center gap-3">
+          <div className="flex-1 h-px bg-pick-border" />
+          <div className="w-8 h-8 rounded-full bg-pick-purple/10 flex items-center justify-center">
+            <ArrowLeftRight size={14} className="text-pick-purple" />
+          </div>
+          <div className="flex-1 h-px bg-pick-border" />
+        </div>
+
+        {/* Pi 입력/결과 */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[11px] font-black text-pick-text-sub flex items-center gap-1">
+            <span>π Pi 수량</span>
+            <span className="text-[9px] text-pick-text-sub/60">(필요한 Pi)</span>
+          </label>
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-black text-amber-500" style={{ fontFamily: "serif" }}>π</span>
+            <input
+              type="number"
+              value={piInput}
+              onChange={(e) => handlePiChange(e.target.value)}
+              placeholder="0.2"
+              className="flex-1 border-2 border-amber-200 rounded-2xl px-4 py-3 text-sm font-black text-amber-700 outline-none focus:border-amber-400"
+            />
+          </div>
+        </div>
+
+        {/* 결과 요약 */}
+        {krwInput && piInput && price > 0 && (
+          <div className="bg-gradient-to-r from-pick-purple/10 to-amber-50 rounded-2xl px-4 py-3 flex items-center justify-between border border-pick-purple/20">
+            <div className="flex items-center gap-1.5">
+              <span className="text-base">💡</span>
+              <span className="text-xs font-bold text-pick-text">
+                ₩{parseFloat(krwInput.replace(/,/g, "")).toLocaleString()} 결제 시
+              </span>
+            </div>
+            <span className="text-base font-black text-amber-600">
+              {piInput} π 필요
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── 메인 페이지 ───────────────────────────────────────
 export default function WalletPage() {
   const [data,          setData]          = useState<WalletData | null>(null);
@@ -489,69 +636,8 @@ export default function WalletPage() {
         </div>
       </div>
 
-      {/* ── PICK ↔ Pi 교환 ── */}
-      <div className="bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm overflow-hidden">
-        {/* 헤더 */}
-        <div className="px-5 pt-5 pb-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-2xl bg-pick-purple/10 flex items-center justify-center">
-              <ArrowLeftRight size={18} className="text-pick-purple" />
-            </span>
-            <div>
-              <p className="text-sm font-black text-pick-text">PICK ↔ Pi 교환</p>
-              <p className="text-xs text-pick-text-sub">Pi Network 연동 후 이용 가능</p>
-            </div>
-          </div>
-          <span className="text-[10px] font-black text-pick-purple bg-pick-purple/10 px-2.5 py-1 rounded-full">준비 중</span>
-        </div>
-
-        {/* 환율 정보 */}
-        <div className="mx-5 mb-4 bg-pick-bg rounded-2xl p-4">
-          {/* PICK → Pi 방향 */}
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <span className="w-7 h-7 rounded-full bg-pick-purple/20 flex items-center justify-center text-xs font-black text-pick-purple">P</span>
-              <span className="text-sm font-bold text-pick-text">PICK</span>
-            </div>
-            <ArrowLeftRight size={14} className="text-pick-text-sub" />
-            <div className="flex items-center gap-2">
-              <span className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-xs font-black text-amber-600">π</span>
-              <span className="text-sm font-bold text-pick-text">Pi</span>
-            </div>
-          </div>
-          {/* 현재 환율 */}
-          <div className="flex items-center justify-between pt-2 border-t border-pick-border">
-            <div className="text-center flex-1">
-              <p className="text-lg font-black text-pick-purple">300 PICK</p>
-              <p className="text-[10px] text-pick-text-sub">≈ ₩300</p>
-            </div>
-            <span className="text-pick-text-sub text-xs font-bold">=</span>
-            <div className="text-center flex-1">
-              <p className="text-lg font-black text-amber-600">1 π</p>
-              <p className="text-[10px] text-pick-text-sub">Pi 시세 ₩300 기준</p>
-            </div>
-          </div>
-          {/* 자동 조정 안내 */}
-          <div className="mt-3 flex items-start gap-1.5 bg-amber-50 rounded-xl px-3 py-2">
-            <Info size={11} className="text-amber-500 flex-shrink-0 mt-0.5" />
-            <p className="text-[10px] text-amber-700 leading-relaxed">
-              Pi 시세가 변동되면 환율이 자동 조정됩니다.
-              예) Pi = ₩600 시 → <strong>1 π = 600 PICK</strong>
-            </p>
-          </div>
-        </div>
-
-        {/* 교환 버튼 (비활성 — Pi 연동 후 활성화) */}
-        <div className="px-5 pb-5">
-          <button
-            disabled
-            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-pick-bg border-2 border-dashed border-pick-border text-pick-text-sub font-bold text-sm cursor-not-allowed"
-          >
-            <Lock size={15} />
-            Pi Network 연동 후 이용 가능합니다
-          </button>
-        </div>
-      </div>
+      {/* ── Pi ↔ 원화 환율 계산기 ── */}
+      <PiCalculator />
 
       {/* ── 탭투언 출석 보상 ── */}
       <div className={`rounded-3xl border-2 shadow-sm overflow-hidden transition-all duration-300 ${
