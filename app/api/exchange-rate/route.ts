@@ -21,38 +21,60 @@ function getDateString(daysAgo: number): string {
 }
 
 export async function GET() {
+  const errors: string[] = [];
+
   if (!API_KEY) {
-    return NextResponse.json({ error: "API key missing" }, { status: 500 });
-  }
+    errors.push("API key missing");
+  } else {
+    // 주말·공휴일엔 데이터 없음 → 최대 7일 전까지 재시도
+    for (let i = 0; i <= 7; i++) {
+      const searchdate = getDateString(i);
+      const url = `https://www.koreaexim.go.kr/site/program/financial/exchangeJSON?authkey=${API_KEY}&searchdate=${searchdate}&data=AP01`;
 
-  // 주말·공휴일엔 데이터 없음 → 최대 7일 전까지 재시도
-  for (let i = 0; i <= 7; i++) {
-    const searchdate = getDateString(i);
-    const url = `https://www.koreaexim.go.kr/site/program/financial/exchangeJSON?authkey=${API_KEY}&searchdate=${searchdate}&data=AP01`;
+      try {
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) {
+          errors.push(`HTTP ${res.status} for ${searchdate}`);
+          continue;
+        }
 
-    try {
-      const res = await fetch(url, { next: { revalidate: 3600 } }); // 1시간 캐시
-      if (!res.ok) continue;
+        const text = await res.text();
+        let data: EximbankRate[];
+        try {
+          data = JSON.parse(text) as EximbankRate[];
+        } catch {
+          errors.push(`JSON parse error for ${searchdate}: ${text.slice(0, 100)}`);
+          continue;
+        }
 
-      const data = await res.json() as EximbankRate[];
-      if (!Array.isArray(data) || data.length === 0) continue;
+        if (!Array.isArray(data) || data.length === 0) {
+          errors.push(`Empty data for ${searchdate}`);
+          continue;
+        }
 
-      const usd = data.find((r) => r.cur_unit === "USD");
-      if (!usd || !usd.deal_bas_r) continue;
+        const usd = data.find((r) => r.cur_unit === "USD");
+        if (!usd || !usd.deal_bas_r) {
+          errors.push(`No USD entry for ${searchdate}`);
+          continue;
+        }
 
-      // 콤마 제거 후 숫자 변환
-      const rate = parseFloat(usd.deal_bas_r.replace(/,/g, ""));
-      if (isNaN(rate)) continue;
+        const rate = parseFloat(usd.deal_bas_r.replace(/,/g, ""));
+        if (isNaN(rate)) {
+          errors.push(`NaN rate for ${searchdate}: ${usd.deal_bas_r}`);
+          continue;
+        }
 
-      return NextResponse.json({
-        rate,
-        date: `${searchdate.slice(0, 4)}-${searchdate.slice(4, 6)}-${searchdate.slice(6, 8)}`,
-        source: "수출입은행",
-      });
-    } catch {
-      continue;
+        return NextResponse.json({
+          rate,
+          date: `${searchdate.slice(0, 4)}-${searchdate.slice(4, 6)}-${searchdate.slice(6, 8)}`,
+          source: "수출입은행",
+        });
+      } catch (e) {
+        errors.push(`fetch error for ${searchdate}: ${String(e)}`);
+        continue;
+      }
     }
   }
 
-  return NextResponse.json({ error: "환율 조회 실패" }, { status: 503 });
+  return NextResponse.json({ error: "환율 조회 실패", debug: errors }, { status: 503 });
 }
