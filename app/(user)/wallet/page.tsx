@@ -370,12 +370,16 @@ function PiCalculator() {
       }
     };
 
-    // Primary: 한국수출입은행 공식 환율 (서버 API 라우트)
-    fetch("/api/exchange-rate")
+    // Primary: open.er-api.com (시간당 업데이트, CORS 허용, 무료)
+    fetch("https://open.er-api.com/v6/latest/USD")
       .then((r) => r.json())
-      .then((data: { rate?: number; date?: string; source?: string; error?: string }) => {
-        if (data.rate) { applyRate(data.rate, data.date ?? "", data.source ?? "수출입은행"); return; }
-        throw new Error(data.error ?? "no rate");
+      .then((data: { rates?: Record<string, number>; time_last_update_utc?: string }) => {
+        const fetched = data.rates?.KRW;
+        if (!fetched) throw new Error("no KRW");
+        const date = data.time_last_update_utc
+          ? new Date(data.time_last_update_utc).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit" })
+          : "";
+        applyRate(fetched, date, "실시간");
       })
       .catch(() =>
         // Fallback: fawazahmed0 CDN
@@ -383,7 +387,7 @@ function PiCalculator() {
           .then((r) => r.json())
           .then((data: { date?: string; usd?: Record<string, number> }) => {
             const fetched = data.usd?.krw;
-            if (fetched) applyRate(fetched, data.date ?? "", "CDN(임시)");
+            if (fetched) applyRate(fetched, data.date ?? "", "CDN");
           })
           .catch(() => { /* 실패 시 기존 저장값 유지 */ })
       )
@@ -510,8 +514,12 @@ function PiCalculator() {
           </div>
           {rateDate && (
             <p className="text-[10px] text-gray-400 text-right px-1">
-              {rateSource && <span className={`font-bold mr-1 ${rateSource.includes("CDN") ? "text-orange-400" : "text-green-500"}`}>[{rateSource}]</span>}
-              기준일: {rateDate}
+              {rateSource && (
+                <span className={`font-bold mr-1 ${rateSource === "실시간" ? "text-green-500" : "text-orange-400"}`}>
+                  [{rateSource}]
+                </span>
+              )}
+              {rateDate} 기준
             </p>
           )}
         </div>
