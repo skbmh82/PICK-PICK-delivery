@@ -338,6 +338,7 @@ function PiCalculator() {
   );
   const [rateLoading, setRateLoading] = useState(false);
   const [rateDate,    setRateDate]    = useState<string>("");
+  const [rateSource,  setRateSource]  = useState<string>("");
 
   // Pi 달러 가격
   const [piUsd, setPiUsd] = useState<string>(() =>
@@ -355,11 +356,12 @@ function PiCalculator() {
   useEffect(() => {
     setRateLoading(true);
 
-    const applyRate = (fetched: number, date: string) => {
+    const applyRate = (fetched: number, date: string, source: string) => {
       const rounded = fetched.toFixed(2);
       setUsdKrw(rounded);
       localStorage.setItem("usd_krw", rounded);
       setRateDate(date);
+      setRateSource(source);
       const usd = parseFloat(localStorage.getItem("pi_price_usd") ?? "");
       if (!isNaN(usd) && usd > 0) {
         const krwNum = Math.round(usd * fetched);
@@ -371,8 +373,8 @@ function PiCalculator() {
     // Primary: 한국수출입은행 공식 환율 (서버 API 라우트)
     fetch("/api/exchange-rate")
       .then((r) => r.json())
-      .then((data: { rate?: number; date?: string; error?: string }) => {
-        if (data.rate) { applyRate(data.rate, data.date ?? ""); return; }
+      .then((data: { rate?: number; date?: string; source?: string; error?: string }) => {
+        if (data.rate) { applyRate(data.rate, data.date ?? "", data.source ?? "수출입은행"); return; }
         throw new Error(data.error ?? "no rate");
       })
       .catch(() =>
@@ -381,7 +383,7 @@ function PiCalculator() {
           .then((r) => r.json())
           .then((data: { date?: string; usd?: Record<string, number> }) => {
             const fetched = data.usd?.krw;
-            if (fetched) applyRate(fetched, data.date ?? "");
+            if (fetched) applyRate(fetched, data.date ?? "", "CDN(임시)");
           })
           .catch(() => { /* 실패 시 기존 저장값 유지 */ })
       )
@@ -507,7 +509,10 @@ function PiCalculator() {
             <span className="text-xs font-black text-gray-500 whitespace-nowrap">원</span>
           </div>
           {rateDate && (
-            <p className="text-[10px] text-gray-400 text-right px-1">기준일: {rateDate}</p>
+            <p className="text-[10px] text-gray-400 text-right px-1">
+              {rateSource && <span className={`font-bold mr-1 ${rateSource.includes("CDN") ? "text-orange-400" : "text-green-500"}`}>[{rateSource}]</span>}
+              기준일: {rateDate}
+            </p>
           )}
         </div>
 

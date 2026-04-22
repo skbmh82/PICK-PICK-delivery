@@ -9,13 +9,14 @@ interface EximbankRate {
   cur_nm: string;
 }
 
-// 영업일 기준 최근 날짜를 YYYYMMDD 형식으로 반환 (최대 7일 전까지 시도)
+// KST(UTC+9) 기준 날짜를 YYYYMMDD 형식으로 반환
 function getDateString(daysAgo: number): string {
   const d = new Date();
-  d.setDate(d.getDate() - daysAgo);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+  // KST = UTC + 9시간
+  d.setTime(d.getTime() + 9 * 60 * 60 * 1000 - daysAgo * 24 * 60 * 60 * 1000);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
   return `${y}${m}${day}`;
 }
 
@@ -46,7 +47,7 @@ export async function GET() {
       return NextResponse.json({
         rate,
         date: `${searchdate.slice(0, 4)}-${searchdate.slice(4, 6)}-${searchdate.slice(6, 8)}`,
-        source: "한국수출입은행",
+        source: "수출입은행",
       });
     } catch {
       continue;
