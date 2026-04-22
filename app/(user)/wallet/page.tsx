@@ -688,17 +688,22 @@ export default function WalletPage() {
             </div>
 
             <button onClick={() => void handleCheckin()} disabled={checkLoading}
-              className="w-full rounded-3xl py-5 flex items-center justify-center gap-3 font-black text-white bg-gradient-to-r from-pick-purple to-pick-purple-light active:scale-95 transition-all disabled:opacity-70 shadow-lg">
+              className="w-full rounded-3xl py-5 px-6 flex items-center gap-4 font-black text-white bg-gradient-to-r from-pick-purple to-pick-purple-light active:scale-95 transition-all disabled:opacity-70 shadow-lg">
               {checkLoading ? (
-                <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin mx-auto" />
               ) : (
                 <>
-                  <Fingerprint size={22} />
-                  <div className="flex flex-col items-start leading-tight">
+                  <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                    <Fingerprint size={22} />
+                  </div>
+                  <div className="flex flex-col items-start leading-tight flex-1">
                     <span className="text-base">출석하고 PICK 받기</span>
                     <span className="text-xs text-white/70 font-medium">+50 PICK ≈ ₩50</span>
                   </div>
-                  <span className="ml-auto text-2xl font-black text-pick-yellow-light">50P</span>
+                  <div className="flex flex-col items-center flex-shrink-0">
+                    <span className="text-2xl font-black text-pick-yellow-light leading-none">50</span>
+                    <span className="text-xs font-black text-pick-yellow-light/80">PICK</span>
+                  </div>
                 </>
               )}
             </button>
