@@ -15,12 +15,10 @@ import { getCategoryEmoji } from "@/lib/utils/categoryEmoji";
 import { useTheme } from "@/hooks/useTheme";
 
 // ── 타입 ──────────────────────────────────────────────
-interface Grade    { label: string; earned: number; nextThreshold: number; multiplier?: number }
 interface Favorite { storeId: string; name: string; category: string; rating: number; deliveryFee: number; deliveryTime: number }
 interface Review   { id: string; rating: number; content: string; createdAt: string; storeId: string | null; storeName: string }
 interface MeData {
   profile:   { name: string; email: string; phone: string | null; addressMain: string | null };
-  grade:     Grade;
   wallet:    { pickBalance: number; totalEarned: number };
   favorites: Favorite[];
   reviews:   Review[];
@@ -113,42 +111,6 @@ function AdminBanner() {
   );
 }
 
-// ── PICK 등급 배너 ─────────────────────────────────────
-function GradeBanner({ grade }: { grade: Grade }) {
-  const pct = grade.nextThreshold > 0
-    ? Math.min((grade.earned / grade.nextThreshold) * 100, 100)
-    : 100;
-
-  const NEXT_GRADE: Record<string, string> = {
-    "🌱 SEED":   "🌿 SPROUT",
-    "🌿 SPROUT": "🌳 TREE",
-    "🌳 TREE":   "🌲 FOREST",
-    "🌲 FOREST": "최고 등급",
-  };
-  const nextLabel = NEXT_GRADE[grade.label] ?? "최고 등급";
-
-  return (
-    <div className="px-4 mb-4">
-      <div className="bg-gradient-to-r from-pick-purple to-pick-purple-light rounded-3xl p-5 text-white shadow-lg">
-        <div className="flex items-center justify-between mb-3">
-          <span className="font-black text-lg">{grade.label}</span>
-        </div>
-        <div className="w-full bg-white/20 rounded-full h-2.5">
-          <div
-            className="bg-pick-yellow-light h-2.5 rounded-full transition-all"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-        <p className="text-xs text-white/75 mt-2">
-          {grade.nextThreshold > 0
-            ? `${(grade.nextThreshold - grade.earned).toLocaleString()} PICK 더 모으면 ${nextLabel} 달성!`
-            : `최고 등급 달성 🎉`
-          }
-        </p>
-      </div>
-    </div>
-  );
-}
 
 // ── 프로필 수정 모달 ───────────────────────────────────
 interface ProfileData { name: string; phone: string; addressMain: string }
@@ -917,9 +879,6 @@ export default function MyPickPage() {
     }
   };
 
-  // 기본 등급 (로딩 전 또는 비로그인)
-  const grade = meData?.grade ?? { label: "🌱 SEED", earned: 0, nextThreshold: 1000 };
-
   return (
     <div className="min-h-full pb-4">
 
@@ -1007,9 +966,6 @@ export default function MyPickPage() {
           )}
         </div>
       </div>
-
-      {/* PICK 등급 배너 */}
-      <GradeBanner grade={grade} />
 
       {/* 역할별 배너 */}
       {displayRole === "admin"  && <AdminBanner />}
