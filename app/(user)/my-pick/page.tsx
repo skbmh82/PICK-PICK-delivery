@@ -132,16 +132,6 @@ function GradeBanner({ grade }: { grade: Grade }) {
       <div className="bg-gradient-to-r from-pick-purple to-pick-purple-light rounded-3xl p-5 text-white shadow-lg">
         <div className="flex items-center justify-between mb-3">
           <span className="font-black text-lg">{grade.label}</span>
-          <div className="flex items-center gap-2">
-            {grade.multiplier && grade.multiplier > 1 && (
-              <span className="text-xs bg-pick-yellow text-white px-2 py-0.5 rounded-full font-bold">
-                ×{grade.multiplier} 적립
-              </span>
-            )}
-            <span className="text-xs text-white/80 bg-white/15 px-3 py-1 rounded-full font-semibold">
-              {grade.earned.toLocaleString()} PICK 적립
-            </span>
-          </div>
         </div>
         <div className="w-full bg-white/20 rounded-full h-2.5">
           <div
