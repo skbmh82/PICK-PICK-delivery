@@ -134,7 +134,8 @@ export function useOrderSound(ttsMessage?: string) {
     if (_scheduleTimer) { clearTimeout(_scheduleTimer); _scheduleTimer = null; }
     if (_ttsInterval)   { clearInterval(_ttsInterval);  _ttsInterval   = null; }
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-    // 이미 예약된 비프는 자연 소멸 (AudioContext 노드는 stop 시간에 자동 해제)
+    // AudioContext를 닫아 이미 예약된 비프도 즉시 중단
+    if (_ctx) { void _ctx.close(); _ctx = null; }
   }, []);
 
   return { play, stop, unlock };
