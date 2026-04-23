@@ -100,8 +100,13 @@ export default function RegisterPage() {
       {referralCode && (
         <div className="bg-gradient-to-r from-pick-purple to-pick-purple-light rounded-3xl p-4 text-white text-center shadow-md">
           <p className="text-xs text-white/80 mb-1">🎁 초대 코드로 가입하면</p>
-          <p className="font-black text-lg">5,000 PICK 즉시 지급!</p>
-          <p className="text-xs text-white/70 mt-1">코드: {referralCode}</p>
+          <p className="font-black text-lg">
+            {selectedRole === "owner" ? "20,000" : selectedRole === "rider" ? "10,000" : "5,000"} PICK 즉시 지급!
+          </p>
+          <p className="text-xs text-white/70 mt-0.5">코드: {referralCode}</p>
+          <p className="text-[11px] text-white/60 mt-1">
+            {selectedRole === "owner" ? "사장님 가입 보너스" : selectedRole === "rider" ? "라이더 가입 보너스" : "일반 가입 보너스"}
+          </p>
         </div>
       )}
 
