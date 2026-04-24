@@ -6,6 +6,7 @@ export interface StoreRow {
   name: string;
   category: string;
   description: string | null;
+  notice: string | null;
   address: string;
   phone?: string | null;
   lat: number;
@@ -129,7 +130,7 @@ export async function fetchStoreById(id: string): Promise<StoreRow | null> {
   const supabase = createServerClient();
   const { data, error } = await supabase
     .from("stores")
-    .select("id, name, category, description, address, phone, lat, lng, image_url, banner_url, rating, review_count, delivery_time, delivery_fee, min_order_amount, is_open")
+    .select("id, name, category, description, notice, address, phone, lat, lng, image_url, banner_url, rating, review_count, delivery_time, delivery_fee, min_order_amount, is_open")
     .eq("id", id)
     .eq("is_approved", true)
     .single();

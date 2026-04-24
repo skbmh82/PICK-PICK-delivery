@@ -14,6 +14,7 @@ interface StoreData {
   name:                  string;
   category:              string;
   description:           string | null;
+  notice:                string | null;
   phone:                 string | null;
   address:               string;
   isOpen:                boolean;
@@ -655,6 +656,7 @@ export default function StoreSettingsPage() {
   // 폼 상태
   const [name,           setName]           = useState("");
   const [description,    setDescription]    = useState("");
+  const [notice,         setNotice]         = useState("");
   const [phone,          setPhone]          = useState("");
   const [address,        setAddress]        = useState("");
   const [isOpen,         setIsOpen]         = useState(true);
@@ -682,6 +684,7 @@ export default function StoreSettingsPage() {
         name:                 s.name,
         category:             s.category,
         description:          s.description,
+        notice:               s.notice ?? null,
         phone:                s.phone,
         address:              s.address,
         isOpen:               s.is_open,
@@ -701,6 +704,7 @@ export default function StoreSettingsPage() {
       // 폼 초기화
       setName(data.name);
       setDescription(data.description ?? "");
+      setNotice(data.notice ?? "");
       setPhone(data.phone ?? "");
       setAddress(data.address);
       setIsOpen(data.isOpen);
@@ -758,6 +762,7 @@ export default function StoreSettingsPage() {
         body:    JSON.stringify({
           name:             name.trim(),
           description:      description.trim() || null,
+          notice:           notice.trim() || null,
           phone:            phone.trim() || null,
           address:          address.trim(),
           isOpen,
@@ -974,14 +979,25 @@ export default function StoreSettingsPage() {
             />
           </Field>
 
-          <Field label="한 줄 소개" icon={<FileText size={12} />}>
+          <Field label="가게 소개" icon={<FileText size={12} />}>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className={`${inputCls} resize-none`}
               rows={2}
-              placeholder="가게 소개를 입력해주세요"
+              placeholder="가게 소개를 입력해주세요 (최대 200자)"
               maxLength={200}
+            />
+          </Field>
+
+          <Field label="공지사항" icon={<FileText size={12} />}>
+            <textarea
+              value={notice}
+              onChange={(e) => setNotice(e.target.value)}
+              className={`${inputCls} resize-none`}
+              rows={3}
+              placeholder="고객에게 전달할 공지사항을 입력해주세요&#10;(예: 주차 안내, 휴무 일정, 이벤트 등, 최대 500자)"
+              maxLength={500}
             />
           </Field>
 

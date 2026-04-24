@@ -13,6 +13,7 @@ const CATEGORIES = [
 const UpdateStoreSchema = z.object({
   name:                   z.string().min(2).max(50).optional(),
   description:            z.string().max(200).optional(),
+  notice:                 z.string().max(500).optional(),
   phone:                  z.string().max(20).optional(),
   address:                z.string().min(5).max(200).optional(),
   deliveryFee:            z.number().min(0).max(100000).optional(),
@@ -129,7 +130,7 @@ export async function GET() {
   // 미승인 가게를 우선, 없으면 최신 가게를 반환
   const { data: stores } = await admin
     .from("stores")
-    .select("id, name, category, description, phone, address, is_open, delivery_fee, min_order_amount, delivery_time, delivery_radius_km, photo_review_reward_krw, is_approved, rating, review_count, image_url, banner_url")
+    .select("id, name, category, description, notice, phone, address, is_open, delivery_fee, min_order_amount, delivery_time, delivery_radius_km, photo_review_reward_krw, is_approved, rating, review_count, image_url, banner_url")
     .eq("owner_id", profile.id)
     .order("is_approved", { ascending: true })
     .order("created_at", { ascending: false })
@@ -183,6 +184,7 @@ export async function PATCH(request: NextRequest) {
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (d.name           !== undefined) updates.name             = d.name;
   if (d.description    !== undefined) updates.description      = d.description;
+  if (d.notice         !== undefined) updates.notice           = d.notice;
   if (d.phone          !== undefined) updates.phone            = d.phone;
   if (d.address        !== undefined) updates.address          = d.address;
   if (d.deliveryFee      !== undefined) updates.delivery_fee      = d.deliveryFee;

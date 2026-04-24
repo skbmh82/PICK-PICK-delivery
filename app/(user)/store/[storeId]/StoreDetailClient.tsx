@@ -95,6 +95,8 @@ export interface StoreDetail {
   minOrderAmount: number;
   tags: string[];
   menus: MenuItem[];
+  description: string | null;
+  notice: string | null;
   // 위치 정보
   address: string;
   phone: string | null;
@@ -785,6 +787,26 @@ export default function StoreDetailClient({
               주문 불가
             </span>
           )}
+        </div>
+      )}
+
+      {/* ── 공지사항 ── */}
+      {store.notice && (
+        <div className="mx-4 mb-5 bg-amber-50 border-2 border-amber-200 rounded-3xl px-4 py-4">
+          <h3 className="font-black text-amber-800 text-sm flex items-center gap-2 mb-2">
+            📢 공지사항
+          </h3>
+          <p className="text-xs text-amber-700 leading-relaxed whitespace-pre-wrap">{store.notice}</p>
+        </div>
+      )}
+
+      {/* ── 가게 소개 ── */}
+      {store.description && (
+        <div className="mx-4 mb-5 bg-white border-2 border-pick-border rounded-3xl px-4 py-4">
+          <h3 className="font-black text-pick-text text-sm flex items-center gap-2 mb-2">
+            🏪 가게 소개
+          </h3>
+          <p className="text-xs text-pick-text-sub leading-relaxed whitespace-pre-wrap">{store.description}</p>
         </div>
       )}
 
