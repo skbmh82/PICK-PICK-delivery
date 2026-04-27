@@ -11,7 +11,9 @@ interface PiMeResponse {
 
 export async function POST(req: NextRequest) {
   try {
-    const { accessToken } = await req.json() as { accessToken: string };
+    const body = await req.json() as { accessToken: string; role?: string };
+    const { accessToken } = body;
+    const requestedRole   = ["user", "owner", "rider"].includes(body.role ?? "") ? body.role! : "user";
     if (!accessToken) {
       return NextResponse.json({ error: "accessToken 필요" }, { status: 400 });
     }
@@ -40,7 +42,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     let authUserId: string;
-    let role = "user";
+    let role = requestedRole;
 
     if (existingProfile) {
       authUserId = existingProfile.auth_id as string;
@@ -76,7 +78,7 @@ export async function POST(req: NextRequest) {
           name:        piUsername,
           pi_uid:      piUid,
           pi_username: piUsername,
-          role:        "user",
+          role:        requestedRole,
         })
         .select("id")
         .single();
