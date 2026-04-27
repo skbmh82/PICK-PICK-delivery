@@ -577,14 +577,14 @@ function PiCalculator() {
             <span>₩ 원화 입력</span>
             <span className="text-[9px] text-pick-text-sub/60">(결제 금액)</span>
           </label>
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-black text-pick-text-sub">₩</span>
+          <div className="flex items-center gap-2 overflow-hidden">
+            <span className="text-lg font-black text-pick-text-sub flex-shrink-0">₩</span>
             <input
               type="number"
               value={krwInput}
               onChange={(e) => handleKrwChange(e.target.value)}
               placeholder="20000"
-              className="flex-1 border-2 border-pick-border rounded-2xl px-4 py-3 text-sm font-black text-pick-text outline-none focus:border-pick-purple"
+              className="flex-1 min-w-0 border-2 border-pick-border rounded-2xl px-4 py-3 text-sm font-black text-pick-text outline-none focus:border-pick-purple"
             />
           </div>
         </div>
@@ -604,14 +604,14 @@ function PiCalculator() {
             <span>π Pi 수량</span>
             <span className="text-[9px] text-pick-text-sub/60">(필요한 Pi)</span>
           </label>
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-black text-amber-500" style={{ fontFamily: "serif" }}>π</span>
+          <div className="flex items-center gap-2 overflow-hidden">
+            <span className="text-lg font-black text-amber-500 flex-shrink-0" style={{ fontFamily: "serif" }}>π</span>
             <input
               type="number"
               value={piInput}
               onChange={(e) => handlePiChange(e.target.value)}
               placeholder="0.2"
-              className="flex-1 border-2 border-amber-200 rounded-2xl px-4 py-3 text-sm font-black text-amber-700 outline-none focus:border-amber-400"
+              className="flex-1 min-w-0 border-2 border-amber-200 rounded-2xl px-4 py-3 text-sm font-black text-amber-700 outline-none focus:border-amber-400"
             />
           </div>
         </div>

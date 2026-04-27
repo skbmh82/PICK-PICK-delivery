@@ -349,19 +349,19 @@ function ReferralCard() {
         <p className="text-xs font-bold text-pick-text mb-2">
           친구에게 초대 코드를 받았나요?
         </p>
-        <div className="flex gap-2">
+        <div className="flex gap-2 overflow-hidden">
           <input
             type="text"
             value={inputCode}
             onChange={(e) => setInputCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
             placeholder="8자리 코드 입력"
             maxLength={8}
-            className="flex-1 border-2 border-pick-border rounded-2xl px-4 py-2.5 text-sm font-bold tracking-widest text-pick-text focus:outline-none focus:border-pick-purple uppercase"
+            className="flex-1 min-w-0 border-2 border-pick-border rounded-2xl px-4 py-2.5 text-sm font-bold tracking-widest text-pick-text focus:outline-none focus:border-pick-purple uppercase"
           />
           <button
             onClick={() => void handleUse()}
             disabled={submitting || inputCode.length !== 8}
-            className="px-4 py-2.5 rounded-2xl bg-pick-purple text-white text-sm font-bold disabled:opacity-40 active:scale-95 transition-all flex items-center gap-1.5"
+            className="flex-shrink-0 px-4 py-2.5 rounded-2xl bg-pick-purple text-white text-sm font-bold disabled:opacity-40 active:scale-95 transition-all flex items-center gap-1.5"
           >
             {submitting
               ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
