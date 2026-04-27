@@ -86,10 +86,12 @@ export async function PATCH(
         return NextResponse.json({ error: "가게 사장님만 변경할 수 있습니다" }, { status: 403 });
       }
     }
-    // 라이더 전용 상태: delivering, delivered
+    // delivering / delivered: 배정된 라이더 OR 라이더 없을 때 사장님 직접 배달 허용
     else if (["delivering", "delivered"].includes(status)) {
-      if (profile.id !== assignedRiderId) {
-        return NextResponse.json({ error: "배정된 라이더만 변경할 수 있습니다" }, { status: 403 });
+      const isAssignedRider = profile.id === assignedRiderId;
+      const isOwnerSelfDelivery = profile.id === storeOwnerId && !assignedRiderId;
+      if (!isAssignedRider && !isOwnerSelfDelivery) {
+        return NextResponse.json({ error: "배정된 라이더 또는 직접 배달 사장님만 변경할 수 있습니다" }, { status: 403 });
       }
     }
   }

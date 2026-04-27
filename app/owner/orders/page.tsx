@@ -383,19 +383,7 @@ function OrderCard({
               </div>
               {!showCancel ? (
                 <>
-                  <div className={order.rider_id ? "" : "grid grid-cols-2 gap-2"}>
-                    {!order.rider_id && (
-                      <button
-                        disabled={notifying}
-                        onClick={handleNotifyRiders}
-                        className="flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-orange-100 border-2 border-orange-300 text-orange-700 font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
-                      >
-                        {notifying
-                          ? <span className="w-4 h-4 border-2 border-orange-400/40 border-t-orange-600 rounded-full animate-spin" />
-                          : <Bell size={14} />}
-                        라이더 재호출
-                      </button>
-                    )}
+                  <div className="flex flex-col gap-2">
                     <button
                       disabled={loading}
                       onClick={() => handleStatus("ready")}
@@ -406,6 +394,18 @@ function OrderCard({
                         : <ChefHat size={14} />}
                       조리 완료
                     </button>
+                    {!order.rider_id && (
+                      <button
+                        disabled={loading}
+                        onClick={() => handleStatus("delivering")}
+                        className="w-full flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-gradient-to-r from-pick-purple to-pick-purple-light text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
+                      >
+                        {loading
+                          ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                          : <Bike size={14} />}
+                        직접 배달 🛵
+                      </button>
+                    )}
                   </div>
                   <button
                     disabled={loading}
@@ -451,16 +451,28 @@ function OrderCard({
               {!showCancel ? (
                 <>
                   {!order.rider_id && (
-                    <button
-                      disabled={notifying}
-                      onClick={handleNotifyRiders}
-                      className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-orange-100 border-2 border-orange-300 text-orange-700 font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
-                    >
-                      {notifying
-                        ? <span className="w-4 h-4 border-2 border-orange-400/40 border-t-orange-600 rounded-full animate-spin" />
-                        : <Bell size={14} />}
-                      라이더 재호출 🛵
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        disabled={notifying}
+                        onClick={handleNotifyRiders}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-orange-100 border-2 border-orange-300 text-orange-700 font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
+                      >
+                        {notifying
+                          ? <span className="w-4 h-4 border-2 border-orange-400/40 border-t-orange-600 rounded-full animate-spin" />
+                          : <Bell size={14} />}
+                        라이더 재호출
+                      </button>
+                      <button
+                        disabled={loading}
+                        onClick={() => handleStatus("delivering")}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-gradient-to-r from-pick-purple to-pick-purple-light text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
+                      >
+                        {loading
+                          ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                          : <Bike size={14} />}
+                        직접 배달 🛵
+                      </button>
+                    </div>
                   )}
                   <button
                     disabled={loading}
@@ -496,9 +508,23 @@ function OrderCard({
           )}
 
           {(order.status === "picked_up" || order.status === "delivering") && (
-            <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-2xl px-4 py-3">
-              <Bike size={16} className="text-purple-600" />
-              <span className="text-sm font-bold text-purple-700">배달 중 🛵</span>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-2xl px-4 py-3">
+                <Bike size={16} className="text-purple-600" />
+                <span className="text-sm font-bold text-purple-700">배달 중 🛵</span>
+              </div>
+              {!order.rider_id && (
+                <button
+                  disabled={loading}
+                  onClick={() => handleStatus("delivered")}
+                  className="w-full flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-green-500 text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-50"
+                >
+                  {loading
+                    ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    : <CheckCircle size={14} />}
+                  배달 완료 처리
+                </button>
+              )}
             </div>
           )}
 
