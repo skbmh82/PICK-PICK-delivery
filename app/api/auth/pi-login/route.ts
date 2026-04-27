@@ -88,9 +88,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Magic link 토큰 생성 → 클라이언트에서 verifyOtp로 세션 수립
+    // 3. Magic link 토큰 생성 → 클라이언트에서 verifyOtp(token_hash)로 세션 수립
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-      type: "magiclink",
+      type:  "magiclink",
       email: piEmail,
     });
 
@@ -99,8 +99,7 @@ export async function POST(req: NextRequest) {
     }
 
     const res = NextResponse.json({
-      email:        piEmail,
-      hashed_token: linkData.properties.hashed_token,
+      token_hash: linkData.properties.hashed_token,
       role,
     });
 

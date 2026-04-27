@@ -94,16 +94,15 @@ export default function LoginPage() {
         body:    JSON.stringify({ accessToken: auth.accessToken, role: piRole }),
       });
 
-      const json = await res.json() as { email?: string; hashed_token?: string; role?: string; error?: string };
+      const json = await res.json() as { token_hash?: string; role?: string; error?: string };
       if (!res.ok) {
         setPiError(json.error ?? "Pi 로그인에 실패했어요");
         return;
       }
 
       const { error: sessionError } = await supabase.auth.verifyOtp({
-        email: json.email!,
-        token: json.hashed_token!,
-        type:  "magiclink",
+        token_hash: json.token_hash!,
+        type:       "magiclink",
       });
 
       if (sessionError) {
