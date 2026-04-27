@@ -86,7 +86,14 @@ export default function LoginPage() {
     try {
       const auth = await window.Pi.authenticate(["username"], (payment) => {
         console.warn("미완료 Pi 결제 발견:", payment.identifier);
+      }).catch((err: unknown) => {
+        throw new Error("Pi 인증 실패: " + String(err));
       });
+
+      if (!auth?.accessToken) {
+        setPiError("Pi 인증이 완료되지 않았어요. 다시 시도해주세요.");
+        return;
+      }
 
       const res = await fetch("/api/auth/pi-login", {
         method:  "POST",
