@@ -36,7 +36,12 @@ export default function LoginPage() {
   const [piError,     setPiError]     = useState("");
 
   useEffect(() => {
-    setIsPiBrowser(typeof window !== "undefined" && !!window.Pi);
+    if (typeof window !== "undefined" && !!window.Pi) {
+      setIsPiBrowser(true);
+      // Pi SDK는 페이지 로드 즉시 init() 해야 함 — 버튼 클릭 시 호출하면 에러
+      const sandbox = process.env.NEXT_PUBLIC_PI_SANDBOX === "true";
+      window.Pi.init({ version: "2.0", sandbox });
+    }
   }, []);
 
   const {
@@ -73,9 +78,6 @@ export default function LoginPage() {
     setPiLoading(true);
 
     try {
-      const sandbox = process.env.NEXT_PUBLIC_PI_SANDBOX === "true";
-      window.Pi.init({ version: "2.0", sandbox });
-
       const auth = await window.Pi.authenticate(["username"], (payment) => {
         console.warn("미완료 Pi 결제 발견:", payment.identifier);
       });
