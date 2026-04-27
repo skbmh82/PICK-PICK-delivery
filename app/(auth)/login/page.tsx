@@ -68,8 +68,14 @@ export default function LoginPage() {
       return;
     }
 
-    await fetch("/api/auth/session", { method: "POST" });
-    router.replace(redirectTo);
+    const sessionRes  = await fetch("/api/auth/session", { method: "POST" });
+    const sessionJson = await sessionRes.json() as { role?: string };
+    const role        = sessionJson.role ?? "user";
+
+    if      (role === "admin") router.replace("/admin/dashboard");
+    else if (role === "owner") router.replace("/owner/dashboard");
+    else if (role === "rider") router.replace("/rider/dashboard");
+    else                       router.replace(redirectTo);
   };
 
   const handlePiLogin = async () => {
@@ -108,7 +114,8 @@ export default function LoginPage() {
       await fetch("/api/auth/session", { method: "POST" });
 
       const role = json.role ?? "user";
-      if (role === "owner")      router.replace("/owner/dashboard");
+      if      (role === "admin") router.replace("/admin/dashboard");
+      else if (role === "owner") router.replace("/owner/dashboard");
       else if (role === "rider") router.replace("/rider/dashboard");
       else                       router.replace(redirectTo);
     } catch (e) {
