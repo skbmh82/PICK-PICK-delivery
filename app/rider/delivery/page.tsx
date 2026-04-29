@@ -58,8 +58,8 @@ function AvailableCard({
     .slice(0, 3)
     .map((i) => `${i.menu_name} x${i.quantity}`)
     .join(", ");
-  const timeStr = new Date(order.created_at).toLocaleTimeString("ko-KR", {
-    hour: "2-digit", minute: "2-digit",
+  const timeStr = new Date(order.created_at).toLocaleString("ko-KR", {
+    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
   });
   const earnPick = Number(order.delivery_fee) > 0 ? Number(order.delivery_fee) : 3000;
 
@@ -251,6 +251,13 @@ function DeliveryCard({
             주문 금액 {Number(order.total_amount).toLocaleString()}원
           </p>
         </div>
+
+        {/* 날짜+시간 */}
+        <p className="text-[10px] text-pick-text-sub mb-2 px-1">
+          {new Date(order.created_at).toLocaleString("ko-KR", {
+            month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+          })} 주문
+        </p>
 
         {/* 내비게이션 버튼 */}
         {!isDone && (
