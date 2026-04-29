@@ -121,8 +121,8 @@ export async function GET() {
     .slice(0, 10)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .map((e: any) => ({
-      date:   new Date(e.settled_at ?? e.created_at).toLocaleDateString("ko-KR", {
-        month: "short", day: "numeric",
+      date:   new Date(e.settled_at ?? e.created_at).toLocaleString("ko-KR", {
+        month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
       }),
       pick:   Number(e.amount_pick),
       status: "정산완료",

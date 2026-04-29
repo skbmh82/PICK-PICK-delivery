@@ -498,7 +498,7 @@ function CompletedOrderCard({
         <div className="flex-1 min-w-0">
           <p className="font-black text-pick-text text-sm truncate">{order.stores?.name ?? "가맹점"}</p>
           <p className="text-xs text-pick-text-sub">
-            {new Date(order.created_at).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}
+            {new Date(order.created_at).toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
           </p>
         </div>
         <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-bold ${cfg.bg} ${cfg.color}`}>

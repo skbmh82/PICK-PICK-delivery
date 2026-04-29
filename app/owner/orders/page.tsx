@@ -131,8 +131,8 @@ function OrderCard({
     }
   };
 
-  const timeStr = new Date(order.created_at).toLocaleTimeString("ko-KR", {
-    hour: "2-digit", minute: "2-digit",
+  const timeStr = new Date(order.created_at).toLocaleString("ko-KR", {
+    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
   });
 
   return (
