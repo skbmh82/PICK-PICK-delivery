@@ -169,6 +169,14 @@ export default function CheckoutPage() {
               <p className="text-xs text-amber-700 mt-1">
                 Pi 코인 결제는 Pi Browser 앱에서만 사용 가능합니다.
               </p>
+              {orderId && (
+                <button
+                  onClick={() => router.replace(`/orders/${orderId}`)}
+                  className="mt-3 text-xs font-black text-amber-800 underline underline-offset-2"
+                >
+                  주문 내역 보기 →
+                </button>
+              )}
             </div>
           </div>
         )}
