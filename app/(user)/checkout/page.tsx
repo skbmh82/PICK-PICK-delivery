@@ -18,7 +18,7 @@ function usePiCheckoutPayment(onSuccess: () => void) {
     /PiBrowser/i.test(navigator.userAgent);
 
   const pay = useCallback(
-    async (piAmount: number, memo: string, metadata: object) => {
+    async (piAmount: number, memo: string, metadata: Record<string, unknown>) => {
       if (typeof window === "undefined" || !window.Pi) {
         setError("Pi Browser에서만 사용 가능합니다");
         return;
