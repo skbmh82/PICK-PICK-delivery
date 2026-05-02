@@ -24,7 +24,7 @@ const CreateOrderSchema = z.object({
   deliveryLat:     z.number().optional(),
   deliveryLng:     z.number().optional(),
   deliveryNote:    z.string().optional(),
-  paymentMethod:   z.enum(["PICK", "TOSS", "KAKAO"]).default("PICK"),
+  paymentMethod:   z.enum(["PICK", "PI"]).default("PICK"),
   orderType:       z.enum(["delivery", "takeout"]).default("delivery"),
 });
 
@@ -130,9 +130,8 @@ export async function POST(request: NextRequest) {
   }
 
   // 9. 주문 생성 (admin 클라이언트로 RLS 우회)
-  const tossOrderId = paymentMethod !== "PICK"
-    ? `PICK-APP-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
-    : null;
+  // PI 결제: 서버 측 Pi 콜백에서 orderId로 연결하므로 별도 ref 불필요
+  const tossOrderId = null;
 
   const { data: orderData, error: orderError } = await admin
     .from("orders")
@@ -223,9 +222,5 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // TOSS/KAKAO 결제는 tossOrderId 추가 반환 (클라이언트에서 Toss SDK에 전달)
-  return NextResponse.json(
-    { orderId, tossOrderId },
-    { status: 201 }
-  );
+  return NextResponse.json({ orderId }, { status: 201 });
 }
