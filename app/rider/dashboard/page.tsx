@@ -9,6 +9,7 @@ import { useOrderSound } from "@/lib/useOrderSound";
 // ── 타입 ──────────────────────────────────────────────
 interface AvailableOrder {
   id: string;
+  order_number: string | null;
   total_amount: number;
   delivery_fee: number;
   delivery_address: string;
@@ -210,9 +211,16 @@ function AvailableOrderAlerts({
             >
               <span className="text-3xl">🛵</span>
               <div className="flex-1 min-w-0">
-                <p className="font-black text-pick-text text-sm">
-                  {order.stores?.name ?? "가게"}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="font-black text-pick-text text-sm">
+                    {order.stores?.name ?? "가게"}
+                  </p>
+                  {order.order_number && (
+                    <span className="text-[10px] font-black text-pick-purple bg-pick-bg px-2 py-0.5 rounded-full border border-pick-border">
+                      {order.order_number}
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-pick-text-sub mt-0.5 truncate">{itemSummary}</p>
                 <p className="text-xs font-bold text-sky-600 mt-1">
                   {timeStr} · +{Number(order.delivery_fee) > 0

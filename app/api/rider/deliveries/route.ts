@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   const { data: orders, error } = await (admin as any)
     .from("orders")
     .select(`
-      id, status, total_amount, delivery_fee, delivery_address, delivery_lat, delivery_lng, created_at,
+      id, order_number, status, total_amount, delivery_fee, delivery_address, delivery_lat, delivery_lng, created_at,
       stores ( id, name, address, lat, lng ),
       users!orders_user_id_fkey ( id, name, phone ),
       order_items ( id, menu_name, quantity ),

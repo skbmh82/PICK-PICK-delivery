@@ -9,6 +9,7 @@ type DBStatus = "calling_rider" | "ready" | "picked_up" | "delivering" | "delive
 
 interface DeliveryOrder {
   id: string;
+  order_number: string | null;
   status: DBStatus;
   total_amount: number;
   delivery_fee: number;
@@ -23,6 +24,7 @@ interface DeliveryOrder {
 
 interface AvailableOrder {
   id: string;
+  order_number: string | null;
   status: string;
   total_amount: number;
   delivery_fee: number;
@@ -67,9 +69,16 @@ function AvailableCard({
     <div className="bg-white rounded-3xl border-2 border-blue-200 shadow-sm overflow-hidden">
       <div className="px-4 pt-4 pb-3">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-black px-3 py-1.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200">
-            수락 대기
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black px-3 py-1.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200">
+              수락 대기
+            </span>
+            {order.order_number && (
+              <span className="text-[10px] font-black text-pick-purple bg-pick-bg px-2 py-1 rounded-full border border-pick-border">
+                {order.order_number}
+              </span>
+            )}
+          </div>
           <span className="font-black text-sky-600 text-sm">
             +{earnPick.toLocaleString()} PICK
           </span>
@@ -218,9 +227,16 @@ function DeliveryCard({
     <div className={`bg-white rounded-3xl border-2 ${cfg.border} shadow-sm overflow-hidden`}>
       <div className="px-4 pt-4 pb-3">
         <div className="flex items-center justify-between mb-3">
-          <span className={`text-xs font-black px-3 py-1.5 rounded-full ${cfg.bg} ${cfg.color} border ${cfg.border}`}>
-            {cfg.label}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-black px-3 py-1.5 rounded-full ${cfg.bg} ${cfg.color} border ${cfg.border}`}>
+              {cfg.label}
+            </span>
+            {order.order_number && (
+              <span className="text-[10px] font-black text-pick-purple bg-pick-bg px-2 py-1 rounded-full border border-pick-border">
+                {order.order_number}
+              </span>
+            )}
+          </div>
           <span className="font-black text-sky-600 text-sm">
             +{earn > 0 ? earn.toLocaleString() : (Number(order.delivery_fee) > 0 ? Number(order.delivery_fee).toLocaleString() : "3,000")} PICK
           </span>
