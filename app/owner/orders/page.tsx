@@ -28,6 +28,7 @@ interface OrderUser {
 
 interface Order {
   id: string;
+  order_number: string | null;
   status: OrderStatus;
   total_amount: number;
   delivery_fee: number;
@@ -150,7 +151,12 @@ function OrderCard({
             <p className="font-black text-pick-text text-sm">
               {order.users?.name ?? "고객"}님
             </p>
-            <p className="text-xs text-pick-text-sub">{timeStr} 주문</p>
+            <p className="text-xs text-pick-text-sub">
+            {order.order_number && (
+              <span className="font-black text-pick-purple mr-1">{order.order_number}</span>
+            )}
+            {timeStr} 주문
+          </p>
           </div>
         </div>
         <div className="flex items-center gap-2">

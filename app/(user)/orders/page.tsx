@@ -30,6 +30,7 @@ interface OrderStore {
 
 interface Order {
   id: string;
+  order_number: string | null;
   status: OrderStatus;
   total_amount: number;
   delivery_fee: number;
@@ -387,7 +388,9 @@ function ActiveOrderCard({
         <span className={`text-xs font-black ${cfg.color}`}>
           {cfg.emoji} {cfg.label}
         </span>
-        <span className="ml-auto text-[10px] text-gray-400">#{order.id.slice(0,8)}</span>
+        <span className="ml-auto text-[10px] font-bold text-pick-purple bg-pick-bg px-2 py-0.5 rounded-full">
+          {order.order_number ?? `#${order.id.slice(0,6)}`}
+        </span>
       </div>
 
       <div className="px-4 py-4">
