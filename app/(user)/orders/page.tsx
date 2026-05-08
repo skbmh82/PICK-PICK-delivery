@@ -389,7 +389,7 @@ function ActiveOrderCard({
           {cfg.emoji} {cfg.label}
         </span>
         <span className="ml-auto text-[10px] font-bold text-pick-purple bg-pick-bg px-2 py-0.5 rounded-full">
-          {order.order_number ?? `#${order.id.slice(0,6)}`}
+          주문번호 {order.order_number ?? `#${order.id.slice(0,6)}`}
         </span>
       </div>
 

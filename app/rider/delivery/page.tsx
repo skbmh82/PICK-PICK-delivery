@@ -75,7 +75,7 @@ function AvailableCard({
             </span>
             {order.order_number && (
               <span className="text-[10px] font-black text-pick-purple bg-pick-bg px-2 py-1 rounded-full border border-pick-border">
-                {order.order_number}
+                주문번호 {order.order_number}
               </span>
             )}
           </div>
@@ -233,7 +233,7 @@ function DeliveryCard({
             </span>
             {order.order_number && (
               <span className="text-[10px] font-black text-pick-purple bg-pick-bg px-2 py-1 rounded-full border border-pick-border">
-                {order.order_number}
+                주문번호 {order.order_number}
               </span>
             )}
           </div>

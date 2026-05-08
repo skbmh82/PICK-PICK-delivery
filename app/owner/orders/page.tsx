@@ -153,7 +153,7 @@ function OrderCard({
             </p>
             <p className="text-xs text-pick-text-sub">
             {order.order_number && (
-              <span className="font-black text-pick-purple mr-1">{order.order_number}</span>
+              <span className="font-black text-pick-purple mr-1">주문번호 {order.order_number}</span>
             )}
             {timeStr} 주문
           </p>
