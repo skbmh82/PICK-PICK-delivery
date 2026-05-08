@@ -148,15 +148,15 @@ function OrderCard({
             {STATUS_LABEL[order.status]}
           </span>
           <div className="text-left">
-            <p className="font-black text-pick-text text-sm">
-              {order.users?.name ?? "고객"}님
-            </p>
-            <p className="text-xs text-pick-text-sub">
-            {order.order_number && (
-              <span className="font-black text-pick-purple mr-1">주문번호 {order.order_number}</span>
-            )}
-            {timeStr} 주문
-          </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-black text-pick-text text-sm">{order.users?.name ?? "고객"}님</p>
+              {order.order_number && (
+                <span className="text-[10px] font-black text-pick-purple bg-pick-bg border border-pick-border px-2 py-0.5 rounded-full">
+                  주문번호 {order.order_number}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-pick-text-sub">{timeStr} 주문</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

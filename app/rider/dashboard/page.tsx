@@ -216,7 +216,7 @@ function AvailableOrderAlerts({
                     {order.stores?.name ?? "가게"}
                   </p>
                   {order.order_number && (
-                    <span className="text-[10px] font-black text-pick-purple bg-pick-bg px-2 py-0.5 rounded-full border border-pick-border">
+                    <span className="text-[10px] font-black text-pick-purple bg-white px-2 py-0.5 rounded-full border border-pick-purple/30">
                       주문번호 {order.order_number}
                     </span>
                   )}

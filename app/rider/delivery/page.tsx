@@ -74,7 +74,7 @@ function AvailableCard({
               수락 대기
             </span>
             {order.order_number && (
-              <span className="text-[10px] font-black text-pick-purple bg-pick-bg px-2 py-1 rounded-full border border-pick-border">
+              <span className="text-[10px] font-black text-pick-purple bg-white px-2 py-1 rounded-full border border-pick-purple/30">
                 주문번호 {order.order_number}
               </span>
             )}
@@ -232,7 +232,7 @@ function DeliveryCard({
               {cfg.label}
             </span>
             {order.order_number && (
-              <span className="text-[10px] font-black text-pick-purple bg-pick-bg px-2 py-1 rounded-full border border-pick-border">
+              <span className="text-[10px] font-black text-pick-purple bg-white px-2 py-1 rounded-full border border-pick-purple/30">
                 주문번호 {order.order_number}
               </span>
             )}

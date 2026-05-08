@@ -388,9 +388,11 @@ function ActiveOrderCard({
         <span className={`text-xs font-black ${cfg.color}`}>
           {cfg.emoji} {cfg.label}
         </span>
-        <span className="ml-auto text-[10px] font-bold text-pick-purple bg-pick-bg px-2 py-0.5 rounded-full">
-          주문번호 {order.order_number ?? `#${order.id.slice(0,6)}`}
-        </span>
+        {order.order_number && (
+          <span className="ml-auto text-[10px] font-black text-pick-purple bg-white px-2 py-0.5 rounded-full border border-pick-purple/30">
+            주문번호 {order.order_number}
+          </span>
+        )}
       </div>
 
       <div className="px-4 py-4">
@@ -500,9 +502,16 @@ function CompletedOrderCard({
         <span className="text-3xl">{storeEmoji}</span>
         <div className="flex-1 min-w-0">
           <p className="font-black text-pick-text text-sm truncate">{order.stores?.name ?? "가맹점"}</p>
-          <p className="text-xs text-pick-text-sub">
-            {new Date(order.created_at).toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-          </p>
+          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+            {order.order_number && (
+              <span className="text-[10px] font-black text-pick-purple bg-pick-bg border border-pick-border px-2 py-0.5 rounded-full">
+                주문번호 {order.order_number}
+              </span>
+            )}
+            <span className="text-xs text-pick-text-sub">
+              {new Date(order.created_at).toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+            </span>
+          </div>
         </div>
         <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-bold ${cfg.bg} ${cfg.color}`}>
           {isCancel ? <XCircle size={11} /> : <CheckCircle size={11} />}
