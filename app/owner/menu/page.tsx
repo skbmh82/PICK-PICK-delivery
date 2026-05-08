@@ -730,9 +730,14 @@ export default function OwnerMenuPage() {
                       menu.is_available ? "border-pick-border" : "border-gray-200 opacity-60"
                     }`}
                   >
-                    {/* 이모지 */}
-                    <div className="w-16 h-16 rounded-2xl bg-pick-bg border border-pick-border flex items-center justify-center flex-shrink-0">
-                      <span className="text-3xl">{getMenuEmoji(menu.category, menu.name)}</span>
+                    {/* 메뉴 이미지 or 이모지 */}
+                    <div className="w-16 h-16 rounded-2xl bg-pick-bg border border-pick-border flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {menu.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={menu.image_url} alt={menu.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-3xl">{getMenuEmoji(menu.category, menu.name)}</span>
+                      )}
                     </div>
 
                     {/* 정보 */}
