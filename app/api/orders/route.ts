@@ -118,7 +118,43 @@ export async function POST(request: NextRequest) {
     // free_delivery: client already sent deliveryFee=0
   }
 
-  // 7. PICK 적립 — 기본 적립 없음, 쿠폰 fixed_pick 발급분만 적립
+  // 7. 서버 측 메뉴 가격 검증 — 클라이언트가 보낸 price를 DB 실제 가격과 대조
+  const menuIds = items.map((i) => i.menuId);
+  const { data: dbMenus, error: menuFetchError } = await admin
+    .from("menus")
+    .select("id, price, is_available")
+    .in("id", menuIds);
+
+  if (menuFetchError || !dbMenus) {
+    return NextResponse.json({ error: "메뉴 정보를 확인할 수 없습니다" }, { status: 500 });
+  }
+
+  const menuMap = new Map(dbMenus.map((m) => [m.id, m]));
+
+  for (const item of items) {
+    const dbMenu = menuMap.get(item.menuId);
+    if (!dbMenu) {
+      return NextResponse.json(
+        { error: `존재하지 않는 메뉴가 포함되어 있습니다 (${item.menuName})` },
+        { status: 400 }
+      );
+    }
+    if (!dbMenu.is_available) {
+      return NextResponse.json(
+        { error: `현재 주문할 수 없는 메뉴입니다 (${item.menuName})` },
+        { status: 400 }
+      );
+    }
+    const dbPrice = Number(dbMenu.price);
+    if (Math.abs(dbPrice - item.price) > 0) {
+      return NextResponse.json(
+        { error: `메뉴 가격이 변경되었습니다. 장바구니를 다시 확인해 주세요 (${item.menuName}: ${item.price.toLocaleString()}원 → ${dbPrice.toLocaleString()}원)` },
+        { status: 409 }
+      );
+    }
+  }
+
+  // 7-1. PICK 적립 — 기본 적립 없음, 쿠폰 fixed_pick 발급분만 적립
   const pickReward = couponFixedPick;
 
   // 8. 배달 좌표 확정 — 클라이언트 제공 우선, 없으면 서버 지오코딩
@@ -167,11 +203,12 @@ export async function POST(request: NextRequest) {
   const orderId = orderData.id as string;
 
   // 10. 주문 아이템 일괄 insert
+  // 검증된 DB 가격으로 스냅샷 저장 (클라이언트 price 대신 서버 price 사용)
   const orderItems = items.map((item) => ({
     order_id:  orderId,
     menu_id:   item.menuId,
     menu_name: item.menuName,
-    price:     item.price,
+    price:     Number(menuMap.get(item.menuId)!.price),
     quantity:  item.quantity,
     options:   item.options,
   }));
