@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
+import InstallPrompt from "@/components/pwa/InstallPrompt";
 import {
   LayoutDashboard,
   ClipboardList,
@@ -136,6 +137,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
           })}
         </ul>
       </nav>
+      <InstallPrompt />
     </div>
   );
 }

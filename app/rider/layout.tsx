@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Navigation, Bike, Wallet, ChevronLeft, User } from "lucide-react";
+import InstallPrompt from "@/components/pwa/InstallPrompt";
 import { useState, useEffect, useRef } from "react";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -150,6 +151,7 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
           })}
         </ul>
       </nav>
+      <InstallPrompt />
     </div>
   );
 }
