@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 
-const PI_API_KEY  = process.env.PI_API_KEY ?? "";
 const PI_API_BASE = "https://api.minepi.com";
 
 interface PiMeResponse {
@@ -19,11 +18,9 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Pi API로 토큰 검증 → uid, username 획득
+    // API 키 불필요 — accessToken 하나로 /v2/me 검증
     const piRes = await fetch(`${PI_API_BASE}/v2/me`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "X-Pi-App-Id": PI_API_KEY,
-      },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!piRes.ok) {
       return NextResponse.json({ error: "Pi 토큰 검증 실패" }, { status: 401 });

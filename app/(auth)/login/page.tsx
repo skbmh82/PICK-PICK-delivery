@@ -36,7 +36,8 @@ export default function LoginPage() {
     try {
       setPiLoading(true);
       setPiError("");
-      // 네이티브 주입된 window.Pi는 이미 초기화됨 — init() 없이 바로 authenticate
+      // Pi.init()을 Promise로 await (프롬프트 요구사항)
+      await (window.Pi.init({ version: "2.0", sandbox: true }) as unknown as Promise<void>);
       const auth = await window.Pi.authenticate(["username"], async () => {});
       const res = await fetch("/api/auth/pi-login", {
         method:  "POST",
