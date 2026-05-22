@@ -55,7 +55,7 @@ export default function RootLayout({
         {/* Pi SDK — beforeInteractive로 React hydration 전에 로드 및 초기화 */}
         <Script src="https://sdk.minepi.com/pi-sdk.js" strategy="beforeInteractive" />
         <Script id="pi-sdk-init" strategy="beforeInteractive">
-          {`window.Pi && Pi.init({ version: "2.0", sandbox: true });`}
+          {`window.Pi && Pi.init({ version: "2.0" });`}
         </Script>
       </head>
       <body suppressHydrationWarning>

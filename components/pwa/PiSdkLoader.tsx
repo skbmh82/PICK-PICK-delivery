@@ -15,7 +15,7 @@ export default function PiSdkLoader() {
       strategy="afterInteractive"
       onLoad={() => {
         // 스크립트 완전 로드 후 Pi.init() 호출 — 이 시점의 window.Pi가 authenticate()와 동일한 객체
-        window.Pi?.init({ version: "2.0", sandbox: true });
+        window.Pi?.init({ version: "2.0" });
         window.__piReady = true;
       }}
     />
