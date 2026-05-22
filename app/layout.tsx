@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 import AuthProvider from "@/components/providers/AuthProvider";
 import ThemeProvider, { ThemeScript } from "@/components/providers/ThemeProvider";
+import PiSdkLoader from "@/components/pwa/PiSdkLoader";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -57,7 +57,7 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
-        {/* Pi SDK는 Pi Browser/Desktop이 window.Pi로 네이티브 주입 — CDN 스크립트 불필요 */}
+        <PiSdkLoader />
       </body>
     </html>
   );

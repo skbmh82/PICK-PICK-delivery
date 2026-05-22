@@ -1,6 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+
+declare global {
+  interface Window {
+    __piReady?: boolean;
+  }
+}
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -36,8 +42,7 @@ export default function LoginPage() {
     try {
       setPiLoading(true);
       setPiError("");
-      // Pi.init()을 Promise로 await (프롬프트 요구사항)
-      await (window.Pi.init({ version: "2.0", sandbox: true }) as unknown as Promise<void>);
+      // Pi.init()은 PiSdkLoader의 onLoad에서 이미 완료됨
       const auth = await window.Pi.authenticate(["username"], async () => {});
       const res = await fetch("/api/auth/pi-login", {
         method:  "POST",
@@ -70,7 +75,8 @@ export default function LoginPage() {
 
     const tryPi = () => {
       if (piTriggered.current) return;
-      if (window.Pi) {
+      // __piReady: PiSdkLoader의 onLoad에서 Pi.init() 완료 후 세팅
+      if (window.__piReady && window.Pi) {
         piTriggered.current = true;
         setPiStatus("found");
         void doPiAuth();
