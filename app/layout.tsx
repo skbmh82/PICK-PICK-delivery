@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 import AuthProvider from "@/components/providers/AuthProvider";
 import ThemeProvider, { ThemeScript } from "@/components/providers/ThemeProvider";
@@ -52,16 +51,12 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="픽픽" />
         <meta name="theme-color" content="#6B21A8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        {/* Pi SDK — beforeInteractive로 React hydration 전에 로드 및 초기화 */}
-        <Script src="https://sdk.minepi.com/pi-sdk.js" strategy="beforeInteractive" />
-        <Script id="pi-sdk-init" strategy="beforeInteractive">
-          {`window.Pi && Pi.init({ version: "2.0" });`}
-        </Script>
       </head>
       <body suppressHydrationWarning>
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
+        {/* Pi Desktop이 window.Pi를 네이티브로 주입 — CDN 스크립트 로드 안 함 */}
       </body>
     </html>
   );

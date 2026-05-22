@@ -37,7 +37,7 @@ export default function LoginPage() {
     try {
       setPiLoading(true);
       setPiError("");
-      // Pi.init()은 layout의 beforeInteractive 스크립트에서 이미 완료됨
+      // Pi Desktop이 window.Pi를 이미 초기화된 상태로 주입 — init() 불필요
       const auth = await window.Pi.authenticate(["username"], async () => {});
       const res = await fetch("/api/auth/pi-login", {
         method:  "POST",
