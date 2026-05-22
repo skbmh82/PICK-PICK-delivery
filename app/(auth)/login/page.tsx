@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,6 +15,30 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
+// Pi 로그인 처리 함수
+async function handlePiLogin(router: ReturnType<typeof useRouter>, redirectTo: string) {
+  if (typeof window === "undefined" || !window.Pi) return false;
+  try {
+    window.Pi.init({ version: "2.0", sandbox: process.env.NEXT_PUBLIC_PI_SANDBOX !== "false" });
+    const auth = await window.Pi.authenticate(["username"], async () => {});
+    const res = await fetch("/api/auth/pi-login", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ accessToken: auth.accessToken }),
+    });
+    if (!res.ok) return false;
+    const { token_hash, role } = await res.json() as { token_hash: string; role: string };
+    const { error } = await supabase.auth.verifyOtp({ token_hash, type: "magiclink" });
+    if (error) return false;
+    if      (role === "owner") router.replace("/owner/dashboard");
+    else if (role === "rider") router.replace("/rider/dashboard");
+    else                       router.replace(redirectTo);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default function LoginPage() {
   const router       = useRouter();
   const searchParams = useSearchParams();
@@ -22,6 +46,21 @@ export default function LoginPage() {
 
   const [showPw,      setShowPw]      = useState(false);
   const [serverError, setServerError] = useState("");
+  const [piLoading,   setPiLoading]   = useState(false);
+  const [isPiBrowser, setIsPiBrowser] = useState(false);
+
+  // Pi Browser 감지 → 자동 Pi 인증
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isPi = !!(window.Pi);
+    setIsPiBrowser(isPi);
+    if (isPi) {
+      setPiLoading(true);
+      handlePiLogin(router, redirectTo)
+        .finally(() => setPiLoading(false));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const {
     register,
@@ -135,6 +174,42 @@ export default function LoginPage() {
             비밀번호를 잊으셨나요?
           </Link>
         </div>
+      </div>
+
+      {/* Pi Network 로그인 */}
+      <div className="bg-white rounded-3xl border-2 border-pick-border p-6 shadow-sm">
+        <h2 className="font-black text-pick-text text-lg mb-1">Pi Network 로그인</h2>
+        <p className="text-xs text-pick-text-sub mb-5">
+          {isPiBrowser
+            ? "Pi Browser가 감지되었어요. 자동으로 인증 중이에요."
+            : "Pi Browser에서 접속하면 자동으로 로그인돼요."}
+        </p>
+
+        <button
+          type="button"
+          disabled={piLoading}
+          onClick={() => {
+            setPiLoading(true);
+            handlePiLogin(router, redirectTo).finally(() => setPiLoading(false));
+          }}
+          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#7B3FE4] to-[#A855F7] text-white font-black py-3.5 rounded-full disabled:opacity-60 active:scale-95 transition-all"
+        >
+          {piLoading ? (
+            "인증 중..."
+          ) : (
+            <>
+              <span className="text-lg leading-none">π</span>
+              Pi로 로그인
+            </>
+          )}
+        </button>
+
+        {!isPiBrowser && (
+          <p className="mt-3 text-center text-xs text-pick-text-sub">
+            Pi Browser 앱이 필요해요 →{" "}
+            <span className="font-bold text-pick-text">minepi.com</span>
+          </p>
+        )}
       </div>
 
       {/* 회원가입 링크 */}
