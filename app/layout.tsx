@@ -52,6 +52,8 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="픽픽" />
         <meta name="theme-color" content="#6B21A8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        {/* Pi SDK 조기 다운로드 — HTML 파싱 즉시 fetch 시작해서 afterInteractive 실행 시 캐시 히트 */}
+        <link rel="preload" href="https://sdk.minepi.com/pi-sdk.js" as="script" />
       </head>
       <body suppressHydrationWarning>
         <ThemeProvider>
