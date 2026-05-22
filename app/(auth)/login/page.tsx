@@ -49,16 +49,23 @@ export default function LoginPage() {
   const [piLoading,   setPiLoading]   = useState(false);
   const [isPiBrowser, setIsPiBrowser] = useState(false);
 
-  // Pi Browser 감지 → 자동 Pi 인증
+  // Pi SDK 주입 대기 후 자동 인증 (Pi Desktop은 주입이 늦을 수 있음)
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const isPi = !!(window.Pi);
-    setIsPiBrowser(isPi);
-    if (isPi) {
-      setPiLoading(true);
-      handlePiLogin(router, redirectTo)
-        .finally(() => setPiLoading(false));
-    }
+    let attempts = 0;
+    const MAX = 10; // 최대 5초 (500ms × 10)
+
+    const tryPi = () => {
+      if (window.Pi) {
+        setIsPiBrowser(true);
+        setPiLoading(true);
+        handlePiLogin(router, redirectTo).finally(() => setPiLoading(false));
+      } else if (attempts < MAX) {
+        attempts++;
+        setTimeout(tryPi, 500);
+      }
+    };
+    tryPi();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
