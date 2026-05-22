@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,30 +15,6 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
-// Pi 로그인 처리 함수
-async function handlePiLogin(router: ReturnType<typeof useRouter>, redirectTo: string) {
-  if (typeof window === "undefined" || !window.Pi) return false;
-  try {
-    window.Pi.init({ version: "2.0", sandbox: process.env.NEXT_PUBLIC_PI_SANDBOX !== "false" });
-    const auth = await window.Pi.authenticate(["username"], async () => {});
-    const res = await fetch("/api/auth/pi-login", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ accessToken: auth.accessToken }),
-    });
-    if (!res.ok) return false;
-    const { token_hash, role } = await res.json() as { token_hash: string; role: string };
-    const { error } = await supabase.auth.verifyOtp({ token_hash, type: "magiclink" });
-    if (error) return false;
-    if      (role === "owner") router.replace("/owner/dashboard");
-    else if (role === "rider") router.replace("/rider/dashboard");
-    else                       router.replace(redirectTo);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export default function LoginPage() {
   const router       = useRouter();
   const searchParams = useSearchParams();
@@ -47,25 +23,83 @@ export default function LoginPage() {
   const [showPw,      setShowPw]      = useState(false);
   const [serverError, setServerError] = useState("");
   const [piLoading,   setPiLoading]   = useState(false);
-  const [isPiBrowser, setIsPiBrowser] = useState(false);
+  const [piError,     setPiError]     = useState("");
+  const [piStatus,    setPiStatus]    = useState<"idle" | "detecting" | "found" | "not-found">("detecting");
+  const piTriggered = useRef(false);
 
-  // Pi SDK 주입 대기 후 자동 인증 (Pi Desktop은 주입이 늦을 수 있음)
+  const doPiAuth = async () => {
+    if (!window.Pi) {
+      setPiError("Pi SDK가 로드되지 않았어요. Pi Browser에서 접속해주세요.");
+      setPiStatus("not-found");
+      return;
+    }
+    try {
+      setPiLoading(true);
+      setPiError("");
+      window.Pi.init({ version: "2.0", sandbox: process.env.NEXT_PUBLIC_PI_SANDBOX !== "false" });
+      const auth = await window.Pi.authenticate(["username"], async () => {});
+      const res = await fetch("/api/auth/pi-login", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ accessToken: auth.accessToken }),
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({})) as { error?: string };
+        setPiError(errJson.error ?? `서버 오류 (${res.status})`);
+        return;
+      }
+      const { token_hash, role } = await res.json() as { token_hash: string; role: string };
+      const { error: otpErr } = await supabase.auth.verifyOtp({ token_hash, type: "magiclink" });
+      if (otpErr) { setPiError(otpErr.message); return; }
+      if      (role === "owner") router.replace("/owner/dashboard");
+      else if (role === "rider") router.replace("/rider/dashboard");
+      else                       router.replace(redirectTo);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[Pi Auth Error]", msg);
+      setPiError(`Pi 인증 오류: ${msg}`);
+    } finally {
+      setPiLoading(false);
+    }
+  };
+
+  // Pi SDK 감지 → 자동 인증
   useEffect(() => {
     if (typeof window === "undefined") return;
-    let attempts = 0;
-    const MAX = 10; // 최대 5초 (500ms × 10)
 
     const tryPi = () => {
+      if (piTriggered.current) return;
       if (window.Pi) {
-        setIsPiBrowser(true);
-        setPiLoading(true);
-        handlePiLogin(router, redirectTo).finally(() => setPiLoading(false));
-      } else if (attempts < MAX) {
-        attempts++;
-        setTimeout(tryPi, 500);
+        piTriggered.current = true;
+        setPiStatus("found");
+        void doPiAuth();
       }
     };
+
+    // 즉시 시도
     tryPi();
+
+    // pi-sdk.js script onload 이벤트 감지
+    const scriptEl = document.querySelector<HTMLScriptElement>(
+      'script[src="https://sdk.minepi.com/pi-sdk.js"]',
+    );
+    scriptEl?.addEventListener("load", tryPi);
+
+    // 폴링 (300ms × 30 = 최대 9초)
+    let count = 0;
+    const id = setInterval(() => {
+      count++;
+      tryPi();
+      if (window.Pi || count >= 30) {
+        clearInterval(id);
+        if (!window.Pi) setPiStatus("not-found");
+      }
+    }, 300);
+
+    return () => {
+      clearInterval(id);
+      scriptEl?.removeEventListener("load", tryPi);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -115,6 +149,45 @@ export default function LoginPage() {
           PICK PICK
         </h1>
         <p className="text-sm text-pick-text-sub mt-1">맛있는 음식을 PICK 하세요!</p>
+      </div>
+
+      {/* Pi Network 로그인 — 최상단 배치 (App Studio 감지용) */}
+      <div className="bg-gradient-to-br from-[#7B3FE4]/10 to-[#A855F7]/10 rounded-3xl border-2 border-[#A855F7]/30 p-6 shadow-sm">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-2xl font-black text-[#7B3FE4]">π</span>
+          <h2 className="font-black text-pick-text text-lg">Pi Network 로그인</h2>
+        </div>
+        <p className="text-xs text-pick-text-sub mb-4">
+          {piStatus === "detecting" && "Pi SDK 감지 중..."}
+          {piStatus === "found"     && "Pi Browser 감지됨. 자동 인증 중이에요."}
+          {piStatus === "not-found" && "Pi Browser가 아닌 환경이에요. 버튼을 눌러 시도하세요."}
+          {piStatus === "idle"      && "Pi Browser에서 접속하면 자동으로 로그인돼요."}
+        </p>
+
+        <button
+          type="button"
+          disabled={piLoading}
+          onClick={() => {
+            piTriggered.current = false;
+            void doPiAuth();
+          }}
+          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#7B3FE4] to-[#A855F7] text-white font-black py-3.5 rounded-full disabled:opacity-60 active:scale-95 transition-all"
+        >
+          {piLoading ? "Pi 인증 중..." : <><span className="text-lg leading-none">π</span> Pi로 로그인</>}
+        </button>
+
+        {piError && (
+          <div className="mt-3 bg-red-50 border border-red-200 rounded-2xl p-3">
+            <p className="text-xs text-red-600 font-medium">⚠️ {piError}</p>
+          </div>
+        )}
+      </div>
+
+      {/* 구분선 */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px bg-pick-border" />
+        <span className="text-xs text-pick-text-sub font-medium">또는 이메일로 로그인</span>
+        <div className="flex-1 h-px bg-pick-border" />
       </div>
 
       {/* 이메일 로그인 카드 */}
@@ -181,42 +254,6 @@ export default function LoginPage() {
             비밀번호를 잊으셨나요?
           </Link>
         </div>
-      </div>
-
-      {/* Pi Network 로그인 */}
-      <div className="bg-white rounded-3xl border-2 border-pick-border p-6 shadow-sm">
-        <h2 className="font-black text-pick-text text-lg mb-1">Pi Network 로그인</h2>
-        <p className="text-xs text-pick-text-sub mb-5">
-          {isPiBrowser
-            ? "Pi Browser가 감지되었어요. 자동으로 인증 중이에요."
-            : "Pi Browser에서 접속하면 자동으로 로그인돼요."}
-        </p>
-
-        <button
-          type="button"
-          disabled={piLoading}
-          onClick={() => {
-            setPiLoading(true);
-            handlePiLogin(router, redirectTo).finally(() => setPiLoading(false));
-          }}
-          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#7B3FE4] to-[#A855F7] text-white font-black py-3.5 rounded-full disabled:opacity-60 active:scale-95 transition-all"
-        >
-          {piLoading ? (
-            "인증 중..."
-          ) : (
-            <>
-              <span className="text-lg leading-none">π</span>
-              Pi로 로그인
-            </>
-          )}
-        </button>
-
-        {!isPiBrowser && (
-          <p className="mt-3 text-center text-xs text-pick-text-sub">
-            Pi Browser 앱이 필요해요 →{" "}
-            <span className="font-bold text-pick-text">minepi.com</span>
-          </p>
-        )}
       </div>
 
       {/* 회원가입 링크 */}
