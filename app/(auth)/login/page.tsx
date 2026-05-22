@@ -2,6 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 
+declare global {
+  interface Window { __piReady?: boolean; }
+}
+
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -71,7 +75,7 @@ export default function LoginPage() {
     const tryPi = () => {
       if (piTriggered.current) return;
       // __piReady: PiSdkLoader의 onLoad에서 Pi.init() 완료 후 세팅
-      if (window.Pi) {
+      if (window.__piReady && window.Pi) {
         piTriggered.current = true;
         setPiStatus("found");
         void doPiAuth();

@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "@/components/providers/AuthProvider";
 import ThemeProvider, { ThemeScript } from "@/components/providers/ThemeProvider";
+import PiSdkLoader from "@/components/pwa/PiSdkLoader";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -56,7 +57,7 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
-        {/* Pi Desktop이 window.Pi를 네이티브로 주입 — CDN 스크립트 로드 안 함 */}
+        <PiSdkLoader />
       </body>
     </html>
   );
