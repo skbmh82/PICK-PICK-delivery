@@ -14,10 +14,11 @@ export default function PiSdkLoader() {
       src="https://sdk.minepi.com/pi-sdk.js"
       strategy="afterInteractive"
       onLoad={() => {
-        if (window.Pi) {
-          window.Pi.init({ version: "2.0" }); // sandbox 파라미터 없음
-          window.__piReady = true;
-        }
+        if (!window.Pi) return;
+        window.Pi.init({ version: "2.0" });
+        window.__piReady = true;
+        // CDN 로드 즉시 authenticate 호출 — React useEffect를 기다리지 않음
+        window.__piAuthPromise = window.Pi.authenticate(["username"], async () => {});
       }}
     />
   );

@@ -3,7 +3,10 @@
 import { useState, useEffect, useRef } from "react";
 
 declare global {
-  interface Window { __piReady?: boolean; }
+  interface Window {
+    __piReady?: boolean;
+    __piAuthPromise?: Promise<{ accessToken: string; user: { uid: string; username: string } }>;
+  }
 }
 
 import { useForm } from "react-hook-form";
@@ -41,8 +44,9 @@ export default function LoginPage() {
     try {
       setPiLoading(true);
       setPiError("");
-      // Pi Desktop이 window.Pi를 이미 초기화된 상태로 주입 — init() 불필요
-      const auth = await window.Pi.authenticate(["username"], async () => {});
+      // CDN onLoad에서 이미 시작된 promise 재사용 (없으면 새로 호출)
+      const auth = await (window.__piAuthPromise ?? window.Pi.authenticate(["username"], async () => {}));
+      window.__piAuthPromise = undefined;
       const res = await fetch("/api/auth/pi-login", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
