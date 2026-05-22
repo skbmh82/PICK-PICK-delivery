@@ -36,14 +36,7 @@ export default function LoginPage() {
     try {
       setPiLoading(true);
       setPiError("");
-      // Pi.init()이 비동기일 수 있으므로 await 처리
-      const maybePromise = window.Pi.init({ version: "2.0", sandbox: process.env.NEXT_PUBLIC_PI_SANDBOX !== "false" }) as Promise<void> | void;
-      if (maybePromise && typeof (maybePromise as { then?: unknown }).then === "function") {
-        await maybePromise;
-      } else {
-        // 동기 init이어도 SDK 내부 상태 반영 대기
-        await new Promise(r => setTimeout(r, 300));
-      }
+      // 네이티브 주입된 window.Pi는 이미 초기화됨 — init() 없이 바로 authenticate
       const auth = await window.Pi.authenticate(["username"], async () => {});
       const res = await fetch("/api/auth/pi-login", {
         method:  "POST",

@@ -57,8 +57,7 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
-        {/* Pi Network SDK — Pi Browser에서만 활성화됨 */}
-        <Script src="https://sdk.minepi.com/pi-sdk.js" strategy="afterInteractive" />
+        {/* Pi SDK는 Pi Browser/Desktop이 window.Pi로 네이티브 주입 — CDN 스크립트 불필요 */}
       </body>
     </html>
   );
