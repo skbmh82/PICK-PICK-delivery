@@ -1,178 +1,136 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 declare global {
   interface Window {
-    __piReady?: boolean;
-    __piLoginDone?: boolean;
-    __piLoginRole?: string;
-    __piAuthPromise?: Promise<{ accessToken: string; user: { uid: string; username: string } }>;
+    Pi?: {
+      init:         (opts: { version: string; sandbox?: boolean }) => Promise<void> | void;
+      authenticate: (
+        scopes: string[],
+        onIncompletePaymentFound: (payment: unknown) => Promise<void>
+      ) => Promise<{ accessToken: string; user: { uid: string; username: string } }>;
+    };
   }
 }
 
-type Step = "idle" | "pi-auth" | "api" | "navigate";
+type Status = "sdk" | "auth" | "login" | "done" | "error";
 
-const STEP_LABEL: Record<Step, string> = {
-  "idle":     "Pi로 로그인",
-  "pi-auth":  "① Pi 인증 중...",
-  "api":      "② 서버 연결 중...",
-  "navigate": "③ 이동 중...",
+const LABEL: Record<Status, string> = {
+  sdk:   "Pi SDK 초기화 중...",
+  auth:  "Pi 인증 중...",
+  login: "로그인 중...",
+  done:  "이동 중...",
+  error: "",
 };
 
-function goTo(role: string, redirectTo: string) {
-  const dest = role === "owner" ? "/owner/dashboard"
-             : role === "rider" ? "/rider/dashboard"
-             : redirectTo;
-  window.location.href = dest;
+function getDest(role: string, redirectTo: string) {
+  return role === "owner" ? "/owner/dashboard"
+       : role === "rider" ? "/rider/dashboard"
+       : redirectTo;
 }
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
   const redirectTo   = searchParams.get("redirect") ?? "/home";
 
-  const [step,     setStep]     = useState<Step>("idle");
-  const [piError,  setPiError]  = useState("");
-  const [piStatus, setPiStatus] = useState<"detecting" | "found" | "not-found">("detecting");
-  const piTriggered = useRef(false);
-
-  const doPiAuth = async () => {
-    if (!window.Pi) {
-      setPiError("Pi Browser에서만 로그인할 수 있어요.");
-      setPiStatus("not-found");
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setPiError(`타임아웃 — ${STEP_LABEL[step]} 단계에서 멈췄어요.`);
-      setStep("idle");
-    }, 40_000);
-
-    try {
-      setPiError("");
-
-      // ① Pi 인증
-      setStep("pi-auth");
-      const auth = await (window.__piAuthPromise ?? window.Pi.authenticate(["username"], async () => {}));
-      window.__piAuthPromise = undefined;
-
-      // PiSdkLoader가 이미 완료한 경우
-      if (window.__piLoginDone) {
-        clearTimeout(timer);
-        setStep("navigate");
-        goTo(window.__piLoginRole ?? "user", redirectTo);
-        return;
-      }
-
-      // ② 서버 로그인 (서버가 직접 세션 쿠키 설정)
-      setStep("api");
-      const res = await fetch("/api/auth/pi-login", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ accessToken: auth.accessToken }),
-      });
-
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({})) as { error?: string };
-        setPiError(j.error ?? `서버 오류 (${res.status})`);
-        setStep("idle");
-        return;
-      }
-
-      const { role } = await res.json() as { role: string };
-
-      // ③ 이동 (쿠키는 서버가 이미 설정 완료)
-      clearTimeout(timer);
-      setStep("navigate");
-      goTo(role, redirectTo);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setPiError(`오류: ${msg}`);
-      setStep("idle");
-    } finally {
-      clearTimeout(timer);
-    }
-  };
+  const [status, setStatus] = useState<Status>("sdk");
+  const [error,  setError]  = useState("");
 
   useEffect(() => {
-    const tryPi = () => {
-      if (piTriggered.current) return;
+    let cancelled = false;
 
-      if (window.__piLoginDone) {
-        piTriggered.current = true;
-        setPiStatus("found");
-        setStep("navigate");
-        goTo(window.__piLoginRole ?? "user", redirectTo);
+    async function run() {
+      // Pi SDK가 주입될 때까지 최대 10초 대기
+      let ms = 0;
+      while (!window.Pi && ms < 10_000) {
+        await new Promise<void>(r => setTimeout(r, 200));
+        ms += 200;
+      }
+      if (cancelled) return;
+
+      if (!window.Pi) {
+        setError("Pi Browser에서만 이용할 수 있어요.\nPi Browser로 접속해 주세요.");
+        setStatus("error");
         return;
       }
 
-      if (window.__piReady && window.Pi) {
-        piTriggered.current = true;
-        setPiStatus("found");
-        void doPiAuth();
+      try {
+        // ① Pi 인증 → 동의창 표시
+        setStatus("auth");
+        await (window.Pi.init({ version: "2.0" }) as unknown as Promise<void> | void);
+        const auth = await window.Pi.authenticate(["username"], async () => {});
+        if (cancelled) return;
+
+        // ② 서버에서 세션 쿠키 설정
+        setStatus("login");
+        const res = await fetch("/api/auth/pi-login", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ accessToken: auth.accessToken }),
+        });
+
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({})) as { error?: string };
+          setError(j.error ?? `서버 오류 (${res.status})`);
+          setStatus("error");
+          return;
+        }
+
+        const { role } = await res.json() as { role: string };
+
+        // ③ 이동 (쿠키는 서버가 이미 설정)
+        setStatus("done");
+        window.location.href = getDest(role, redirectTo);
+      } catch (e: unknown) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : String(e));
+          setStatus("error");
+        }
       }
-    };
+    }
 
-    tryPi();
-
-    let count = 0;
-    const id = setInterval(() => {
-      count++;
-      tryPi();
-      if (window.__piReady || window.__piLoginDone || count >= 60) {
-        clearInterval(id);
-        if (!window.__piReady && !window.__piLoginDone) setPiStatus("not-found");
-      }
-    }, 300);
-
-    return () => clearInterval(id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const isLoading = step !== "idle";
+    void run();
+    return () => { cancelled = true; };
+  }, [redirectTo]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 py-8">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#FAF5FF] gap-6 px-6">
       {/* 로고 */}
       <div className="text-center">
-        <p className="text-6xl mb-3">🛵</p>
-        <h1 className="text-4xl font-black text-pick-purple-dark" style={{ fontFamily: "var(--font-logo)" }}>
+        <p className="text-7xl mb-3">🛵</p>
+        <h1
+          className="text-4xl font-black text-[#4C1D95]"
+          style={{ fontFamily: "var(--font-logo, 'Jua', sans-serif)" }}
+        >
           PICK PICK
         </h1>
-        <p className="text-sm text-pick-text-sub mt-1">맛있는 음식을 PICK 하세요!</p>
+        <p className="text-sm text-gray-500 mt-1">맛있는 음식을 PICK 하세요!</p>
       </div>
 
-      {/* Pi 로그인 카드 */}
-      <div className="w-full bg-gradient-to-br from-[#7B3FE4]/10 to-[#A855F7]/10 rounded-3xl border-2 border-[#A855F7]/30 p-8 shadow-sm">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <span className="text-3xl font-black text-[#7B3FE4]">π</span>
-          <h2 className="font-black text-pick-text text-xl">Pi Network 로그인</h2>
+      {/* 로딩 스피너 */}
+      {status !== "error" && (
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-9 h-9 border-4 border-[#A855F7] border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-gray-400">{LABEL[status]}</p>
         </div>
-        <p className="text-center text-xs text-pick-text-sub mb-6">
-          {piStatus === "detecting" && "Pi SDK 감지 중..."}
-          {piStatus === "found"     && (isLoading ? STEP_LABEL[step] : "Pi Browser 감지됨")}
-          {piStatus === "not-found" && "버튼을 눌러 Pi 계정으로 로그인하세요."}
-        </p>
+      )}
 
-        <button
-          type="button"
-          disabled={isLoading}
-          onClick={() => { piTriggered.current = false; void doPiAuth(); }}
-          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#7B3FE4] to-[#A855F7] text-white font-black py-4 rounded-full text-lg disabled:opacity-60 active:scale-95 transition-all"
-        >
-          {isLoading
-            ? STEP_LABEL[step]
-            : <><span className="text-xl leading-none">π</span> Pi로 로그인</>
-          }
-        </button>
-
-        {piError && (
-          <div className="mt-4 bg-red-50 border border-red-200 rounded-2xl p-4">
-            <p className="text-sm text-red-600 font-bold text-center break-all">⚠️ {piError}</p>
-          </div>
-        )}
-      </div>
+      {/* 오류 */}
+      {status === "error" && (
+        <div className="w-full max-w-xs bg-red-50 border border-red-200 rounded-2xl p-5 text-center">
+          <p className="text-sm text-red-600 font-bold whitespace-pre-line break-all">
+            ⚠️ {error}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-6 py-2 bg-[#7B3FE4] text-white rounded-full text-sm font-bold active:scale-95 transition-transform"
+          >
+            다시 시도
+          </button>
+        </div>
+      )}
     </div>
   );
 }
