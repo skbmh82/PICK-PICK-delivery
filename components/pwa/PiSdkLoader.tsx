@@ -9,18 +9,20 @@ declare global {
   }
 }
 
-function initAndAuth() {
+async function initAndAuth() {
   if (!window.Pi || window.__piReady) return;
-  window.Pi.init({ version: "2.0" });
-  window.__piReady = true;
+  // App Studio 환경에서 Pi.init()은 비동기(Promise)일 수 있으므로 await 필수
+  await (window.Pi.init({ version: "2.0" }) as unknown as Promise<void> | void);
+  // __piReady 세팅 전에 authenticate Promise를 먼저 저장해야 race condition 방지
   window.__piAuthPromise = window.Pi.authenticate(["username"], async () => {});
+  window.__piReady = true;
 }
 
 export default function PiSdkLoader() {
   useEffect(() => {
     // 이미 로드된 경우 바로 실행
     if (window.Pi) {
-      initAndAuth();
+      void initAndAuth();
       return;
     }
 
@@ -28,7 +30,7 @@ export default function PiSdkLoader() {
     const script = document.createElement("script");
     script.src = "https://sdk.minepi.com/pi-sdk.js";
     script.async = true;
-    script.onload = () => initAndAuth();
+    script.onload = () => { void initAndAuth(); };
     document.head.appendChild(script);
   }, []);
 
