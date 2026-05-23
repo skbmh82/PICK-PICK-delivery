@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json() as { accessToken: string; role?: string };
     const { accessToken } = body;
-    const requestedRole = ["user", "owner", "rider"].includes(body.role ?? "") ? body.role! : "user";
+    const requestedRole = ["user", "owner", "rider", "admin"].includes(body.role ?? "") ? body.role! : "user";
     if (!accessToken) {
       return NextResponse.json({ error: "accessToken 필요" }, { status: 400 });
     }
