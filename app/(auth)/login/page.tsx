@@ -77,9 +77,13 @@ export default function LoginPage() {
           role: string; access_token: string; refresh_token: string;
         };
 
-        // ③ 브라우저 Supabase 클라이언트에 세션 직접 주입
-        // (pinet.com 프록시가 Set-Cookie 헤더를 차단하므로 document.cookie로 직접 저장)
-        await supabase.auth.setSession({ access_token, refresh_token });
+        // ③ Supabase 세션 설정 (localStorage에 저장됨)
+        const { error: sessionError } = await supabase.auth.setSession({ access_token, refresh_token });
+        if (sessionError) {
+          setError(`세션 설정 실패: ${sessionError.message}`);
+          setStatus("error");
+          return;
+        }
 
         // ④ 이동
         setStatus("done");

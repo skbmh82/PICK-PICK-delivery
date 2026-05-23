@@ -1,13 +1,19 @@
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// 브라우저 클라이언트 — @supabase/ssr 사용으로 세션이 쿠키에 저장됨
-// (미들웨어에서 세션 읽기 가능)
-export function getSupabaseClient() {
-  return createBrowserClient(supabaseUrl, supabaseAnonKey);
-}
+// pinet.com 프록시가 쿠키 헤더를 차단하므로 localStorage 기반 createClient 사용
+// setSession() / getSession() 모두 localStorage에서 동작 → 페이지 이동 후에도 세션 유지
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    storageKey: "sb-pickpick-session",
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
 
-// 기본 export (직접 import 해서 쓸 때)
-export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
+export function getSupabaseClient() {
+  return supabase;
+}
