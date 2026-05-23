@@ -96,16 +96,17 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. 서버에서 직접 OTP 검증 → access_token / refresh_token 획득
-    //    (Pi Browser WebView에서 클라이언트 verifyOtp가 실패하는 문제 우회)
-    const supabaseUrl     = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    //    sb_publishable_* 형식 ANON KEY는 GoTrue /verify 엔드포인트에서 403 반환
+    //    → JWT 형식인 SUPABASE_SERVICE_ROLE_KEY 사용 (서버 전용, 안전)
+    const supabaseUrl    = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
     const verifyRes = await fetch(`${supabaseUrl}/auth/v1/verify`, {
       method:   "POST",
       redirect: "manual",
       headers: {
-        "apikey":         supabaseAnonKey,
-        "Content-Type":   "application/json",
+        "apikey":        serviceRoleKey,
+        "Content-Type":  "application/json",
       },
       body: JSON.stringify({
         token_hash: linkData.properties.hashed_token,
