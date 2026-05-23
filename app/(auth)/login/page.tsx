@@ -43,7 +43,7 @@ export default function LoginPage() {
     try {
       setPiLoading(true);
       setPiError("");
-      const auth = await (window.__piAuthPromise ?? window.Pi.authenticate(["username"], async () => {}));
+      const auth = await (window.__piAuthPromise ?? window.Pi.authenticate(["username", "payments"], async () => {}));
       window.__piAuthPromise = undefined;
 
       const res = await fetch("/api/auth/pi-login", {

@@ -14,7 +14,20 @@ async function initAndAuth() {
   // App Studio 환경에서 Pi.init()은 비동기(Promise)일 수 있으므로 await 필수
   await (window.Pi.init({ version: "2.0" }) as unknown as Promise<void> | void);
   // __piReady 세팅 전에 authenticate Promise를 먼저 저장해야 race condition 방지
-  window.__piAuthPromise = window.Pi.authenticate(["username"], async () => {});
+  window.__piAuthPromise = window.Pi.authenticate(
+    ["username", "payments"],
+    async (incompletePmt) => {
+      // 이전 세션에서 완료되지 않은 결제를 자동으로 처리
+      const txid = incompletePmt.transaction?.txid;
+      if (incompletePmt.status.developer_approved && txid) {
+        await fetch("/api/pi/complete", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ paymentId: incompletePmt.identifier, txid }),
+        });
+      }
+    }
+  );
   window.__piReady = true;
 }
 

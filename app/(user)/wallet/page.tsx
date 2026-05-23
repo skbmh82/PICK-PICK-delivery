@@ -271,60 +271,67 @@ function WalletSkeleton() {
 }
 
 // ── Pi 결제 훅 ────────────────────────────────────────
+// Pi.init() + authenticate()는 PiSdkLoader에서 앱 시작 시 이미 처리됨.
+// 여기서는 createPayment()만 호출하면 됨.
 function usePiPayment(onSuccess: () => void) {
-  const [piStatus, setPiStatus]   = useState<"idle"|"auth"|"paying"|"done"|"error">("idle");
-  const [piError,  setPiError]    = useState("");
-  // Pi Browser인지 정확히 감지 (일반 브라우저에서 pi-sdk.js가 로드돼도 false 유지)
-  const hasPi = typeof window !== "undefined"
-    && !!window.Pi
-    && /PiBrowser/i.test(navigator.userAgent);
+  const [piStatus, setPiStatus] = useState<"idle" | "paying" | "done" | "error">("idle");
+  const [piError,  setPiError]  = useState("");
+  const [hasPi,    setHasPi]    = useState(false);
 
-  const payWithPi = useCallback(async (amount: number, memo: string) => {
-    if (!window.Pi) { setPiError("Pi Browser에서만 사용 가능합니다"); return; }
-    setPiStatus("auth"); setPiError("");
-    try {
-      window.Pi.init({ version: "2.0", sandbox: true });
-      await window.Pi.authenticate(["payments"], async (incompletePmt) => {
-        // 미완료 결제 처리
-        if (incompletePmt.status.developer_approved && !incompletePmt.status.developer_completed) {
-          const txid = incompletePmt.transaction?.txid;
-          if (txid) {
-            await fetch("/api/pi/complete", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ paymentId: incompletePmt.identifier, txid }),
-            });
-          }
-        }
-      });
-      setPiStatus("paying");
-      window.Pi.createPayment(
-        { amount, memo, metadata: { source: "pickpick_wallet" } },
-        {
-          onReadyForServerApproval: async (paymentId) => {
-            await fetch("/api/pi/approve", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ paymentId }),
-            });
-          },
-          onReadyForServerCompletion: async (paymentId, txid) => {
-            await fetch("/api/pi/complete", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ paymentId, txid }),
-            });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.__piReady) { setHasPi(true); return; }
+    const id = setInterval(() => {
+      if (window.__piReady) { setHasPi(true); clearInterval(id); }
+    }, 300);
+    return () => clearInterval(id);
+  }, []);
+
+  const payWithPi = useCallback((piAmount: number) => {
+    if (!window.Pi || !window.__piReady) {
+      setPiError("Pi SDK가 초기화되지 않았습니다");
+      return;
+    }
+    setPiStatus("paying");
+    setPiError("");
+    const pickAmount = Math.round(piAmount * 300);
+
+    window.Pi.createPayment(
+      {
+        amount:   piAmount,
+        memo:     `PICK ${pickAmount.toLocaleString()}P 충전 (${piAmount}π)`,
+        metadata: { product: "pick_token_charge", pi_amount: piAmount, pick_amount: pickAmount },
+      },
+      {
+        onReadyForServerApproval: async (paymentId) => {
+          await fetch("/api/pi/approve", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ paymentId }),
+          });
+        },
+        onReadyForServerCompletion: async (paymentId, txid) => {
+          const res = await fetch("/api/pi/complete", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ paymentId, txid }),
+          });
+          if (res.ok) {
             setPiStatus("done");
             onSuccess();
-          },
-          onCancel: () => { setPiStatus("idle"); },
-          onError: (err) => { setPiStatus("error"); setPiError(err.message); },
-        }
-      );
-    } catch (e) {
-      setPiStatus("error");
-      setPiError(e instanceof Error ? e.message : "Pi 인증 실패");
-    }
+          } else {
+            const err = await res.json().catch(() => ({})) as { error?: string };
+            setPiStatus("error");
+            setPiError(err.error ?? "PICK 충전 실패");
+          }
+        },
+        onCancel: () => setPiStatus("idle"),
+        onError:  (err: { message: string }) => {
+          setPiStatus("error");
+          setPiError(err.message ?? "Pi 결제 오류");
+        },
+      }
+    );
   }, [onSuccess]);
 
   return { hasPi, piStatus, piError, payWithPi };
@@ -659,7 +666,7 @@ export default function WalletPage() {
     } finally { setLoading(false); }
   }, []);
 
-  const { hasPi, piStatus, payWithPi } = usePiPayment(fetchWallet);
+  const { hasPi, piStatus, piError, payWithPi } = usePiPayment(fetchWallet);
 
   const fetchCheckin = useCallback(async () => {
     if (checkinFetched.current) return;
@@ -738,34 +745,46 @@ export default function WalletPage() {
           </div>
         </div>
 
-        {/* Pi 잔액 / 결제 */}
-        <div className="bg-white/10 rounded-2xl px-4 py-3 mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-base">π</span>
-            <div>
-              <p className="text-[10px] text-white/60">Pi Network</p>
-              {hasPi ? (
-                <p className="text-sm font-black text-pick-yellow-light">Pi Browser 연결됨 ✓</p>
-              ) : (
-                <p className="text-sm font-black text-white/40 flex items-center gap-1">
-                  <Lock size={11} />
-                  Pi Browser에서 열어주세요
-                </p>
-              )}
+        {/* Pi → PICK 충전 */}
+        <div className="bg-white/10 rounded-2xl px-4 py-3 mb-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-base font-black" style={{ fontFamily: "serif" }}>π</span>
+              <div>
+                <p className="text-[10px] text-white/60">Pi → PICK 충전</p>
+                {hasPi ? (
+                  <p className="text-xs font-black text-pick-yellow-light">1π = 300 PICK</p>
+                ) : (
+                  <p className="text-xs font-black text-white/40 flex items-center gap-1">
+                    <Lock size={11} /> Pi Browser 전용
+                  </p>
+                )}
+              </div>
             </div>
+            {piStatus === "error" && (
+              <p className="text-[10px] text-red-300 font-bold max-w-[120px] text-right">{piError}</p>
+            )}
           </div>
-          {hasPi ? (
-            <button
-              onClick={() => void payWithPi(0.001, "PICK PICK 테스트 결제")}
-              disabled={piStatus === "auth" || piStatus === "paying" || piStatus === "done"}
-              className="text-[11px] font-black text-pick-purple bg-white px-3 py-1.5 rounded-full active:scale-95 transition-all disabled:opacity-50"
-            >
-              {piStatus === "auth"   ? "인증 중..." :
-               piStatus === "paying" ? "결제 중..." :
-               piStatus === "done"   ? "완료 ✓"    : "Pi 결제"}
-            </button>
-          ) : (
-            <span className="text-[10px] text-white/40 bg-white/10 px-2 py-0.5 rounded-full">준비 중</span>
+          {hasPi && (
+            <div className="grid grid-cols-4 gap-1.5">
+              {([1, 3, 5, 10] as const).map((pi) => (
+                <button
+                  key={pi}
+                  disabled={piStatus === "paying"}
+                  onClick={() => payWithPi(pi)}
+                  className="flex flex-col items-center py-2 rounded-2xl bg-white/15 active:scale-95 transition-all disabled:opacity-40 hover:bg-white/25"
+                >
+                  <span className="text-xs font-black text-white">{pi}π</span>
+                  <span className="text-[9px] text-pick-yellow-light font-bold">{(pi * 300).toLocaleString()}P</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {piStatus === "paying" && (
+            <p className="text-center text-xs text-white/60 mt-2 animate-pulse">Pi 결제 진행 중...</p>
+          )}
+          {piStatus === "done" && (
+            <p className="text-center text-xs text-pick-yellow-light font-black mt-2">✓ 충전 완료!</p>
           )}
         </div>
 
