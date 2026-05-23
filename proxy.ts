@@ -1,4 +1,3 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
 // ── 라우트 분류 ────────────────────────────────
@@ -25,33 +24,13 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Supabase 세션 확인용 클라이언트 생성
-  let response = NextResponse.next({ request });
+  const response = NextResponse.next({ request });
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-
-  // 현재 로그인 유저 확인 (세션 쿠키 기반)
-  const { data: { user } } = await supabase.auth.getUser();
-  const isLoggedIn = !!user;
+  // 세션 확인: supabase.auth.token 또는 pick-role 쿠키 존재 여부로 판단
+  // (sb_publishable_* ANON KEY는 GoTrue getUser() API를 거치면 실패하므로 쿠키 직접 확인)
+  const hasSession = !!request.cookies.get("supabase.auth.token")?.value;
+  const roleCookie = request.cookies.get("pick-role")?.value;
+  const isLoggedIn = hasSession || !!roleCookie;
 
   // ── 1. 루트("/") → 적절한 페이지로 리다이렉트 ──
   if (pathname === "/") {
@@ -81,62 +60,21 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // ── 4. 역할 기반 라우트 체크 ──
+  // ── 4. 역할 기반 라우트 체크 (pick-role 쿠키 사용) ──
   if (
-    isLoggedIn &&
+    isLoggedIn && roleCookie &&
     (matchesAny(pathname, OWNER_ROUTES) ||
      matchesAny(pathname, RIDER_ROUTES) ||
      matchesAny(pathname, ADMIN_ROUTES))
   ) {
-    // 역할은 pick-role 쿠키에서 읽음 (로그인 시 API에서 설정)
-    const roleCookie = request.cookies.get("pick-role")?.value;
-
-    if (roleCookie) {
-      const isOwnerRoute = matchesAny(pathname, OWNER_ROUTES);
-      const isRiderRoute = matchesAny(pathname, RIDER_ROUTES);
-      const isAdminRoute = matchesAny(pathname, ADMIN_ROUTES);
-
-      if (isOwnerRoute && !["owner", "admin"].includes(roleCookie)) {
-        return NextResponse.redirect(new URL("/home", request.url));
-      }
-      if (isRiderRoute && !["rider", "admin"].includes(roleCookie)) {
-        return NextResponse.redirect(new URL("/home", request.url));
-      }
-      if (isAdminRoute && roleCookie !== "admin") {
-        return NextResponse.redirect(new URL("/home", request.url));
-      }
-    } else {
-      // pick-role 쿠키 없으면 서버에서 조회 후 설정
-      const { data: profile } = await supabase
-        .from("users")
-        .select("role")
-        .eq("auth_id", user!.id)
-        .single();
-
-      if (profile) {
-        const role = profile.role as string;
-        response.cookies.set("pick-role", role, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          maxAge: 60 * 60 * 24 * 7, // 7일
-          path: "/",
-        });
-
-        const isOwnerRoute = matchesAny(pathname, OWNER_ROUTES);
-        const isRiderRoute = matchesAny(pathname, RIDER_ROUTES);
-        const isAdminRoute = matchesAny(pathname, ADMIN_ROUTES);
-
-        if (isOwnerRoute && !["owner", "admin"].includes(role)) {
-          return NextResponse.redirect(new URL("/home", request.url));
-        }
-        if (isRiderRoute && !["rider", "admin"].includes(role)) {
-          return NextResponse.redirect(new URL("/home", request.url));
-        }
-        if (isAdminRoute && role !== "admin") {
-          return NextResponse.redirect(new URL("/home", request.url));
-        }
-      }
+    if (matchesAny(pathname, OWNER_ROUTES) && !["owner", "admin"].includes(roleCookie)) {
+      return NextResponse.redirect(new URL("/home", request.url));
+    }
+    if (matchesAny(pathname, RIDER_ROUTES) && !["rider", "admin"].includes(roleCookie)) {
+      return NextResponse.redirect(new URL("/home", request.url));
+    }
+    if (matchesAny(pathname, ADMIN_ROUTES) && roleCookie !== "admin") {
+      return NextResponse.redirect(new URL("/home", request.url));
     }
   }
 
