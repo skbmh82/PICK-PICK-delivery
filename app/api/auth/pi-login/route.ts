@@ -1,3 +1,4 @@
+import { createHmac } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -8,17 +9,23 @@ interface PiMeResponse {
   username: string;
 }
 
+function derivePassword(piUid: string): string {
+  // deterministic — same piUid always → same password (secret depends on service role key)
+  return createHmac("sha256", process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    .update(`pi:${piUid}`)
+    .digest("hex");
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json() as { accessToken: string; role?: string };
     const { accessToken } = body;
-    const requestedRole   = ["user", "owner", "rider"].includes(body.role ?? "") ? body.role! : "user";
+    const requestedRole = ["user", "owner", "rider"].includes(body.role ?? "") ? body.role! : "user";
     if (!accessToken) {
       return NextResponse.json({ error: "accessToken 필요" }, { status: 400 });
     }
 
     // 1. Pi API로 토큰 검증 → uid, username 획득
-    // API 키 불필요 — accessToken 하나로 /v2/me 검증
     const piRes = await fetch(`${PI_API_BASE}/v2/me`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
@@ -29,7 +36,8 @@ export async function POST(req: NextRequest) {
     const { uid: piUid, username: piUsername } = piUser;
 
     const admin = createAdminClient();
-    const piEmail = `pi_${piUid}@pi.pickpick.app`;
+    const piEmail    = `pi_${piUid}@pi.pickpick.app`;
+    const piPassword = derivePassword(piUid);
 
     // 2. 기존 Pi 사용자 조회
     const { data: existingProfile } = await admin
@@ -49,20 +57,23 @@ export async function POST(req: NextRequest) {
         .update({ pi_username: piUsername, updated_at: new Date().toISOString() })
         .eq("pi_uid", piUid);
     } else {
-      // 신규 Pi 사용자 — Supabase Auth 계정 생성
+      // 신규 Pi 사용자 — password + email_confirm으로 계정 생성
       const { data: authData, error: createError } = await admin.auth.admin.createUser({
-        email: piEmail,
+        email:         piEmail,
+        password:      piPassword,
         email_confirm: true,
         user_metadata: { pi_uid: piUid, pi_username: piUsername },
       });
 
       if (createError || !authData.user) {
+        // 이미 존재하는 경우 listUsers에서 찾아서 password 갱신
         const { data: { users } } = await admin.auth.admin.listUsers();
         const found = users.find((u) => u.email === piEmail);
         if (!found) {
           return NextResponse.json({ error: "계정 생성 실패" }, { status: 500 });
         }
         authUserId = found.id;
+        await admin.auth.admin.updateUserById(authUserId, { password: piPassword });
       } else {
         authUserId = authData.user.id;
       }
@@ -85,55 +96,39 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Magic link 생성
-    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-      type:  "magiclink",
-      email: piEmail,
-    });
-
-    if (linkError || !linkData?.properties?.hashed_token) {
-      return NextResponse.json({ error: "인증 토큰 생성 실패" }, { status: 500 });
-    }
-
-    // 4. 서버에서 직접 OTP 검증 → access_token / refresh_token 획득
-    //    sb_publishable_* 형식 ANON KEY는 GoTrue /verify 엔드포인트에서 403 반환
-    //    → JWT 형식인 SUPABASE_SERVICE_ROLE_KEY 사용 (서버 전용, 안전)
+    // 3. password grant으로 세션 획득 (magic link / OTP 불필요)
+    //    → Email provider 활성화 여부와 무관하게 동작
     const supabaseUrl    = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-    const verifyRes = await fetch(`${supabaseUrl}/auth/v1/verify`, {
-      method:   "POST",
-      redirect: "manual",
+    // 기존 유저도 password가 없을 수 있으므로 항상 upsert
+    await admin.auth.admin.updateUserById(authUserId, { password: piPassword });
+
+    const tokenRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+      method:  "POST",
       headers: {
-        "apikey":        serviceRoleKey,
-        "Content-Type":  "application/json",
+        "apikey":       serviceRoleKey,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        token_hash: linkData.properties.hashed_token,
-        type:       "magiclink",
-      }),
+      body: JSON.stringify({ email: piEmail, password: piPassword }),
     });
 
-    if (verifyRes.status >= 300 && verifyRes.status < 400) {
-      console.error("[pi-login] verify redirected:", verifyRes.headers.get("location"));
-      return NextResponse.json({ error: "세션 생성 실패 (redirect)" }, { status: 500 });
-    }
-    if (!verifyRes.ok) {
-      const errText = await verifyRes.text();
-      console.error("[pi-login] verify error:", verifyRes.status, errText);
-      return NextResponse.json({ error: `세션 생성 실패 (${verifyRes.status})` }, { status: 500 });
+    if (!tokenRes.ok) {
+      const errText = await tokenRes.text();
+      console.error("[pi-login] token error:", tokenRes.status, errText);
+      let detail = errText;
+      try { detail = JSON.stringify(JSON.parse(errText)); } catch { /* raw text */ }
+      return NextResponse.json(
+        { error: `세션 생성 실패 (${tokenRes.status}): ${detail.slice(0, 200)}` },
+        { status: 500 },
+      );
     }
 
     interface SupabaseSession {
       access_token?: string;
       refresh_token?: string;
     }
-    let sessionData: SupabaseSession;
-    try {
-      sessionData = await verifyRes.json() as SupabaseSession;
-    } catch {
-      return NextResponse.json({ error: "세션 응답 형식 오류" }, { status: 500 });
-    }
+    const sessionData = await tokenRes.json() as SupabaseSession;
 
     if (!sessionData.access_token || !sessionData.refresh_token) {
       console.error("[pi-login] missing tokens:", JSON.stringify(sessionData).slice(0, 100));
