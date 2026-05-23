@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-import { useAuthStore } from "@/stores/authStore";
 
 declare global {
   interface Window {
@@ -23,15 +22,11 @@ export default function LoginPage() {
   const [piStatus,  setPiStatus]  = useState<"detecting" | "found" | "not-found">("detecting");
   const piTriggered = useRef(false);
 
-  // authStore user 변화 감지 → 역할에 맞게 자동 이동
-  // (PiSdkLoader 자동 로그인 또는 수동 로그인 모두 처리)
-  const user = useAuthStore((s) => s.user);
-  useEffect(() => {
-    if (!user) return;
-    if      (user.role === "owner") router.replace("/owner/dashboard");
-    else if (user.role === "rider") router.replace("/rider/dashboard");
-    else                            router.replace(redirectTo);
-  }, [user, router, redirectTo]);
+  const navigate = (role: string) => {
+    if      (role === "owner") router.replace("/owner/dashboard");
+    else if (role === "rider") router.replace("/rider/dashboard");
+    else                       router.replace(redirectTo);
+  };
 
   const doPiAuth = async () => {
     if (!window.Pi) {
@@ -55,14 +50,15 @@ export default function LoginPage() {
         setPiError(j.error ?? `서버 오류 (${res.status})`);
         return;
       }
-      const { access_token, refresh_token } = await res.json() as {
+      const { access_token, refresh_token, role } = await res.json() as {
         access_token:  string;
         refresh_token: string;
         role:          string;
       };
       const { error: sessionErr } = await supabase.auth.setSession({ access_token, refresh_token });
       if (sessionErr) { setPiError(sessionErr.message); return; }
-      // 이동은 위의 user useEffect에서 처리
+      // API 응답의 role로 바로 이동 (authStore 갱신 대기 불필요)
+      navigate(role);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error("[Pi Auth Error]", msg);
@@ -75,10 +71,12 @@ export default function LoginPage() {
   useEffect(() => {
     const tryPi = () => {
       if (piTriggered.current) return;
-      // PiSdkLoader가 이미 자동 로그인 완료 → user 상태 갱신 대기만
+      // PiSdkLoader가 이미 자동 로그인 완료 → 바로 이동
       if (window.__piLoginDone) {
         piTriggered.current = true;
         setPiStatus("found");
+        const role = (window as unknown as Record<string, string>).__piLoginRole ?? "user";
+        navigate(role);
         return;
       }
       if (window.__piReady && window.Pi) {
@@ -94,7 +92,7 @@ export default function LoginPage() {
     const id = setInterval(() => {
       count++;
       tryPi();
-      if (window.__piReady || window.__piLoginDone || count >= 30) {
+      if (window.__piReady || window.__piLoginDone || count >= 60) {
         clearInterval(id);
         if (!window.__piReady && !window.__piLoginDone) setPiStatus("not-found");
       }

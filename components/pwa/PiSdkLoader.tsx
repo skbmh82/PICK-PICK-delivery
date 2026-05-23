@@ -7,6 +7,7 @@ declare global {
   interface Window {
     __piReady?: boolean;
     __piLoginDone?: boolean;
+    __piLoginRole?: string;
     __piAuthPromise?: Promise<{ accessToken: string; user: { uid: string; username: string } }>;
   }
 }
@@ -65,6 +66,14 @@ async function initAndLogin() {
       });
       if (!error) {
         window.__piLoginDone = true;
+        window.__piLoginRole = data.role;
+        // 로그인 페이지에 있으면 자동 이동
+        if (window.location.pathname.includes("/login")) {
+          const dest = data.role === "owner" ? "/owner/dashboard"
+                     : data.role === "rider" ? "/rider/dashboard"
+                     : "/home";
+          window.location.replace(dest);
+        }
       }
     }
   } catch (e) {
