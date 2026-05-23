@@ -2,18 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-declare global {
-  interface Window {
-    Pi?: {
-      init:         (opts: { version: string; sandbox?: boolean }) => Promise<void> | void;
-      authenticate: (
-        scopes: string[],
-        onIncompletePaymentFound: (payment: unknown) => Promise<void>
-      ) => Promise<{ accessToken: string; user: { uid: string; username: string } }>;
-    };
-  }
-}
-
 type Status = "sdk" | "auth" | "login" | "done" | "error";
 
 const LABEL: Record<Status, string> = {
