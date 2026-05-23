@@ -20,8 +20,9 @@ function hasSessionCookie(): boolean {
 }
 
 async function refreshPiSession() {
-  // Splash page (/) handles its own auth — don't double-run
-  if (window.location.pathname === "/") return;
+  // 스플래시(/)와 로그인(/login) 페이지는 자체 Pi 인증을 처리 — 중복 실행 방지
+  const path = window.location.pathname;
+  if (path === "/" || path === "/login") return;
 
   // SDK already started or no Pi Browser
   if (!window.Pi || window.__piReady) return;

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 type Status = "sdk" | "auth" | "login" | "done" | "error";
 
@@ -13,30 +12,29 @@ const LABEL: Record<Status, string> = {
   error: "",
 };
 
-function getDest(role: string, redirectTo: string) {
+function destByRole(role: string) {
   return role === "owner" ? "/owner/dashboard"
        : role === "rider" ? "/rider/dashboard"
-       : redirectTo;
+       : "/home";
 }
 
 export default function LoginPage() {
-  const searchParams = useSearchParams();
-  const redirectTo   = searchParams.get("redirect") ?? "/home";
-
   const [status, setStatus] = useState<Status>("sdk");
   const [error,  setError]  = useState("");
+  // useRef로 run()이 단 한 번만 실행되도록 보장
+  const started = useRef(false);
 
   useEffect(() => {
-    let cancelled = false;
+    if (started.current) return;
+    started.current = true;
 
     async function run() {
-      // Pi SDK가 주입될 때까지 최대 10초 대기
+      // Pi SDK 최대 10초 대기 (Pi Browser는 즉시 주입)
       let ms = 0;
       while (!window.Pi && ms < 10_000) {
         await new Promise<void>(r => setTimeout(r, 200));
         ms += 200;
       }
-      if (cancelled) return;
 
       if (!window.Pi) {
         setError("Pi Browser에서만 이용할 수 있어요.\nPi Browser로 접속해 주세요.");
@@ -45,19 +43,27 @@ export default function LoginPage() {
       }
 
       try {
-        // ① Pi 인증 → 동의창 표시
+        // ① Pi 인증 → 동의창
         setStatus("auth");
         await (window.Pi.init({ version: "2.0" }) as unknown as Promise<void> | void);
         const auth = await window.Pi.authenticate(["username"], async () => {});
-        if (cancelled) return;
 
-        // ② 서버에서 세션 쿠키 설정
+        // ② 서버 로그인 (30초 타임아웃)
         setStatus("login");
-        const res = await fetch("/api/auth/pi-login", {
-          method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({ accessToken: auth.accessToken }),
-        });
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 30_000);
+
+        let res: Response;
+        try {
+          res = await fetch("/api/auth/pi-login", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ accessToken: auth.accessToken }),
+            signal:  controller.signal,
+          });
+        } finally {
+          clearTimeout(timer);
+        }
 
         if (!res.ok) {
           const j = await res.json().catch(() => ({})) as { error?: string };
@@ -68,20 +74,21 @@ export default function LoginPage() {
 
         const { role } = await res.json() as { role: string };
 
-        // ③ 이동 (쿠키는 서버가 이미 설정)
+        // ③ 이동
         setStatus("done");
-        window.location.href = getDest(role, redirectTo);
+        window.location.replace(destByRole(role));
       } catch (e: unknown) {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : String(e));
-          setStatus("error");
-        }
+        const msg = (e instanceof Error && e.name === "AbortError")
+          ? "서버 응답 시간 초과 (30초). 다시 시도해 주세요."
+          : (e instanceof Error ? e.message : String(e));
+        setError(msg);
+        setStatus("error");
       }
     }
 
     void run();
-    return () => { cancelled = true; };
-  }, [redirectTo]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#FAF5FF] gap-6 px-6">
@@ -97,7 +104,7 @@ export default function LoginPage() {
         <p className="text-sm text-gray-500 mt-1">맛있는 음식을 PICK 하세요!</p>
       </div>
 
-      {/* 로딩 스피너 */}
+      {/* 로딩 */}
       {status !== "error" && (
         <div className="flex flex-col items-center gap-3">
           <div className="w-9 h-9 border-4 border-[#A855F7] border-t-transparent rounded-full animate-spin" />
@@ -112,7 +119,7 @@ export default function LoginPage() {
             ⚠️ {error}
           </p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => { started.current = false; window.location.reload(); }}
             className="mt-4 px-6 py-2 bg-[#7B3FE4] text-white rounded-full text-sm font-bold active:scale-95 transition-transform"
           >
             다시 시도
