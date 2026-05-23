@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Magic link 토큰 생성 → 클라이언트에서 verifyOtp(token_hash)로 세션 수립
+    // 3. Magic link 생성
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type:  "magiclink",
       email: piEmail,
@@ -95,17 +95,62 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "인증 토큰 생성 실패" }, { status: 500 });
     }
 
+    // 4. 서버에서 직접 OTP 검증 → access_token / refresh_token 획득
+    //    (Pi Browser WebView에서 클라이언트 verifyOtp가 실패하는 문제 우회)
+    const supabaseUrl     = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+    const verifyRes = await fetch(`${supabaseUrl}/auth/v1/verify`, {
+      method:   "POST",
+      redirect: "manual",
+      headers: {
+        "apikey":         supabaseAnonKey,
+        "Content-Type":   "application/json",
+      },
+      body: JSON.stringify({
+        token_hash: linkData.properties.hashed_token,
+        type:       "magiclink",
+      }),
+    });
+
+    if (verifyRes.status >= 300 && verifyRes.status < 400) {
+      console.error("[pi-login] verify redirected:", verifyRes.headers.get("location"));
+      return NextResponse.json({ error: "세션 생성 실패 (redirect)" }, { status: 500 });
+    }
+    if (!verifyRes.ok) {
+      const errText = await verifyRes.text();
+      console.error("[pi-login] verify error:", verifyRes.status, errText);
+      return NextResponse.json({ error: `세션 생성 실패 (${verifyRes.status})` }, { status: 500 });
+    }
+
+    interface SupabaseSession {
+      access_token?: string;
+      refresh_token?: string;
+    }
+    let sessionData: SupabaseSession;
+    try {
+      sessionData = await verifyRes.json() as SupabaseSession;
+    } catch {
+      return NextResponse.json({ error: "세션 응답 형식 오류" }, { status: 500 });
+    }
+
+    if (!sessionData.access_token || !sessionData.refresh_token) {
+      console.error("[pi-login] missing tokens:", JSON.stringify(sessionData).slice(0, 100));
+      return NextResponse.json({ error: "세션 토큰 없음" }, { status: 500 });
+    }
+
     const res = NextResponse.json({
-      token_hash: linkData.properties.hashed_token,
+      access_token:  sessionData.access_token,
+      refresh_token: sessionData.refresh_token,
       role,
     });
 
     res.cookies.set("pick-role", role, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure:   process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
-      path: "/",
+      maxAge:   60 * 60 * 24 * 7,
+      path:     "/",
     });
 
     return res;

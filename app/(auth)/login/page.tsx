@@ -3,36 +3,35 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-
-// ── 이메일 로그인 임시 비활성화 (Pi App Studio 검증용) ──────────────────
-// import { useForm } from "react-hook-form";
-// import { z } from "zod";
-// import { zodResolver } from "@hookform/resolvers/zod";
-// import Link from "next/link";
-// import { Eye, EyeOff } from "lucide-react";
-// const schema = z.object({
-//   email:    z.string().email("올바른 이메일을 입력해주세요"),
-//   password: z.string().min(6, "비밀번호는 6자 이상이어야 해요"),
-// });
-// type FormData = z.infer<typeof schema>;
-// ────────────────────────────────────────────────────────────────────────
+import { useAuthStore } from "@/stores/authStore";
 
 declare global {
   interface Window {
     __piReady?: boolean;
+    __piLoginDone?: boolean;
     __piAuthPromise?: Promise<{ accessToken: string; user: { uid: string; username: string } }>;
   }
 }
 
 export default function LoginPage() {
-  const router      = useRouter();
+  const router       = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo  = searchParams.get("redirect") ?? "/home";
+  const redirectTo   = searchParams.get("redirect") ?? "/home";
 
   const [piLoading, setPiLoading] = useState(false);
   const [piError,   setPiError]   = useState("");
   const [piStatus,  setPiStatus]  = useState<"detecting" | "found" | "not-found">("detecting");
   const piTriggered = useRef(false);
+
+  // authStore user 변화 감지 → 역할에 맞게 자동 이동
+  // (PiSdkLoader 자동 로그인 또는 수동 로그인 모두 처리)
+  const user = useAuthStore((s) => s.user);
+  useEffect(() => {
+    if (!user) return;
+    if      (user.role === "owner") router.replace("/owner/dashboard");
+    else if (user.role === "rider") router.replace("/rider/dashboard");
+    else                            router.replace(redirectTo);
+  }, [user, router, redirectTo]);
 
   const doPiAuth = async () => {
     if (!window.Pi) {
@@ -56,13 +55,14 @@ export default function LoginPage() {
         setPiError(j.error ?? `서버 오류 (${res.status})`);
         return;
       }
-      const { token_hash, role } = await res.json() as { token_hash: string; role: string };
-      const { error: otpErr } = await supabase.auth.verifyOtp({ token_hash, type: "magiclink" });
-      if (otpErr) { setPiError(otpErr.message); return; }
-
-      if      (role === "owner") router.replace("/owner/dashboard");
-      else if (role === "rider") router.replace("/rider/dashboard");
-      else                       router.replace(redirectTo);
+      const { access_token, refresh_token } = await res.json() as {
+        access_token:  string;
+        refresh_token: string;
+        role:          string;
+      };
+      const { error: sessionErr } = await supabase.auth.setSession({ access_token, refresh_token });
+      if (sessionErr) { setPiError(sessionErr.message); return; }
+      // 이동은 위의 user useEffect에서 처리
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error("[Pi Auth Error]", msg);
@@ -75,6 +75,12 @@ export default function LoginPage() {
   useEffect(() => {
     const tryPi = () => {
       if (piTriggered.current) return;
+      // PiSdkLoader가 이미 자동 로그인 완료 → user 상태 갱신 대기만
+      if (window.__piLoginDone) {
+        piTriggered.current = true;
+        setPiStatus("found");
+        return;
+      }
       if (window.__piReady && window.Pi) {
         piTriggered.current = true;
         setPiStatus("found");
@@ -88,9 +94,9 @@ export default function LoginPage() {
     const id = setInterval(() => {
       count++;
       tryPi();
-      if (window.__piReady || count >= 30) {
+      if (window.__piReady || window.__piLoginDone || count >= 30) {
         clearInterval(id);
-        if (!window.__piReady) setPiStatus("not-found");
+        if (!window.__piReady && !window.__piLoginDone) setPiStatus("not-found");
       }
     }, 300);
 
@@ -136,21 +142,6 @@ export default function LoginPage() {
           </div>
         )}
       </div>
-
-      {/* ── 이메일 로그인 임시 비활성화 ─────────────────────────────────────
-      <div className="flex items-center gap-3 w-full">
-        <div className="flex-1 h-px bg-pick-border" />
-        <span className="text-xs text-pick-text-sub">또는 이메일로 로그인</span>
-        <div className="flex-1 h-px bg-pick-border" />
-      </div>
-      <div className="bg-white rounded-3xl border-2 border-pick-border p-6 shadow-sm w-full">
-        ... 이메일 로그인 폼 ...
-      </div>
-      <p className="text-center text-sm text-pick-text-sub">
-        아직 계정이 없으신가요?{" "}
-        <Link href="/register" className="text-pick-purple font-black">회원가입</Link>
-      </p>
-      ──────────────────────────────────────────────────────────────────── */}
     </div>
   );
 }
