@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
 declare global {
@@ -9,37 +9,65 @@ declare global {
     __piReady?: boolean;
     __piLoginDone?: boolean;
     __piAuthPromise?: Promise<{ accessToken: string; user: { uid: string; username: string } }>;
+    __piLoginRole?: string;
   }
 }
 
+type Step = "idle" | "pi-auth" | "api" | "session" | "navigate";
+
+const STEP_LABEL: Record<Step, string> = {
+  "idle":     "Pi로 로그인",
+  "pi-auth":  "① Pi 인증 중...",
+  "api":      "② 서버 연결 중...",
+  "session":  "③ 세션 생성 중...",
+  "navigate": "④ 이동 중...",
+};
+
+function goTo(role: string, redirectTo: string) {
+  const dest = role === "owner" ? "/owner/dashboard"
+             : role === "rider" ? "/rider/dashboard"
+             : redirectTo;
+  window.location.href = dest;
+}
+
 export default function LoginPage() {
-  const router       = useRouter();
   const searchParams = useSearchParams();
   const redirectTo   = searchParams.get("redirect") ?? "/home";
 
-  const [piLoading, setPiLoading] = useState(false);
-  const [piError,   setPiError]   = useState("");
-  const [piStatus,  setPiStatus]  = useState<"detecting" | "found" | "not-found">("detecting");
+  const [step,     setStep]     = useState<Step>("idle");
+  const [piError,  setPiError]  = useState("");
+  const [piStatus, setPiStatus] = useState<"detecting" | "found" | "not-found">("detecting");
   const piTriggered = useRef(false);
-
-  const navigate = (role: string) => {
-    if      (role === "owner") router.replace("/owner/dashboard");
-    else if (role === "rider") router.replace("/rider/dashboard");
-    else                       router.replace(redirectTo);
-  };
 
   const doPiAuth = async () => {
     if (!window.Pi) {
-      setPiError("Pi SDK가 로드되지 않았어요.");
+      setPiError("Pi Browser에서만 로그인할 수 있어요.");
       setPiStatus("not-found");
       return;
     }
+    const timer = setTimeout(() => {
+      setPiError(`타임아웃 — [${step}] 단계에서 멈췄어요. 다시 시도해주세요.`);
+      setStep("idle");
+    }, 40_000);
+
     try {
-      setPiLoading(true);
       setPiError("");
+
+      // ① Pi 인증
+      setStep("pi-auth");
       const auth = await (window.__piAuthPromise ?? window.Pi.authenticate(["username", "payments"], async () => {}));
       window.__piAuthPromise = undefined;
 
+      // 이미 PiSdkLoader가 로그인 완료
+      if (window.__piLoginDone) {
+        clearTimeout(timer);
+        setStep("navigate");
+        goTo(window.__piLoginRole ?? "user", redirectTo);
+        return;
+      }
+
+      // ② 서버 로그인
+      setStep("api");
       const res = await fetch("/api/auth/pi-login", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
@@ -48,6 +76,7 @@ export default function LoginPage() {
       if (!res.ok) {
         const j = await res.json().catch(() => ({})) as { error?: string };
         setPiError(j.error ?? `서버 오류 (${res.status})`);
+        setStep("idle");
         return;
       }
       const { access_token, refresh_token, role } = await res.json() as {
@@ -55,30 +84,41 @@ export default function LoginPage() {
         refresh_token: string;
         role:          string;
       };
+
+      // ③ 세션 설정
+      setStep("session");
       const { error: sessionErr } = await supabase.auth.setSession({ access_token, refresh_token });
-      if (sessionErr) { setPiError(sessionErr.message); return; }
-      // API 응답의 role로 바로 이동 (authStore 갱신 대기 불필요)
-      navigate(role);
+      if (sessionErr) {
+        setPiError(`세션 오류: ${sessionErr.message}`);
+        setStep("idle");
+        return;
+      }
+
+      // ④ 이동
+      clearTimeout(timer);
+      setStep("navigate");
+      goTo(role, redirectTo);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      console.error("[Pi Auth Error]", msg);
-      setPiError(`Pi 인증 오류: ${msg}`);
+      setPiError(`오류: ${msg}`);
+      setStep("idle");
     } finally {
-      setPiLoading(false);
+      clearTimeout(timer);
     }
   };
 
   useEffect(() => {
     const tryPi = () => {
       if (piTriggered.current) return;
-      // PiSdkLoader가 이미 자동 로그인 완료 → 바로 이동
+
       if (window.__piLoginDone) {
         piTriggered.current = true;
         setPiStatus("found");
-        const role = (window as unknown as Record<string, string>).__piLoginRole ?? "user";
-        navigate(role);
+        setStep("navigate");
+        goTo(window.__piLoginRole ?? "user", redirectTo);
         return;
       }
+
       if (window.__piReady && window.Pi) {
         piTriggered.current = true;
         setPiStatus("found");
@@ -102,6 +142,8 @@ export default function LoginPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const isLoading = step !== "idle";
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 py-8">
       {/* 로고 */}
@@ -121,22 +163,25 @@ export default function LoginPage() {
         </div>
         <p className="text-center text-xs text-pick-text-sub mb-6">
           {piStatus === "detecting" && "Pi SDK 감지 중..."}
-          {piStatus === "found"     && "Pi Browser 감지됨. 인증 중..."}
+          {piStatus === "found"     && (isLoading ? STEP_LABEL[step] : "Pi Browser 감지됨")}
           {piStatus === "not-found" && "버튼을 눌러 Pi 계정으로 로그인하세요."}
         </p>
 
         <button
           type="button"
-          disabled={piLoading}
+          disabled={isLoading}
           onClick={() => { piTriggered.current = false; void doPiAuth(); }}
           className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#7B3FE4] to-[#A855F7] text-white font-black py-4 rounded-full text-lg disabled:opacity-60 active:scale-95 transition-all"
         >
-          {piLoading ? "Pi 인증 중..." : <><span className="text-xl leading-none">π</span> Pi로 로그인</>}
+          {isLoading
+            ? STEP_LABEL[step]
+            : <><span className="text-xl leading-none">π</span> Pi로 로그인</>
+          }
         </button>
 
         {piError && (
-          <div className="mt-4 bg-red-50 border border-red-200 rounded-2xl p-3">
-            <p className="text-xs text-red-600 font-medium text-center">⚠️ {piError}</p>
+          <div className="mt-4 bg-red-50 border border-red-200 rounded-2xl p-4">
+            <p className="text-sm text-red-600 font-bold text-center break-all">⚠️ {piError}</p>
           </div>
         )}
       </div>
