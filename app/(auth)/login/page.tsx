@@ -54,7 +54,7 @@ export default function LoginPage() {
 
       // ① Pi 인증
       setStep("pi-auth");
-      const auth = await (window.__piAuthPromise ?? window.Pi.authenticate(["username", "payments"], async () => {}));
+      const auth = await (window.__piAuthPromise ?? window.Pi.authenticate(["username"], async () => {}));
       window.__piAuthPromise = undefined;
 
       // PiSdkLoader가 이미 완료한 경우

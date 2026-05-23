@@ -17,17 +17,8 @@ async function initAndLogin() {
   await (window.Pi.init({ version: "2.0" }) as unknown as Promise<void> | void);
 
   const authPromise = window.Pi.authenticate(
-    ["username", "payments"],
-    async (incompletePmt) => {
-      const txid = incompletePmt.transaction?.txid;
-      if (incompletePmt.status.developer_approved && txid) {
-        await fetch("/api/pi/complete", {
-          method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({ paymentId: incompletePmt.identifier, txid }),
-        });
-      }
-    }
+    ["username"],
+    async () => {}
   );
 
   window.__piAuthPromise = authPromise;
