@@ -1,5 +1,4 @@
 import { createHmac } from "crypto";
-import { createServerClient as createSsrClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -8,6 +7,15 @@ const PI_API_BASE = "https://api.minepi.com";
 interface PiMeResponse {
   uid: string;
   username: string;
+}
+
+interface TokenResponse {
+  access_token?: string;
+  token_type?: string;
+  expires_in?: number;
+  expires_at?: number;
+  refresh_token?: string;
+  user?: unknown;
 }
 
 function derivePassword(piUid: string): string {
@@ -92,11 +100,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. password grant으로 토큰 획득
+    // 3. password 동기화 후 토큰 획득
     const supabaseUrl    = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-    // 기존 유저도 password 동기화
     await admin.auth.admin.updateUserById(authUserId, { password: piPassword });
 
     const tokenRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
@@ -119,10 +126,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    interface TokenResponse {
-      access_token?: string;
-      refresh_token?: string;
-    }
     const tokenData = await tokenRes.json() as TokenResponse;
 
     if (!tokenData.access_token || !tokenData.refresh_token) {
@@ -130,45 +133,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "토큰 없음" }, { status: 500 });
     }
 
-    // 4. 서버에서 세션 쿠키 직접 설정 — 클라이언트 setSession() 불필요
+    // 4. @supabase/ssr 쿠키 포맷으로 직접 세션 쿠키 설정
+    //    - 저장 키: 'supabase.auth.token' (auth-js 기본값)
+    //    - 인코딩: 'base64-' + base64url(JSON.stringify(session))  ← createBrowserClient 기본 cookieEncoding
+    const sessionObj = {
+      access_token:  tokenData.access_token,
+      token_type:    tokenData.token_type  ?? "bearer",
+      expires_in:    tokenData.expires_in  ?? 3600,
+      expires_at:    tokenData.expires_at  ?? Math.round(Date.now() / 1000) + 3600,
+      refresh_token: tokenData.refresh_token,
+      user:          tokenData.user        ?? null,
+    };
+    const sessionJson    = JSON.stringify(sessionObj);
+    const encodedSession = "base64-" + Buffer.from(sessionJson).toString("base64url");
+
     const jsonRes = NextResponse.json({ role });
 
-    const ssrClient = createSsrClient(
-      supabaseUrl,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll: () => [],
-          setAll: (cookiesToSet) => {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              jsonRes.cookies.set(name, value, options ?? {});
-            });
-          },
-        },
-      }
-    );
-
-    const { error: sessionError } = await ssrClient.auth.setSession({
-      access_token:  tokenData.access_token,
-      refresh_token: tokenData.refresh_token,
-    });
-
-    if (sessionError) {
-      console.error("[pi-login] ssrClient.setSession error:", sessionError.message);
-      // 쿠키 설정 실패해도 토큰은 반환해서 클라이언트가 시도할 수 있도록
-      return NextResponse.json(
-        { error: `세션 쿠키 설정 실패: ${sessionError.message}` },
-        { status: 500 },
-      );
-    }
-
-    jsonRes.cookies.set("pick-role", role, {
-      httpOnly: true,
+    const cookieOpts = {
+      httpOnly: false,   // 브라우저 supabase 클라이언트가 document.cookie로 읽어야 함
       secure:   process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: "lax"   as const,
       maxAge:   60 * 60 * 24 * 7,
       path:     "/",
-    });
+    };
+
+    jsonRes.cookies.set("supabase.auth.token", encodedSession, cookieOpts);
+    jsonRes.cookies.set("pick-role", role, { ...cookieOpts, httpOnly: true });
 
     return jsonRes;
   } catch (e) {
