@@ -392,43 +392,111 @@ function GrantModal({
 }
 
 // ── 유저 카드 ──────────────────────────────────────────
-function UserCard({ user, onGrant }: { user: UserRow; onGrant: (u: UserRow) => void }) {
+const ROLE_CYCLE: Record<string, string[]> = {
+  user:  ["owner", "rider", "admin"],
+  owner: ["user",  "rider", "admin"],
+  rider: ["user",  "owner", "admin"],
+  admin: ["user",  "owner", "rider"],
+};
+const ROLE_EMOJI: Record<string, string> = { user:"👤", owner:"🏪", rider:"🛵", admin:"🛠️" };
+
+function UserCard({
+  user,
+  onGrant,
+  onRoleChanged,
+}: {
+  user: UserRow;
+  onGrant: (u: UserRow) => void;
+  onRoleChanged: (userId: string, newRole: string) => void;
+}) {
   const cfg = ROLE_CONFIG[user.role] ?? ROLE_CONFIG.user;
+  const [roleOpen,    setRoleOpen]    = useState(false);
+  const [roleLoading, setRoleLoading] = useState(false);
+
+  const handleRoleChange = async (newRole: string) => {
+    setRoleLoading(true);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/role`, {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ role: newRole }),
+      });
+      if (res.ok) {
+        onRoleChanged(user.id, newRole);
+        setRoleOpen(false);
+      }
+    } finally {
+      setRoleLoading(false);
+    }
+  };
+
   return (
-    <div className="bg-white rounded-3xl border-2 border-pick-border px-4 py-4 shadow-sm flex items-center gap-3">
-      {/* 아바타 */}
-      <div className="w-11 h-11 rounded-full bg-pick-bg border-2 border-pick-border flex items-center justify-center flex-shrink-0 font-black text-pick-purple text-base">
-        {user.name.charAt(0)}
-      </div>
-      {/* 정보 */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="font-bold text-pick-text text-sm truncate">{user.name}</span>
-          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
-            {cfg.label}
-          </span>
-          {!user.hasWallet && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-500">
-              지갑없음
-            </span>
-          )}
+    <div className="bg-white rounded-3xl border-2 border-pick-border shadow-sm overflow-hidden">
+      <div className="px-4 py-4 flex items-center gap-3">
+        {/* 아바타 */}
+        <div className="w-11 h-11 rounded-full bg-pick-bg border-2 border-pick-border flex items-center justify-center flex-shrink-0 font-black text-pick-purple text-base">
+          {user.name.charAt(0)}
         </div>
-        <p className="text-xs text-pick-text-sub truncate">{user.email}</p>
-        <p className="text-xs font-bold text-pick-purple mt-0.5">
-          {user.pickBalance.toLocaleString()} PICK
-          <span className="text-[10px] font-normal text-pick-text-sub ml-1">
-            (누적 {user.totalEarned.toLocaleString()})
-          </span>
-        </p>
+        {/* 정보 */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="font-bold text-pick-text text-sm truncate">{user.name}</span>
+            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
+              {ROLE_EMOJI[user.role]} {cfg.label}
+            </span>
+            {!user.hasWallet && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-500">
+                지갑없음
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-pick-text-sub truncate">{user.email}</p>
+          <p className="text-xs font-bold text-pick-purple mt-0.5">
+            {user.pickBalance.toLocaleString()} PICK
+            <span className="text-[10px] font-normal text-pick-text-sub ml-1">
+              (누적 {user.totalEarned.toLocaleString()})
+            </span>
+          </p>
+        </div>
+        {/* 버튼 */}
+        <div className="flex flex-col gap-1.5 flex-shrink-0">
+          <button
+            onClick={() => onGrant(user)}
+            disabled={!user.hasWallet}
+            className="bg-pick-purple text-white text-xs font-black px-3 py-1.5 rounded-full active:scale-90 transition-transform disabled:opacity-30"
+          >
+            지급
+          </button>
+          <button
+            onClick={() => setRoleOpen(!roleOpen)}
+            className="bg-pick-bg border border-pick-border text-pick-text-sub text-xs font-bold px-3 py-1.5 rounded-full active:scale-90 transition-transform"
+          >
+            역할
+          </button>
+        </div>
       </div>
-      {/* 지급 버튼 */}
-      <button
-        onClick={() => onGrant(user)}
-        disabled={!user.hasWallet}
-        className="flex-shrink-0 bg-pick-purple text-white text-xs font-black px-3 py-2 rounded-full active:scale-90 transition-transform disabled:opacity-30"
-      >
-        지급
-      </button>
+
+      {/* 역할 변경 인라인 패널 */}
+      {roleOpen && (
+        <div className="border-t border-pick-border px-4 py-3 bg-pick-bg">
+          <p className="text-[10px] text-pick-text-sub font-bold mb-2">역할 변경</p>
+          <div className="flex gap-2 flex-wrap">
+            {(ROLE_CYCLE[user.role] ?? []).map((r) => (
+              <button
+                key={r}
+                disabled={roleLoading}
+                onClick={() => void handleRoleChange(r)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold bg-white border-2 border-pick-border active:scale-95 transition-all disabled:opacity-40"
+              >
+                {roleLoading
+                  ? <span className="w-3 h-3 border border-pick-purple border-t-transparent rounded-full animate-spin" />
+                  : <>{ROLE_EMOJI[r]} {ROLE_CONFIG[r]?.label}</>
+                }
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1239,7 +1307,14 @@ export default function AdminDashboardPage() {
               </div>
             ) : (
               filtered.map((u) => (
-                <UserCard key={u.id} user={u} onGrant={setGrantTarget} />
+                <UserCard
+                  key={u.id}
+                  user={u}
+                  onGrant={setGrantTarget}
+                  onRoleChanged={(id, role) =>
+                    setUsers((prev) => prev.map((x) => x.id === id ? { ...x, role } : x))
+                  }
+                />
               ))
             )}
           </div>

@@ -803,6 +803,9 @@ export default function MyPickPage() {
   const [deleteInput,     setDeleteInput]     = useState("");
   const [deleting,        setDeleting]        = useState(false);
   const [deleteError,     setDeleteError]     = useState("");
+  const [roleChangeOpen,  setRoleChangeOpen]  = useState(false);
+  const [roleChanging,    setRoleChanging]    = useState(false);
+  const [roleChangeError, setRoleChangeError] = useState("");
   const pfpInputRef = useRef<HTMLInputElement>(null);
 
   const displayRole = user ? user.role : previewRole;
@@ -830,6 +833,38 @@ export default function MyPickPage() {
       setAddressOpen(true);
     }
   }, [searchParams]);
+
+  const ROLE_OPTIONS = [
+    { role: "user",  emoji: "👤", label: "일반 유저",  sub: "음식 주문 · PICK 적립" },
+    { role: "owner", emoji: "🏪", label: "사장님",     sub: "가게 등록 · 주문 관리" },
+    { role: "rider", emoji: "🛵", label: "라이더",     sub: "배달 수행 · 수익 적립" },
+  ] as const;
+
+  const handleRoleChange = async (newRole: string) => {
+    if (newRole === user?.role) { setRoleChangeOpen(false); return; }
+    setRoleChanging(true);
+    setRoleChangeError("");
+    try {
+      const res = await fetch("/api/users/me/role", {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ role: newRole }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({})) as { error?: string };
+        setRoleChangeError(j.error ?? "역할 변경에 실패했습니다");
+        return;
+      }
+      // 역할 변경 후 해당 대시보드로 이동
+      const dest =
+        newRole === "owner" ? "/owner/dashboard"
+        : newRole === "rider" ? "/rider/dashboard"
+        : "/home";
+      window.location.replace(dest);
+    } finally {
+      setRoleChanging(false);
+    }
+  };
 
   const handleSignOut = async () => {
     await fetch("/api/fcm/token", { method: "DELETE" }).catch(() => {});
@@ -986,6 +1021,14 @@ export default function MyPickPage() {
           onClick={() => setReviewSheetOpen(true)}
           badge={meData?.reviews.length ? String(meData.reviews.length) : undefined}
         />
+        {user && user.role !== "admin" && (
+          <MenuItem
+            icon={<RefreshCw size={18} />}
+            label="역할 변경"
+            badge={user.role === "owner" ? "사장님" : user.role === "rider" ? "라이더" : "일반유저"}
+            onClick={() => setRoleChangeOpen(true)}
+          />
+        )}
         <MenuItem icon={<Bell    size={18} />} label="알림" href="/notifications" />
         <MenuItem icon={<HelpCircle size={18} />} label="공지사항 / FAQ" href="/faq" />
         {/* 다크모드 토글 */}
@@ -1009,19 +1052,6 @@ export default function MyPickPage() {
             }`} />
           </button>
         </div>
-      </div>
-
-      {/* 로그아웃 */}
-      <div className="mx-4 mt-3 bg-white dark:bg-pick-card rounded-3xl border-2 border-red-100 overflow-hidden shadow-sm">
-        <button
-          onClick={() => void handleSignOut()}
-          className="flex items-center gap-3.5 w-full px-5 py-4 text-red-500 hover:bg-red-50 active:bg-red-100 transition-colors"
-        >
-          <span className="w-9 h-9 flex items-center justify-center rounded-2xl bg-red-50">
-            <LogOut size={18} />
-          </span>
-          <span className="text-sm font-semibold">로그아웃</span>
-        </button>
       </div>
 
       {/* 회원탈퇴 */}
@@ -1084,6 +1114,61 @@ export default function MyPickPage() {
       <p className="text-center text-xs text-pick-text-sub mt-6 mb-2">
         PICK PICK v0.1.0
       </p>
+
+      {/* 역할 변경 모달 */}
+      {roleChangeOpen && user && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-[55]" onClick={() => { setRoleChangeOpen(false); setRoleChangeError(""); }} />
+          <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white dark:bg-pick-card rounded-t-3xl shadow-2xl">
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-pick-border">
+              <div>
+                <h2 className="font-black text-pick-text text-lg">역할 변경 🔄</h2>
+                <p className="text-xs text-pick-text-sub mt-0.5">변경 후 해당 대시보드로 이동합니다</p>
+              </div>
+              <button onClick={() => { setRoleChangeOpen(false); setRoleChangeError(""); }}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-pick-bg">
+                <X size={16} className="text-pick-text-sub" />
+              </button>
+            </div>
+            <div className="px-5 py-5 flex flex-col gap-3">
+              {ROLE_OPTIONS.map((opt) => {
+                const isCurrent = user.role === opt.role;
+                return (
+                  <button
+                    key={opt.role}
+                    disabled={roleChanging}
+                    onClick={() => void handleRoleChange(opt.role)}
+                    className={`flex items-center gap-4 p-4 rounded-3xl border-2 transition-all active:scale-95 ${
+                      isCurrent
+                        ? "border-pick-purple bg-pick-purple/5"
+                        : "border-pick-border bg-white hover:border-pick-purple/40"
+                    } disabled:opacity-50`}
+                  >
+                    <span className="text-3xl">{opt.emoji}</span>
+                    <div className="flex-1 text-left">
+                      <p className="font-black text-pick-text text-sm">{opt.label}</p>
+                      <p className="text-[11px] text-pick-text-sub mt-0.5">{opt.sub}</p>
+                    </div>
+                    {isCurrent && (
+                      <span className="text-xs font-black bg-pick-purple text-white px-3 py-1 rounded-full">현재</span>
+                    )}
+                    {roleChanging && !isCurrent && (
+                      <span className="w-4 h-4 border-2 border-pick-purple border-t-transparent rounded-full animate-spin" />
+                    )}
+                  </button>
+                );
+              })}
+              {roleChangeError && (
+                <p className="text-xs text-red-500 font-bold text-center">⚠️ {roleChangeError}</p>
+              )}
+              <p className="text-[11px] text-pick-text-sub text-center leading-relaxed">
+                사장님 → 일반유저로 변경해도 가게 정보는 보존됩니다.<br />
+                다시 사장님으로 변경하면 기존 가게를 이어서 관리할 수 있습니다.
+              </p>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* 프로필 수정 모달 */}
       {editOpen && user && (
