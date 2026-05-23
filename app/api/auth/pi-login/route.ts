@@ -147,7 +147,11 @@ export async function POST(req: NextRequest) {
     const sessionJson    = JSON.stringify(sessionObj);
     const encodedSession = "base64-" + Buffer.from(sessionJson).toString("base64url");
 
-    const jsonRes = NextResponse.json({ role });
+    const jsonRes = NextResponse.json({
+      role,
+      access_token:  tokenData.access_token,
+      refresh_token: tokenData.refresh_token,
+    });
 
     const cookieOpts = {
       httpOnly: false,   // 브라우저 supabase 클라이언트가 document.cookie로 읽어야 함

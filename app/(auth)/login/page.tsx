@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { supabase } from "@/lib/supabase/client";
 
 type Status = "sdk" | "auth" | "login" | "done" | "error";
 
@@ -72,9 +73,15 @@ export default function LoginPage() {
           return;
         }
 
-        const { role } = await res.json() as { role: string };
+        const { role, access_token, refresh_token } = await res.json() as {
+          role: string; access_token: string; refresh_token: string;
+        };
 
-        // ③ 이동
+        // ③ 브라우저 Supabase 클라이언트에 세션 직접 주입
+        // (pinet.com 프록시가 Set-Cookie 헤더를 차단하므로 document.cookie로 직접 저장)
+        await supabase.auth.setSession({ access_token, refresh_token });
+
+        // ④ 이동
         setStatus("done");
         window.location.replace(destByRole(role));
       } catch (e: unknown) {

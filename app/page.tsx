@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase/client";
 
 type Status = "sdk" | "auth" | "login" | "done" | "error";
 
@@ -62,9 +63,14 @@ export default function SplashPage() {
           return;
         }
 
-        const { role } = await res.json() as { role: string };
+        const { role, access_token, refresh_token } = await res.json() as {
+          role: string; access_token: string; refresh_token: string;
+        };
 
-        // ③ Navigate — cookie is already set by the server
+        // ③ 브라우저 Supabase 클라이언트에 세션 직접 주입
+        await supabase.auth.setSession({ access_token, refresh_token });
+
+        // ④ Navigate
         setStatus("done");
         window.location.href = dest(role);
       } catch (e: unknown) {
