@@ -46,21 +46,11 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  // ── 3. 인증 필요 라우트 (비로그인 → 로그인으로) ──
-  if (
-    matchesAny(pathname, AUTH_ROUTES) ||
-    matchesAny(pathname, OWNER_ROUTES) ||
-    matchesAny(pathname, RIDER_ROUTES) ||
-    matchesAny(pathname, ADMIN_ROUTES)
-  ) {
-    if (!isLoggedIn) {
-      const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("next", pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-  }
-
-  // ── 4. 역할 기반 라우트 체크 (pick-role 쿠키 사용) ──
+  // ── 3. 역할 기반 라우트 체크 (pick-role 쿠키 사용) ──
+  // Note: AUTH_ROUTES(home/wallet/orders/my-pick)는 미들웨어 레벨에서 체크하지 않음.
+  // Pi Network pinet.com 프록시가 Cookie 헤더를 Vercel로 전달하지 않아
+  // 서버에서 쿠키를 읽으면 항상 비로그인으로 판단되어 무한 리다이렉트가 발생함.
+  // 인증 보호는 각 페이지의 클라이언트 훅(useAuth)에서 처리.
   if (
     isLoggedIn && roleCookie &&
     (matchesAny(pathname, OWNER_ROUTES) ||
