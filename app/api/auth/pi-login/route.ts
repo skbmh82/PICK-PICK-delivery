@@ -1,4 +1,5 @@
 import { createHmac } from "crypto";
+import { createServerClient as createSsrClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -10,7 +11,6 @@ interface PiMeResponse {
 }
 
 function derivePassword(piUid: string): string {
-  // deterministic — same piUid always → same password (secret depends on service role key)
   return createHmac("sha256", process.env.SUPABASE_SERVICE_ROLE_KEY!)
     .update(`pi:${piUid}`)
     .digest("hex");
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "accessToken 필요" }, { status: 400 });
     }
 
-    // 1. Pi API로 토큰 검증 → uid, username 획득
+    // 1. Pi API로 토큰 검증
     const piRes = await fetch(`${PI_API_BASE}/v2/me`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
@@ -57,7 +57,6 @@ export async function POST(req: NextRequest) {
         .update({ pi_username: piUsername, updated_at: new Date().toISOString() })
         .eq("pi_uid", piUid);
     } else {
-      // 신규 Pi 사용자 — password + email_confirm으로 계정 생성
       const { data: authData, error: createError } = await admin.auth.admin.createUser({
         email:         piEmail,
         password:      piPassword,
@@ -66,19 +65,16 @@ export async function POST(req: NextRequest) {
       });
 
       if (createError || !authData.user) {
-        // 이미 존재하는 경우 listUsers에서 찾아서 password 갱신
         const { data: { users } } = await admin.auth.admin.listUsers();
         const found = users.find((u) => u.email === piEmail);
         if (!found) {
           return NextResponse.json({ error: "계정 생성 실패" }, { status: 500 });
         }
         authUserId = found.id;
-        await admin.auth.admin.updateUserById(authUserId, { password: piPassword });
       } else {
         authUserId = authData.user.id;
       }
 
-      // users 프로필 + 지갑 생성
       const { data: newProfile } = await admin
         .from("users")
         .insert({
@@ -96,12 +92,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. password grant으로 세션 획득 (magic link / OTP 불필요)
-    //    → Email provider 활성화 여부와 무관하게 동작
+    // 3. password grant으로 토큰 획득
     const supabaseUrl    = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-    // 기존 유저도 password가 없을 수 있으므로 항상 upsert
+    // 기존 유저도 password 동기화
     await admin.auth.admin.updateUserById(authUserId, { password: piPassword });
 
     const tokenRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
@@ -124,24 +119,50 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    interface SupabaseSession {
+    interface TokenResponse {
       access_token?: string;
       refresh_token?: string;
     }
-    const sessionData = await tokenRes.json() as SupabaseSession;
+    const tokenData = await tokenRes.json() as TokenResponse;
 
-    if (!sessionData.access_token || !sessionData.refresh_token) {
-      console.error("[pi-login] missing tokens:", JSON.stringify(sessionData).slice(0, 100));
-      return NextResponse.json({ error: "세션 토큰 없음" }, { status: 500 });
+    if (!tokenData.access_token || !tokenData.refresh_token) {
+      console.error("[pi-login] missing tokens:", JSON.stringify(tokenData).slice(0, 200));
+      return NextResponse.json({ error: "토큰 없음" }, { status: 500 });
     }
 
-    const res = NextResponse.json({
-      access_token:  sessionData.access_token,
-      refresh_token: sessionData.refresh_token,
-      role,
+    // 4. 서버에서 세션 쿠키 직접 설정 — 클라이언트 setSession() 불필요
+    const jsonRes = NextResponse.json({ role });
+
+    const ssrClient = createSsrClient(
+      supabaseUrl,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll: () => [],
+          setAll: (cookiesToSet) => {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              jsonRes.cookies.set(name, value, options ?? {});
+            });
+          },
+        },
+      }
+    );
+
+    const { error: sessionError } = await ssrClient.auth.setSession({
+      access_token:  tokenData.access_token,
+      refresh_token: tokenData.refresh_token,
     });
 
-    res.cookies.set("pick-role", role, {
+    if (sessionError) {
+      console.error("[pi-login] ssrClient.setSession error:", sessionError.message);
+      // 쿠키 설정 실패해도 토큰은 반환해서 클라이언트가 시도할 수 있도록
+      return NextResponse.json(
+        { error: `세션 쿠키 설정 실패: ${sessionError.message}` },
+        { status: 500 },
+      );
+    }
+
+    jsonRes.cookies.set("pick-role", role, {
       httpOnly: true,
       secure:   process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -149,7 +170,7 @@ export async function POST(req: NextRequest) {
       path:     "/",
     });
 
-    return res;
+    return jsonRes;
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

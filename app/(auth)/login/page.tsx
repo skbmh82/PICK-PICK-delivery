@@ -2,25 +2,23 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabase/client";
 
 declare global {
   interface Window {
     __piReady?: boolean;
     __piLoginDone?: boolean;
-    __piAuthPromise?: Promise<{ accessToken: string; user: { uid: string; username: string } }>;
     __piLoginRole?: string;
+    __piAuthPromise?: Promise<{ accessToken: string; user: { uid: string; username: string } }>;
   }
 }
 
-type Step = "idle" | "pi-auth" | "api" | "session" | "navigate";
+type Step = "idle" | "pi-auth" | "api" | "navigate";
 
 const STEP_LABEL: Record<Step, string> = {
   "idle":     "Pi로 로그인",
   "pi-auth":  "① Pi 인증 중...",
   "api":      "② 서버 연결 중...",
-  "session":  "③ 세션 생성 중...",
-  "navigate": "④ 이동 중...",
+  "navigate": "③ 이동 중...",
 };
 
 function goTo(role: string, redirectTo: string) {
@@ -45,8 +43,9 @@ export default function LoginPage() {
       setPiStatus("not-found");
       return;
     }
+
     const timer = setTimeout(() => {
-      setPiError(`타임아웃 — [${step}] 단계에서 멈췄어요. 다시 시도해주세요.`);
+      setPiError(`타임아웃 — ${STEP_LABEL[step]} 단계에서 멈췄어요.`);
       setStep("idle");
     }, 40_000);
 
@@ -58,7 +57,7 @@ export default function LoginPage() {
       const auth = await (window.__piAuthPromise ?? window.Pi.authenticate(["username", "payments"], async () => {}));
       window.__piAuthPromise = undefined;
 
-      // 이미 PiSdkLoader가 로그인 완료
+      // PiSdkLoader가 이미 완료한 경우
       if (window.__piLoginDone) {
         clearTimeout(timer);
         setStep("navigate");
@@ -66,35 +65,24 @@ export default function LoginPage() {
         return;
       }
 
-      // ② 서버 로그인
+      // ② 서버 로그인 (서버가 직접 세션 쿠키 설정)
       setStep("api");
       const res = await fetch("/api/auth/pi-login", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ accessToken: auth.accessToken }),
       });
+
       if (!res.ok) {
         const j = await res.json().catch(() => ({})) as { error?: string };
         setPiError(j.error ?? `서버 오류 (${res.status})`);
         setStep("idle");
         return;
       }
-      const { access_token, refresh_token, role } = await res.json() as {
-        access_token:  string;
-        refresh_token: string;
-        role:          string;
-      };
 
-      // ③ 세션 설정
-      setStep("session");
-      const { error: sessionErr } = await supabase.auth.setSession({ access_token, refresh_token });
-      if (sessionErr) {
-        setPiError(`세션 오류: ${sessionErr.message}`);
-        setStep("idle");
-        return;
-      }
+      const { role } = await res.json() as { role: string };
 
-      // ④ 이동
+      // ③ 이동 (쿠키는 서버가 이미 설정 완료)
       clearTimeout(timer);
       setStep("navigate");
       goTo(role, redirectTo);
