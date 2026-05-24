@@ -151,6 +151,7 @@ export async function POST(req: NextRequest) {
       role,
       access_token:  tokenData.access_token,
       refresh_token: tokenData.refresh_token,
+      isNew:         !existingProfile,   // 신규 가입 여부
     });
 
     const cookieOpts = {
