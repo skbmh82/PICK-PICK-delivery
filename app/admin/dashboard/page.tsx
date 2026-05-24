@@ -1166,6 +1166,12 @@ export default function AdminDashboardPage() {
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6">
         <span className="text-5xl">🚫</span>
         <p className="font-bold text-pick-text text-center">{error}</p>
+        <button
+          onClick={() => { fetchUsers(); fetchStats(); fetchPendingCount(); }}
+          className="px-6 py-3 bg-pick-purple text-white font-bold rounded-full active:scale-95 transition-all"
+        >
+          다시 시도
+        </button>
       </div>
     );
   }
