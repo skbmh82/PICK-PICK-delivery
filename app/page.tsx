@@ -50,19 +50,25 @@ export default function SplashPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         // 기존 세션 있음 → 역할 조회 후 바로 이동
-        const { data } = await supabase
-          .from("users")
-          .select("role")
-          .eq("auth_id", session.user.id)
-          .single();
-        if (data?.role) {
-          setStatus("done");
-          window.location.replace(destByRole(data.role as string));
-          return;
-        }
+        try {
+          const { data } = await supabase
+            .from("users")
+            .select("role")
+            .eq("auth_id", session.user.id)
+            .single();
+          if (data?.role) {
+            setStatus("done");
+            window.location.replace(destByRole(data.role as string));
+            return;
+          }
+        } catch { /* role 조회 실패 시 /home으로 */ }
+        // 세션은 있으나 역할 조회 실패 → 홈으로 안전하게 이동
+        setStatus("done");
+        window.location.replace("/home");
+        return;
       }
     } catch {
-      // 세션 조회 실패 시 Pi 인증으로 진행
+      // getSession 실패 시 Pi 인증으로 진행
     }
 
     // Pi SDK 없으면 일반 브라우저 → /login으로
@@ -141,6 +147,8 @@ export default function SplashPage() {
         setStatus("error");
         return;
       }
+      // Supabase 내부 세션이 유실될 경우를 대비한 직접 토큰 캐시
+      localStorage.setItem("_pp_token", data.access_token);
 
       if (data.isNew) {
         // 신규 가입 → 역할 선택

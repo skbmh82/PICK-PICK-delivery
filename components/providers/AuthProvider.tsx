@@ -23,19 +23,18 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         : (input as Request).url;
 
       if (url.startsWith("/api/")) {
-        // 캐시된 토큰 우선 — 없으면 getSession() 폴백
+        // 캐시된 토큰 → getSession() → localStorage 직접 캐시 순으로 폴백
         const token =
           _cachedToken ??
           (await supabase.auth.getSession()).data.session?.access_token ??
+          localStorage.getItem("_pp_token") ??
           null;
 
-        if (token) {
-          const hdrs = new Headers(reqInit.headers);
-          if (!hdrs.has("Authorization")) {
-            hdrs.set("Authorization", `Bearer ${token}`);
-          }
-          return nativeFetch(input, { ...reqInit, headers: hdrs });
+        const hdrs = new Headers(reqInit.headers);
+        if (token && !hdrs.has("Authorization")) {
+          hdrs.set("Authorization", `Bearer ${token}`);
         }
+        return nativeFetch(input, { ...reqInit, headers: hdrs });
       }
       return nativeFetch(input, reqInit);
     };
@@ -52,6 +51,12 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         _cachedToken = session?.access_token ?? null;
+        // localStorage 직접 캐시도 동기화 (Supabase 내부 세션 유실 대비)
+        if (session?.access_token) {
+          localStorage.setItem("_pp_token", session.access_token);
+        } else {
+          localStorage.removeItem("_pp_token");
+        }
         if (session?.user) void refreshFromSession(session.user.id);
         else clearUser();
       }

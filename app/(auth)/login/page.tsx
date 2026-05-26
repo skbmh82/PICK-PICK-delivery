@@ -50,8 +50,7 @@ const ROLE_OPTIONS: { role: NewRole; emoji: string; label: string; sub: string; 
 function destByRole(role: string) {
   return role === "owner" ? "/owner/dashboard"
        : role === "rider" ? "/rider/dashboard"
-       : role === "admin" ? "/admin/dashboard"
-       : "/home";
+       : "/home";   // user, admin 모두 홈으로 (admin은 MyPick에서 대시보드 진입)
 }
 
 export default function LoginPage() {
@@ -69,19 +68,25 @@ export default function LoginPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         // 기존 세션 있음 → 역할 조회 후 바로 이동
-        const { data } = await supabase
-          .from("users")
-          .select("role")
-          .eq("auth_id", session.user.id)
-          .single();
-        if (data?.role) {
-          setStatus("done");
-          window.location.replace(destByRole(data.role as string));
-          return;
-        }
+        try {
+          const { data } = await supabase
+            .from("users")
+            .select("role")
+            .eq("auth_id", session.user.id)
+            .single();
+          if (data?.role) {
+            setStatus("done");
+            window.location.replace(destByRole(data.role as string));
+            return;
+          }
+        } catch { /* role 조회 실패 시 /home으로 */ }
+        // 세션은 있으나 역할 조회 실패 → 홈으로 안전하게 이동
+        setStatus("done");
+        window.location.replace("/home");
+        return;
       }
     } catch {
-      // 세션 조회 실패 시 Pi 인증으로 진행
+      // getSession 실패 시 Pi 인증으로 진행
     }
     // 세션 없음 → Pi 자동 인증 시작
     void runPiAuth();
@@ -151,6 +156,8 @@ export default function LoginPage() {
         setStatus("error");
         return;
       }
+      // Supabase 내부 세션이 유실될 경우를 대비한 직접 토큰 캐시
+      localStorage.setItem("_pp_token", data.access_token);
 
       if (data.isNew) {
         // 신규 가입 → 역할 선택 화면 표시
