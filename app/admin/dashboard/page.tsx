@@ -2,7 +2,18 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase/client";
 import { Users, Coins, RefreshCw, Search, X, Check, ChevronDown, Store, MapPin, Phone, Clock, XCircle, CheckCircle, BarChart2, ShoppingBag, Ticket, Plus, Tag, ToggleLeft, ToggleRight, Trash2, Bell, Send, ArrowLeft } from "lucide-react";
+
+// 인터셉터 타이밍에 의존하지 않고 직접 세션에서 Bearer 토큰을 가져오는 fetch
+async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const hdrs = new Headers(options.headers);
+  if (session?.access_token && !hdrs.has("Authorization")) {
+    hdrs.set("Authorization", `Bearer ${session.access_token}`);
+  }
+  return fetch(url, { ...options, headers: hdrs });
+}
 
 // ── 타입 ──────────────────────────────────────────────
 interface UserRow {
@@ -161,7 +172,7 @@ function StoresTab() {
   const fetchStores = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/stores");
+      const res = await authFetch("/api/admin/stores");
       if (res.ok) {
         const { stores: rows } = await res.json();
         setStores(rows ?? []);
@@ -1115,7 +1126,7 @@ export default function AdminDashboardPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/admin/users");
+      const res = await authFetch("/api/admin/users");
       if (res.status === 401 || res.status === 403) {
         setError("관리자 권한이 필요합니다");
         return;
@@ -1128,14 +1139,14 @@ export default function AdminDashboardPage() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/stats");
+      const res = await authFetch("/api/admin/stats");
       if (res.ok) setPlatformStats(await res.json());
     } catch { /* silent */ }
   }, []);
 
   const fetchPendingCount = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/stores");
+      const res = await authFetch("/api/admin/stores");
       if (res.ok) {
         const { stores } = await res.json() as { stores: StoreRow[] };
         setPendingCount((stores ?? []).filter((s) => !s.isApproved).length);

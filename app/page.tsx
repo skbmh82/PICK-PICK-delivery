@@ -1,98 +1,191 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 
-type Status = "sdk" | "auth" | "login" | "done" | "error";
+type NewRole = "user" | "owner" | "rider";
+type Status  =
+  | "checking"   // 기존 세션 확인
+  | "sdk"        // Pi SDK 초기화
+  | "auth"       // Pi 인증
+  | "login"      // 서버 로그인
+  | "roleSelect" // 신규 유저 역할 선택
+  | "saving"     // 역할 저장
+  | "done"       // 이동 중
+  | "error";
 
-const LABEL: Record<Status, string> = {
-  sdk:   "Pi SDK 초기화 중...",
-  auth:  "Pi 인증 중...",
-  login: "로그인 중...",
-  done:  "이동 중...",
-  error: "",
+const STATUS_LABEL: Partial<Record<Status, string>> = {
+  checking:  "로그인 상태 확인 중...",
+  sdk:       "Pi SDK 초기화 중...",
+  auth:      "Pi 인증 중...",
+  login:     "로그인 중...",
+  saving:    "역할 저장 중...",
+  done:      "이동 중...",
 };
 
-function dest(role: string) {
+const ROLE_OPTIONS: { role: NewRole; emoji: string; label: string; sub: string; active: string }[] = [
+  { role: "user",  emoji: "👤", label: "일반 유저", sub: "음식 주문 · PICK 적립",   active: "border-pick-purple bg-pick-purple/5" },
+  { role: "owner", emoji: "🏪", label: "사장님",   sub: "가게 등록 · 주문 관리",   active: "border-amber-400 bg-amber-50" },
+  { role: "rider", emoji: "🛵", label: "라이더",   sub: "배달 수행 · 수익 적립",   active: "border-sky-400 bg-sky-50" },
+];
+
+function destByRole(role: string) {
   return role === "owner" ? "/owner/dashboard"
        : role === "rider" ? "/rider/dashboard"
-       : "/home";
+       : "/home";   // user, admin 모두 홈으로 (admin은 MyPick에서 대시보드 진입)
 }
 
 export default function SplashPage() {
-  const [status, setStatus] = useState<Status>("sdk");
-  const [error,  setError]  = useState("");
+  const [status,       setStatus]       = useState<Status>("checking");
+  const [error,        setError]        = useState("");
+  const [selectedRole, setSelectedRole] = useState<NewRole>("user");
+  const started = useRef(false);
 
   useEffect(() => {
-    let cancelled = false;
+    void checkSession();
+  }, []);
 
-    async function run() {
-      // Wait up to 10 s for Pi SDK (preloaded in <head>)
+  async function checkSession() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        // 기존 세션 있음 → 역할 조회 후 바로 이동
+        const { data } = await supabase
+          .from("users")
+          .select("role")
+          .eq("auth_id", session.user.id)
+          .single();
+        if (data?.role) {
+          setStatus("done");
+          window.location.replace(destByRole(data.role as string));
+          return;
+        }
+      }
+    } catch {
+      // 세션 조회 실패 시 Pi 인증으로 진행
+    }
+
+    // Pi SDK 없으면 일반 브라우저 → /login으로
+    if (!window.Pi) {
       let ms = 0;
-      while (!window.Pi && ms < 10_000) {
-        await new Promise<void>(r => setTimeout(r, 200));
+      while (!window.Pi && ms < 3_000) {
+        await new Promise<void>((r) => setTimeout(r, 200));
         ms += 200;
       }
-      if (cancelled) return;
+    }
+    if (!window.Pi) {
+      window.location.replace("/login");
+      return;
+    }
 
-      if (!window.Pi) {
-        // Regular browser — go to login page as fallback
-        window.location.href = "/login";
-        return;
-      }
+    void runPiAuth();
+  }
 
+  async function runPiAuth() {
+    if (started.current) return;
+    started.current = true;
+
+    // Pi SDK 최대 10초 대기
+    setStatus("sdk");
+    let ms = 0;
+    while (!window.Pi && ms < 10_000) {
+      await new Promise<void>((r) => setTimeout(r, 200));
+      ms += 200;
+    }
+    if (!window.Pi) {
+      setError("Pi Browser에서만 이용할 수 있어요.\nPi Browser로 접속해 주세요.");
+      setStatus("error");
+      return;
+    }
+
+    try {
+      setStatus("auth");
+      await (window.Pi.init({ version: "2.0" }) as unknown as Promise<void> | void);
+      const auth = await window.Pi.authenticate(["username"], async () => {});
+
+      // 서버 로그인 (30초 타임아웃) — role 없이 전송
+      setStatus("login");
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 30_000);
+
+      let res: Response;
       try {
-        // ① Pi SDK init + authenticate → triggers permission dialog
-        setStatus("auth");
-        await (window.Pi.init({ version: "2.0" }) as unknown as Promise<void> | void);
-        const auth = await window.Pi.authenticate(["username"], async () => {});
-        if (cancelled) return;
-
-        // ② Server-side session creation + cookie
-        setStatus("login");
-        const res = await fetch("/api/auth/pi-login", {
+        res = await fetch("/api/auth/pi-login", {
           method:  "POST",
           headers: { "Content-Type": "application/json" },
           body:    JSON.stringify({ accessToken: auth.accessToken }),
+          signal:  controller.signal,
         });
-
-        if (!res.ok) {
-          const j = await res.json().catch(() => ({})) as { error?: string };
-          setError(j.error ?? `서버 오류 (${res.status})`);
-          setStatus("error");
-          return;
-        }
-
-        const { role, access_token, refresh_token } = await res.json() as {
-          role: string; access_token: string; refresh_token: string;
-        };
-
-        // ③ Supabase 세션 설정 (localStorage에 저장됨)
-        const { error: sessionError } = await supabase.auth.setSession({ access_token, refresh_token });
-        if (sessionError) {
-          setError(`세션 설정 실패: ${sessionError.message}`);
-          setStatus("error");
-          return;
-        }
-
-        // ④ Navigate
-        setStatus("done");
-        window.location.href = dest(role);
-      } catch (e: unknown) {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : String(e));
-          setStatus("error");
-        }
+      } finally {
+        clearTimeout(timer);
       }
-    }
 
-    void run();
-    return () => { cancelled = true; };
-  }, []);
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({})) as { error?: string };
+        setError(j.error ?? `서버 오류 (${res.status})`);
+        setStatus("error");
+        return;
+      }
+
+      const data = await res.json() as {
+        role: string; access_token: string; refresh_token: string; isNew: boolean;
+      };
+
+      // Supabase 세션 설정
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token:  data.access_token,
+        refresh_token: data.refresh_token,
+      });
+      if (sessionError) {
+        setError(`세션 설정 실패: ${sessionError.message}`);
+        setStatus("error");
+        return;
+      }
+
+      if (data.isNew) {
+        // 신규 가입 → 역할 선택
+        setSelectedRole("user");
+        setStatus("roleSelect");
+      } else {
+        // 기존 유저 → 바로 이동
+        setStatus("done");
+        window.location.replace(destByRole(data.role));
+      }
+    } catch (e: unknown) {
+      const msg =
+        e instanceof Error && e.name === "AbortError"
+          ? "서버 응답 시간 초과 (30초). 다시 시도해 주세요."
+          : e instanceof Error ? e.message : String(e);
+      setError(msg);
+      setStatus("error");
+    }
+  }
+
+  async function handleRoleConfirm() {
+    setStatus("saving");
+    try {
+      await fetch("/api/users/me/role", {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ role: selectedRole }),
+      });
+    } catch { /* 실패해도 이동 */ }
+    setStatus("done");
+    window.location.replace(destByRole(selectedRole));
+  }
+
+  function handleRetry() {
+    started.current = false;
+    setError("");
+    setStatus("checking");
+    void checkSession();
+  }
+
+  const isLoading = !["roleSelect", "error"].includes(status);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-[#FAF5FF] gap-6 px-6">
-      {/* Logo */}
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#FAF5FF] gap-6 px-6 py-10">
+      {/* 로고 */}
       <div className="text-center">
         <p className="text-7xl mb-3">🛵</p>
         <h1
@@ -104,20 +197,58 @@ export default function SplashPage() {
         <p className="text-sm text-gray-500 mt-1">맛있는 음식을 PICK 하세요!</p>
       </div>
 
-      {/* Spinner */}
-      {status !== "error" && (
+      {/* 로딩 */}
+      {isLoading && (
         <div className="flex flex-col items-center gap-3">
           <div className="w-9 h-9 border-4 border-[#A855F7] border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-gray-400">{LABEL[status]}</p>
+          <p className="text-sm text-gray-400">{STATUS_LABEL[status] ?? ""}</p>
         </div>
       )}
 
-      {/* Error */}
+      {/* 신규 유저 역할 선택 */}
+      {status === "roleSelect" && (
+        <div className="w-full max-w-xs flex flex-col gap-4">
+          <div className="text-center">
+            <p className="text-base font-black text-gray-700">어떤 역할로 시작할까요?</p>
+            <p className="text-xs text-gray-400 mt-1">나중에 마이페이지에서 변경할 수 있어요</p>
+          </div>
+          <div className="flex flex-col gap-3">
+            {ROLE_OPTIONS.map((r) => (
+              <button
+                key={r.role}
+                onClick={() => setSelectedRole(r.role)}
+                className={`flex items-center gap-4 p-4 rounded-3xl border-2 transition-all active:scale-95 ${
+                  selectedRole === r.role ? r.active : "border-pick-border bg-white"
+                }`}
+              >
+                <span className="text-3xl">{r.emoji}</span>
+                <div className="text-left">
+                  <p className="font-black text-sm text-gray-800">{r.label}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{r.sub}</p>
+                </div>
+                {selectedRole === r.role && (
+                  <span className="ml-auto text-pick-purple font-black text-lg">✓</span>
+                )}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => void handleRoleConfirm()}
+            className="w-full py-4 rounded-full bg-gradient-to-r from-[#4C1D95] to-[#A855F7] text-white font-black text-base shadow-lg active:scale-95 transition-all mt-1"
+          >
+            시작하기 →
+          </button>
+        </div>
+      )}
+
+      {/* 오류 */}
       {status === "error" && (
         <div className="w-full max-w-xs bg-red-50 border border-red-200 rounded-2xl p-5 text-center">
-          <p className="text-sm text-red-600 font-bold break-all">⚠️ {error}</p>
+          <p className="text-sm text-red-600 font-bold whitespace-pre-line break-all">
+            ⚠️ {error}
+          </p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={handleRetry}
             className="mt-4 px-6 py-2 bg-[#7B3FE4] text-white rounded-full text-sm font-bold active:scale-95 transition-transform"
           >
             다시 시도
