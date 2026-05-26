@@ -147,7 +147,7 @@ export default function SplashPage() {
         setStatus("error");
         return;
       }
-      // Pi Browser 하드 네비게이션 후에도 토큰 유지: sessionStorage 우선
+      // Pi Browser는 하드 네비게이션 시 모든 스토리지 초기화 → 해시로 토큰 전달
       try { sessionStorage.setItem("_pp_token", data.access_token); } catch {}
       try { localStorage.setItem("_pp_token", data.access_token); } catch {}
 
@@ -156,9 +156,10 @@ export default function SplashPage() {
         setSelectedRole("user");
         setStatus("roleSelect");
       } else {
-        // 기존 유저 → 바로 이동
+        // 기존 유저 → 해시에 토큰 포함해서 이동 (AuthProvider가 읽어 _cachedToken으로 캐시)
         setStatus("done");
-        window.location.replace(destByRole(data.role));
+        const dest = destByRole(data.role);
+        window.location.replace(`${dest}#_pp=${encodeURIComponent(data.access_token)}`);
       }
     } catch (e: unknown) {
       const msg =
@@ -180,7 +181,10 @@ export default function SplashPage() {
       });
     } catch { /* 실패해도 이동 */ }
     setStatus("done");
-    window.location.replace(destByRole(selectedRole));
+    const { data: { session } } = await supabase.auth.getSession();
+    const tok = session?.access_token ?? "";
+    const dest = destByRole(selectedRole);
+    window.location.replace(tok ? `${dest}#_pp=${encodeURIComponent(tok)}` : dest);
   }
 
   function handleRetry() {

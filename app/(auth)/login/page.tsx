@@ -156,7 +156,7 @@ export default function LoginPage() {
         setStatus("error");
         return;
       }
-      // Pi Browser 하드 네비게이션 후에도 토큰 유지: sessionStorage 우선
+      // Pi Browser는 하드 네비게이션 시 모든 스토리지 초기화 → 해시로 토큰 전달
       try { sessionStorage.setItem("_pp_token", data.access_token); } catch {}
       try { localStorage.setItem("_pp_token", data.access_token); } catch {}
 
@@ -165,9 +165,10 @@ export default function LoginPage() {
         setSelectedRole("user");
         setStatus("roleSelect");
       } else {
-        // 기존 유저 → 바로 이동
+        // 기존 유저 → 해시에 토큰 포함해서 이동
         setStatus("done");
-        window.location.replace(destByRole(data.role));
+        const dest = destByRole(data.role);
+        window.location.replace(`${dest}#_pp=${encodeURIComponent(data.access_token)}`);
       }
     } catch (e: unknown) {
       const msg =
@@ -182,22 +183,17 @@ export default function LoginPage() {
   async function handleRoleConfirm() {
     setStatus("saving");
     try {
-      const res = await fetch("/api/users/me/role", {
+      await fetch("/api/users/me/role", {
         method:  "PATCH",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ role: selectedRole }),
       });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({})) as { error?: string };
-        setError(j.error ?? "역할 저장에 실패했어요. 다시 시도해 주세요.");
-        setStatus("error");
-        return;
-      }
-    } catch {
-      // 역할 저장 실패해도 이동 (기본 user로)
-    }
+    } catch { /* 실패해도 이동 */ }
     setStatus("done");
-    window.location.replace(destByRole(selectedRole));
+    const { data: { session } } = await supabase.auth.getSession();
+    const tok = session?.access_token ?? "";
+    const dest = destByRole(selectedRole);
+    window.location.replace(tok ? `${dest}#_pp=${encodeURIComponent(tok)}` : dest);
   }
 
   function handleRetry() {
