@@ -156,10 +156,12 @@ export default function SplashPage() {
         setSelectedRole("user");
         setStatus("roleSelect");
       } else {
-        // 기존 유저 → 해시에 토큰 포함해서 이동 (AuthProvider가 읽어 _cachedToken으로 캐시)
+        // 기존 유저 → AT + RT 모두 해시로 전달 (AuthProvider가 setSession 복원)
         setStatus("done");
         const dest = destByRole(data.role);
-        window.location.replace(`${dest}#_pp=${encodeURIComponent(data.access_token)}`);
+        window.location.replace(
+          `${dest}#_pp_at=${encodeURIComponent(data.access_token)}&_pp_rt=${encodeURIComponent(data.refresh_token)}`,
+        );
       }
     } catch (e: unknown) {
       const msg =
@@ -182,9 +184,14 @@ export default function SplashPage() {
     } catch { /* 실패해도 이동 */ }
     setStatus("done");
     const { data: { session } } = await supabase.auth.getSession();
-    const tok = session?.access_token ?? "";
     const dest = destByRole(selectedRole);
-    window.location.replace(tok ? `${dest}#_pp=${encodeURIComponent(tok)}` : dest);
+    const at = session?.access_token ?? "";
+    const rt = session?.refresh_token ?? "";
+    window.location.replace(
+      at && rt
+        ? `${dest}#_pp_at=${encodeURIComponent(at)}&_pp_rt=${encodeURIComponent(rt)}`
+        : dest,
+    );
   }
 
   function handleRetry() {
