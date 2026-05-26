@@ -43,7 +43,8 @@ export async function createServerSupabaseClient() {
 
           // getUser()를 admin.getUserById()로 교체 — JWT 검증 네트워크 문제 우회
           const uid = userId;
-          userClient.auth.getUser = async () => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (userClient.auth as any).getUser = async () => {
             const { data, error } = await adminClient.auth.admin.getUserById(uid);
             return { data: { user: data?.user ?? null }, error: error ?? null };
           };
