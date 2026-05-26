@@ -3,11 +3,19 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 
 // GET /api/admin/users — 전체 유저 + 지갑 잔액 목록 (관리자 전용)
-export async function GET() {
+export async function GET(req: Request) {
+  const authHeader = req.headers.get("authorization");
+  console.log("[admin/users] auth header:", authHeader ? `Bearer ...${authHeader.slice(-8)}` : "MISSING");
+
   const supabase = await createServerSupabaseClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
+  console.log("[admin/users] getUser result:", user ? `uid=${user.id.slice(0, 8)}` : `err=${authError?.message}`);
+
   if (authError || !user) {
-    return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
+    return NextResponse.json({
+      error: "인증이 필요합니다",
+      detail: authHeader ? "token_invalid" : "no_auth_header",
+    }, { status: 401 });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
