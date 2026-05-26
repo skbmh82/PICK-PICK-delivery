@@ -147,8 +147,9 @@ export default function SplashPage() {
         setStatus("error");
         return;
       }
-      // Supabase 내부 세션이 유실될 경우를 대비한 직접 토큰 캐시
-      localStorage.setItem("_pp_token", data.access_token);
+      // Pi Browser 하드 네비게이션 후에도 토큰 유지: sessionStorage 우선
+      try { sessionStorage.setItem("_pp_token", data.access_token); } catch {}
+      try { localStorage.setItem("_pp_token", data.access_token); } catch {}
 
       if (data.isNew) {
         // 신규 가입 → 역할 선택

@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { Users, Coins, RefreshCw, Search, X, Check, ChevronDown, Store, MapPin, Phone, Clock, XCircle, CheckCircle, BarChart2, ShoppingBag, Ticket, Plus, Tag, ToggleLeft, ToggleRight, Trash2, Bell, Send, ArrowLeft } from "lucide-react";
 
-// getSession() → localStorage 직접 캐시 순으로 폴백하는 fetch
+// getSession() → sessionStorage → localStorage 순으로 폴백하는 fetch
 async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const { data: { session } } = await supabase.auth.getSession();
   const token =
     session?.access_token ??
+    (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("_pp_token") : null) ??
     (typeof localStorage !== "undefined" ? localStorage.getItem("_pp_token") : null) ??
     null;
   const hdrs = new Headers(options.headers);

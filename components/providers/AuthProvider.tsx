@@ -23,11 +23,12 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         : (input as Request).url;
 
       if (url.startsWith("/api/")) {
-        // 캐시된 토큰 → getSession() → localStorage 직접 캐시 순으로 폴백
+        // 캐시된 토큰 → getSession() → sessionStorage → localStorage 순으로 폴백
         const token =
           _cachedToken ??
           (await supabase.auth.getSession()).data.session?.access_token ??
-          localStorage.getItem("_pp_token") ??
+          (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("_pp_token") : null) ??
+          (typeof localStorage !== "undefined" ? localStorage.getItem("_pp_token") : null) ??
           null;
 
         const hdrs = new Headers(reqInit.headers);
@@ -51,12 +52,13 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         _cachedToken = session?.access_token ?? null;
-        // localStorage 직접 캐시도 동기화 (Supabase 내부 세션 유실 대비)
+        // sessionStorage에 토큰 캐시 — 탭 내 하드 네비게이션에서도 유지됨
+        // Pi Browser(pinet.com)가 localStorage를 초기화해도 sessionStorage는 살아있음
         if (session?.access_token) {
-          localStorage.setItem("_pp_token", session.access_token);
-        } else {
-          localStorage.removeItem("_pp_token");
+          try { sessionStorage.setItem("_pp_token", session.access_token); } catch {}
+          try { localStorage.setItem("_pp_token", session.access_token); } catch {}
         }
+        // 세션 없을 때 _pp_token을 제거하지 않음 — 만료된 토큰보다 없는 토큰이 더 나쁨
         if (session?.user) void refreshFromSession(session.user.id);
         else clearUser();
       }
