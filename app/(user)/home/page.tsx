@@ -128,14 +128,13 @@ function SponsoredStoreCard({ store }: { store: AdStore }) {
   );
 }
 
-async function SponsoredSection() {
+// 광고 배너 + 프로모션 배너를 하나의 슬라이더로 합치고, 상단 노출 카드도 함께 렌더
+async function HomeAdSection() {
   const sponsored = await fetchSponsoredStores();
   const topAds    = sponsored.filter((s) => s.adType === "top");
   const bannerAds = sponsored.filter((s) => s.adType === "banner");
 
-  if (topAds.length === 0 && bannerAds.length === 0) return null;
-
-  // AdStore → AutoScrollBanner 형식으로 변환
+  // 광고 배너를 프로모션 배너 앞에 합침
   const adBannerItems = bannerAds.map((s) => ({
     id:       s.adId,
     gradient: s.bannerGradient ?? "from-pick-purple-dark via-pick-purple to-pick-purple-light",
@@ -146,16 +145,14 @@ async function SponsoredSection() {
     href:     `/store/${s.id}`,
   }));
 
+  const allBanners = [...adBannerItems, ...PROMO_BANNERS];
+
   return (
     <>
-      {/* 배너 광고 — 자동 슬라이드 */}
-      {adBannerItems.length > 0 && (
-        <div className="pt-1">
-          <AutoScrollBanner items={adBannerItems} />
-        </div>
-      )}
+      {/* 통합 배너 슬라이더 (광고 + 프로모션) */}
+      <AutoScrollBanner items={allBanners} />
 
-      {/* 상단 노출 가게 */}
+      {/* 상단 노출 가게 카드 */}
       {topAds.length > 0 && (
         <section className="px-4 pt-3 pb-1">
           <div className="flex items-center gap-2 mb-3">
@@ -472,13 +469,10 @@ export default async function HomePage({
         <StoreListView category={category!} sort={sort} openOnly={openOnly} lat={userLat} lng={userLng} />
       ) : (
         <>
-          {/* 광고 섹션 (배너 광고 + 상단 노출) */}
-          <Suspense fallback={null}>
-            <SponsoredSection />
+          {/* 통합 배너 + 상단 노출 광고 (광고 배너는 프로모션 배너와 합쳐서 표시) */}
+          <Suspense fallback={<AutoScrollBanner items={PROMO_BANNERS} />}>
+            <HomeAdSection />
           </Suspense>
-
-          {/* 프로모션 배너 — 자동 슬라이드 */}
-          <AutoScrollBanner items={PROMO_BANNERS} />
 
           {/* 카테고리 그리드 — 배너 바로 아래 */}
           <CategoryGrid />
