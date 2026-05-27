@@ -210,6 +210,41 @@ export async function fetchSponsoredStores(): Promise<AdStore[]> {
   });
 }
 
+/* ─── 프로모션 배너 타입 ─── */
+export interface PromoBannerRow {
+  id:        string;
+  gradient:  string;
+  badge:     string;
+  badge_bg:  string;
+  title:     string;
+  sub:       string | null;
+  href:      string;
+  sort_order: number;
+  is_active: boolean;
+  starts_at: string | null;
+  ends_at:   string | null;
+}
+
+// 현재 활성 프로모션 배너 목록
+export async function fetchPromoBanners(): Promise<PromoBannerRow[]> {
+  const admin = getAdminSupabaseClient();
+  const now = new Date().toISOString();
+
+  const { data, error } = await admin
+    .from("promo_banners")
+    .select("id, gradient, badge, badge_bg, title, sub, href, sort_order, is_active, starts_at, ends_at")
+    .eq("is_active", true)
+    .or(`starts_at.is.null,starts_at.lte.${now}`)
+    .or(`ends_at.is.null,ends_at.gte.${now}`)
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    console.error("fetchPromoBanners error:", error.message);
+    return [];
+  }
+  return (data ?? []) as PromoBannerRow[];
+}
+
 // 가게 메뉴 목록
 export async function fetchMenusByStoreId(storeId: string): Promise<MenuRow[]> {
   const supabase = createServerClient();

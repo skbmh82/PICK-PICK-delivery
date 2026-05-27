@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import AutoScrollBanner from "./AutoScrollBanner";
 import { cookies } from "next/headers";
-import { fetchStoresByCategory, searchStores, fetchTopStores, fetchSponsoredStores, type StoreRow, type AdStore } from "@/lib/supabase/stores";
+import { fetchStoresByCategory, searchStores, fetchTopStores, fetchSponsoredStores, fetchPromoBanners, type StoreRow, type AdStore } from "@/lib/supabase/stores";
 import { CATEGORY_META, getCategoryEmoji } from "@/lib/utils/categoryEmoji";
 import SearchBar from "./SearchBar";
 import FilterSortBar, { type SortKey } from "./FilterSortBar";
@@ -130,7 +130,10 @@ function SponsoredStoreCard({ store }: { store: AdStore }) {
 
 // 광고 배너 + 프로모션 배너를 하나의 슬라이더로 합치고, 상단 노출 카드도 함께 렌더
 async function HomeAdSection() {
-  const sponsored = await fetchSponsoredStores();
+  const [sponsored, promoBanners] = await Promise.all([
+    fetchSponsoredStores(),
+    fetchPromoBanners(),
+  ]);
   const topAds    = sponsored.filter((s) => s.adType === "top");
   const bannerAds = sponsored.filter((s) => s.adType === "banner");
 
@@ -145,7 +148,17 @@ async function HomeAdSection() {
     href:     `/store/${s.id}`,
   }));
 
-  const allBanners = [...adBannerItems, ...PROMO_BANNERS];
+  const promoBannerItems = promoBanners.map((b) => ({
+    id:       b.id,
+    gradient: b.gradient,
+    badge:    b.badge,
+    badgeBg:  b.badge_bg,
+    title:    b.title,
+    sub:      b.sub ?? "",
+    href:     b.href,
+  }));
+
+  const allBanners = [...adBannerItems, ...promoBannerItems];
 
   return (
     <>
@@ -170,41 +183,6 @@ async function HomeAdSection() {
   );
 }
 
-/* ────────────── 프로모션 배너 데이터 ────────────── */
-const PROMO_BANNERS = [
-  {
-    id: "welcome",
-    gradient: "from-pick-purple-dark via-pick-purple to-pick-purple-light",
-    badge: "쿠폰", badgeBg: "bg-pick-yellow text-white",
-    title: "첫 주문 혜택! 🎉",
-    sub: "WELCOME50 코드 입력하고\n50 PICK 즉시 지급",
-    href: "/wallet",
-  },
-  {
-    id: "pick",
-    gradient: "from-amber-500 via-orange-400 to-yellow-400",
-    badge: "등급", badgeBg: "bg-white/30 text-white",
-    title: "PICK 등급 혜택 ⚡",
-    sub: "FOREST 등급 달성 시\n주문금액 3배 적립!",
-    href: "/my-pick",
-  },
-  {
-    id: "free",
-    gradient: "from-emerald-500 via-teal-500 to-cyan-500",
-    badge: "무료배달", badgeBg: "bg-white/30 text-white",
-    title: "배달비 무료 쿠폰 🛵",
-    sub: "FREESHIP 코드로\n배달비 0원에 주문",
-    href: "/wallet",
-  },
-  {
-    id: "referral",
-    gradient: "from-rose-500 via-pink-500 to-fuchsia-500",
-    badge: "초대", badgeBg: "bg-white/30 text-white",
-    title: "친구 초대하면 50 PICK 🎁",
-    sub: "친구가 첫 주문 완료 시\n나에게도 50 PICK 지급!",
-    href: "/my-pick",
-  },
-];
 
 /* ────────────── 인기 가게 가로 스크롤 ────────────── */
 function HotStoreCard({ store }: { store: StoreRow }) {
@@ -470,7 +448,7 @@ export default async function HomePage({
       ) : (
         <>
           {/* 통합 배너 + 상단 노출 광고 (광고 배너는 프로모션 배너와 합쳐서 표시) */}
-          <Suspense fallback={<AutoScrollBanner items={PROMO_BANNERS} />}>
+          <Suspense fallback={<div className="mx-4 h-[120px] rounded-3xl bg-pick-border/30 animate-pulse" />}>
             <HomeAdSection />
           </Suspense>
 
