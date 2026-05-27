@@ -63,22 +63,22 @@ async function SearchResultsView({ query, sort, lat, lng }: { query: string; sor
 
 /* ────────────── 카테고리 데이터 ────────────── */
 const CATEGORIES = [
-  { id: "burger",   label: "버거",     emoji: "🍔", bg: "bg-orange-50",   border: "border-orange-100",   text: "text-orange-700" },
-  { id: "korean",   label: "한식",     emoji: "🍚", bg: "bg-amber-50",    border: "border-amber-100",    text: "text-amber-700" },
-  { id: "chicken",  label: "치킨",     emoji: "🍗", bg: "bg-yellow-50",   border: "border-yellow-100",   text: "text-yellow-700" },
-  { id: "snack",    label: "분식",     emoji: "🍜", bg: "bg-rose-50",     border: "border-rose-100",     text: "text-rose-700" },
-  { id: "pork",     label: "돈까스",   emoji: "🥩", bg: "bg-stone-50",    border: "border-stone-100",    text: "text-stone-600" },
-  { id: "jokbal",   label: "족발/보쌈", emoji: "🐷", bg: "bg-pink-50",     border: "border-pink-100",     text: "text-pink-700" },
-  { id: "stew",     label: "찜/탕",    emoji: "🍲", bg: "bg-red-50",      border: "border-red-100",      text: "text-red-700" },
-  { id: "grill",    label: "구이",     emoji: "🔥", bg: "bg-orange-50",   border: "border-orange-100",   text: "text-orange-700" },
-  { id: "pizza",    label: "피자",     emoji: "🍕", bg: "bg-amber-50",    border: "border-amber-100",    text: "text-amber-700" },
-  { id: "chinese",  label: "중식",     emoji: "🥟", bg: "bg-red-50",      border: "border-red-100",      text: "text-red-600" },
-  { id: "japanese", label: "일식",     emoji: "🍱", bg: "bg-sky-50",      border: "border-sky-100",      text: "text-sky-700" },
-  { id: "seafood",  label: "회/해물",  emoji: "🦐", bg: "bg-teal-50",     border: "border-teal-100",     text: "text-teal-700" },
-  { id: "western",  label: "양식",     emoji: "🥗", bg: "bg-green-50",    border: "border-green-100",    text: "text-green-700" },
-  { id: "coffee",   label: "커피/차",  emoji: "☕", bg: "bg-amber-50",    border: "border-amber-100",    text: "text-amber-800" },
-  { id: "dessert",  label: "디저트",   emoji: "🍰", bg: "bg-pink-50",     border: "border-pink-100",     text: "text-pink-700" },
-  { id: "snacks",   label: "간식",     emoji: "🍿", bg: "bg-purple-50",   border: "border-purple-100",   text: "text-purple-700" },
+  { id: "burger",   label: "버거",     emoji: "🍔", bg: "bg-orange-100",  text: "text-orange-700" },
+  { id: "korean",   label: "한식",     emoji: "🍚", bg: "bg-amber-100",   text: "text-amber-700" },
+  { id: "chicken",  label: "치킨",     emoji: "🍗", bg: "bg-yellow-100",  text: "text-yellow-700" },
+  { id: "snack",    label: "분식",     emoji: "🍜", bg: "bg-rose-100",    text: "text-rose-700" },
+  { id: "pork",     label: "돈까스",   emoji: "🥩", bg: "bg-stone-100",   text: "text-stone-600" },
+  { id: "jokbal",   label: "족발/보쌈", emoji: "🐷", bg: "bg-pink-100",    text: "text-pink-700" },
+  { id: "stew",     label: "찜/탕",    emoji: "🍲", bg: "bg-red-100",     text: "text-red-700" },
+  { id: "grill",    label: "구이",     emoji: "🔥", bg: "bg-orange-100",  text: "text-orange-700" },
+  { id: "pizza",    label: "피자",     emoji: "🍕", bg: "bg-amber-100",   text: "text-amber-700" },
+  { id: "chinese",  label: "중식",     emoji: "🥟", bg: "bg-red-100",     text: "text-red-600" },
+  { id: "japanese", label: "일식",     emoji: "🍱", bg: "bg-sky-100",     text: "text-sky-700" },
+  { id: "seafood",  label: "회/해물",  emoji: "🦐", bg: "bg-teal-100",    text: "text-teal-700" },
+  { id: "western",  label: "양식",     emoji: "🥗", bg: "bg-green-100",   text: "text-green-700" },
+  { id: "coffee",   label: "커피/차",  emoji: "☕", bg: "bg-amber-100",   text: "text-amber-800" },
+  { id: "dessert",  label: "디저트",   emoji: "🍰", bg: "bg-pink-100",    text: "text-pink-700" },
+  { id: "snacks",   label: "간식",     emoji: "🍿", bg: "bg-purple-100",  text: "text-purple-700" },
 ];
 
 /* ────────────── 스폰서 가게 카드 ────────────── */
@@ -215,7 +215,7 @@ function HotStoreCard({ store }: { store: StoreRow }) {
   return (
     <Link
       href={`/store/${store.id}`}
-      className="flex-shrink-0 w-40 bg-white dark:bg-pick-card rounded-3xl border-2 border-pick-border shadow-sm active:scale-95 transition-transform overflow-hidden"
+      className="flex-shrink-0 w-40 bg-white dark:bg-pick-card rounded-3xl border border-gray-100 shadow-sm active:scale-95 transition-transform overflow-hidden"
     >
       <div className="h-24 bg-gradient-to-br from-orange-50 to-amber-100 flex items-center justify-center relative">
         {store.image_url ? (
@@ -272,7 +272,7 @@ function CategoryGrid() {
           <Link
             key={cat.id}
             href={`/home?category=${cat.id}`}
-            className={`flex items-center gap-4 px-5 py-5 rounded-3xl border ${cat.bg} ${cat.border} shadow-sm active:scale-95 transition-transform duration-150`}
+            className={`flex items-center gap-4 px-5 py-5 rounded-3xl ${cat.bg} shadow-sm active:scale-95 transition-transform duration-150`}
           >
             <span className="text-4xl leading-none">{cat.emoji}</span>
             <span className={`text-base font-bold ${cat.text} leading-tight`}>{cat.label}</span>
@@ -292,7 +292,7 @@ function StoreCard({ store }: { store: StoreRow }) {
     <Link
       href={`/store/${store.id}`}
       className={`block bg-white dark:bg-pick-card rounded-3xl border-2 shadow-sm active:scale-95 transition-transform duration-150 overflow-hidden relative ${
-        closed ? "border-gray-200 opacity-75" : "border-pick-border"
+        closed ? "border-gray-200 opacity-75" : "border-gray-100"
       }`}
     >
       {/* 이미지 영역 */}
