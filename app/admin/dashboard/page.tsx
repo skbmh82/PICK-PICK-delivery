@@ -1145,8 +1145,13 @@ function AdsTab() {
   const [saving,     setSaving]     = useState(false);
   const [formErr,    setFormErr]    = useState("");
 
+  // 가게 검색
+  const [allStores,     setAllStores]     = useState<StoreRow[]>([]);
+  const [storeSearch,   setStoreSearch]   = useState("");
+  const [storeDropOpen, setStoreDropOpen] = useState(false);
+  const [fStore,        setFStore]        = useState<{ id: string; name: string; category: string } | null>(null);
+
   // 폼 상태
-  const [fStoreId,   setFStoreId]   = useState("");
   const [fType,      setFType]      = useState<"top" | "banner">("banner");
   const [fStart,     setFStart]     = useState("");
   const [fEnd,       setFEnd]       = useState("");
@@ -1169,8 +1174,23 @@ function AdsTab() {
 
   useEffect(() => { fetchAds(); }, [fetchAds]);
 
+  // 승인된 가게 목록 로드 (모달 열릴 때)
+  useEffect(() => {
+    if (!createOpen) return;
+    authFetch("/api/admin/stores").then(async (res) => {
+      if (res.ok) {
+        const { stores: rows } = await res.json() as { stores: StoreRow[] };
+        setAllStores((rows ?? []).filter((s) => s.isApproved));
+      }
+    });
+  }, [createOpen]);
+
+  const filteredStores = allStores.filter((s) =>
+    !storeSearch || s.name.toLowerCase().includes(storeSearch.toLowerCase())
+  );
+
   const handleCreate = async () => {
-    if (!fStoreId.trim()) return setFormErr("가게 ID를 입력해주세요");
+    if (!fStore) return setFormErr("가게를 선택해주세요");
     if (!fStart || !fEnd)  return setFormErr("광고 기간을 입력해주세요");
     if (fType === "banner" && !fTitle.trim()) return setFormErr("배너 제목을 입력해주세요");
     setSaving(true); setFormErr("");
@@ -1179,7 +1199,7 @@ function AdsTab() {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          storeId:        fStoreId.trim(),
+          storeId:        fStore.id,
           type:           fType,
           startDate:      fStart,
           endDate:        fEnd,
@@ -1191,7 +1211,7 @@ function AdsTab() {
       const json = await res.json() as { error?: string };
       if (res.ok) {
         setCreateOpen(false);
-        setFStoreId(""); setFTitle(""); setFSub(""); setFStart(""); setFEnd("");
+        setFStore(null); setStoreSearch(""); setFTitle(""); setFSub(""); setFStart(""); setFEnd("");
         setFType("banner"); setFGradient(GRADIENT_OPTIONS[0].value);
         await fetchAds();
       } else {
@@ -1254,16 +1274,64 @@ function AdsTab() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-4">
-              {/* 가게 ID */}
-              <div>
-                <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">가게 ID (UUID) *</label>
-                <input
-                  value={fStoreId}
-                  onChange={(e) => setFStoreId(e.target.value)}
-                  placeholder="가게 UUID를 입력하세요"
-                  className="w-full border-2 border-pick-border rounded-2xl px-3 py-2.5 text-xs font-mono focus:outline-none focus:border-pick-purple"
-                />
-                <p className="text-[10px] text-pick-text-sub mt-1">회원관리 → 가게승인 탭에서 가게 ID 확인 가능</p>
+              {/* 가게 선택 */}
+              <div className="relative">
+                <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">가게 선택 *</label>
+                {fStore ? (
+                  <div className="flex items-center gap-2 border-2 border-pick-purple bg-pick-bg rounded-2xl px-3 py-2.5">
+                    <span className="text-base">{CATEGORY_EMOJI[fStore.category] ?? "🏪"}</span>
+                    <span className="font-bold text-pick-text text-sm flex-1">{fStore.name}</span>
+                    <button
+                      onClick={() => { setFStore(null); setStoreSearch(""); }}
+                      className="text-pick-text-sub"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-pick-text-sub" />
+                      <input
+                        value={storeSearch}
+                        onChange={(e) => { setStoreSearch(e.target.value); setStoreDropOpen(true); }}
+                        onFocus={() => setStoreDropOpen(true)}
+                        placeholder="가게 이름으로 검색..."
+                        className="w-full border-2 border-pick-border rounded-2xl pl-8 pr-3 py-2.5 text-sm focus:outline-none focus:border-pick-purple"
+                      />
+                    </div>
+                    {storeDropOpen && filteredStores.length > 0 && (
+                      <>
+                        <div className="fixed inset-0 z-[65]" onClick={() => setStoreDropOpen(false)} />
+                        <div className="absolute left-0 right-0 top-full mt-1 z-[70] bg-white border-2 border-pick-border rounded-2xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+                          {filteredStores.map((s) => (
+                            <button
+                              key={s.id}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                setFStore({ id: s.id, name: s.name, category: s.category });
+                                setStoreDropOpen(false);
+                                setStoreSearch("");
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-pick-bg transition-colors"
+                            >
+                              <span>{CATEGORY_EMOJI[s.category] ?? "🏪"}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-pick-text truncate">{s.name}</p>
+                                <p className="text-[10px] text-pick-text-sub truncate">{s.address}</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                    {storeDropOpen && storeSearch && filteredStores.length === 0 && (
+                      <div className="absolute left-0 right-0 top-full mt-1 z-[70] bg-white border-2 border-pick-border rounded-2xl shadow-xl px-4 py-3 text-xs text-pick-text-sub text-center">
+                        검색 결과가 없어요
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
               {/* 광고 타입 */}
