@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-import { Users, Coins, RefreshCw, Search, X, Check, ChevronDown, Store, MapPin, Phone, Clock, XCircle, CheckCircle, BarChart2, ShoppingBag, Ticket, Plus, Tag, ToggleLeft, ToggleRight, Trash2, Bell, Send, ArrowLeft } from "lucide-react";
+import { Users, Coins, RefreshCw, Search, X, Check, ChevronDown, Store, MapPin, Phone, Clock, XCircle, CheckCircle, BarChart2, ShoppingBag, Ticket, Plus, Tag, ToggleLeft, ToggleRight, Trash2, Bell, Send, ArrowLeft, Megaphone, CalendarDays } from "lucide-react";
 
 // getSession() → sessionStorage → localStorage 순으로 폴백하는 fetch
 async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
@@ -1113,10 +1113,356 @@ function PushTab() {
   );
 }
 
+// ── 광고 관리 탭 ──────────────────────────────────────
+interface AdRow {
+  id: string;
+  type: "top" | "banner";
+  status: "active" | "paused";
+  startDate: string;
+  endDate: string;
+  bannerTitle: string | null;
+  bannerSub: string | null;
+  bannerGradient: string | null;
+  createdAt: string;
+  store: { id: string; name: string; category: string } | null;
+}
+
+const GRADIENT_OPTIONS = [
+  { label: "보라 (기본)",   value: "from-pick-purple-dark via-pick-purple to-pick-purple-light" },
+  { label: "오렌지",        value: "from-amber-500 via-orange-400 to-yellow-400" },
+  { label: "에메랄드",      value: "from-emerald-500 via-teal-500 to-cyan-500" },
+  { label: "핑크/로즈",     value: "from-rose-500 via-pink-500 to-fuchsia-500" },
+  { label: "스카이",        value: "from-sky-500 via-blue-500 to-indigo-500" },
+  { label: "레드",          value: "from-red-500 via-rose-500 to-orange-500" },
+];
+
+function AdsTab() {
+  const [ads,        setAds]        = useState<AdRow[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [toggling,   setToggling]   = useState<string | null>(null);
+  const [deleting,   setDeleting]   = useState<string | null>(null);
+  const [saving,     setSaving]     = useState(false);
+  const [formErr,    setFormErr]    = useState("");
+
+  // 폼 상태
+  const [fStoreId,   setFStoreId]   = useState("");
+  const [fType,      setFType]      = useState<"top" | "banner">("banner");
+  const [fStart,     setFStart]     = useState("");
+  const [fEnd,       setFEnd]       = useState("");
+  const [fTitle,     setFTitle]     = useState("");
+  const [fSub,       setFSub]       = useState("");
+  const [fGradient,  setFGradient]  = useState(GRADIENT_OPTIONS[0].value);
+
+  const fetchAds = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await authFetch("/api/admin/ads");
+      if (res.ok) {
+        const { ads: rows } = await res.json() as { ads: AdRow[] };
+        setAds(rows ?? []);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchAds(); }, [fetchAds]);
+
+  const handleCreate = async () => {
+    if (!fStoreId.trim()) return setFormErr("가게 ID를 입력해주세요");
+    if (!fStart || !fEnd)  return setFormErr("광고 기간을 입력해주세요");
+    if (fType === "banner" && !fTitle.trim()) return setFormErr("배너 제목을 입력해주세요");
+    setSaving(true); setFormErr("");
+    try {
+      const res = await authFetch("/api/admin/ads", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storeId:        fStoreId.trim(),
+          type:           fType,
+          startDate:      fStart,
+          endDate:        fEnd,
+          bannerTitle:    fType === "banner" ? fTitle.trim() : undefined,
+          bannerSub:      fType === "banner" ? fSub.trim()   : undefined,
+          bannerGradient: fType === "banner" ? fGradient     : undefined,
+        }),
+      });
+      const json = await res.json() as { error?: string };
+      if (res.ok) {
+        setCreateOpen(false);
+        setFStoreId(""); setFTitle(""); setFSub(""); setFStart(""); setFEnd("");
+        setFType("banner"); setFGradient(GRADIENT_OPTIONS[0].value);
+        await fetchAds();
+      } else {
+        setFormErr(json.error ?? "광고 등록에 실패했습니다");
+      }
+    } finally { setSaving(false); }
+  };
+
+  const handleToggle = async (ad: AdRow) => {
+    setToggling(ad.id);
+    try {
+      const newStatus = ad.status === "active" ? "paused" : "active";
+      await authFetch(`/api/admin/ads/${ad.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      setAds((prev) => prev.map((a) => a.id === ad.id ? { ...a, status: newStatus } : a));
+    } finally { setToggling(null); }
+  };
+
+  const handleDelete = async (ad: AdRow) => {
+    if (!confirm(`"${ad.store?.name ?? ad.id}" 광고를 삭제할까요?`)) return;
+    setDeleting(ad.id);
+    try {
+      await authFetch(`/api/admin/ads/${ad.id}`, { method: "DELETE" });
+      setAds((prev) => prev.filter((a) => a.id !== ad.id));
+    } finally { setDeleting(null); }
+  };
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  return (
+    <div className="px-4 py-4">
+      {/* 헤더 */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="font-black text-pick-text">광고 관리 📢</p>
+          <p className="text-xs text-pick-text-sub mt-0.5">
+            활성 {ads.filter((a) => a.status === "active" && a.endDate >= today).length}건 · 전체 {ads.length}건
+          </p>
+        </div>
+        <button
+          onClick={() => setCreateOpen(true)}
+          className="flex items-center gap-1.5 bg-pick-purple text-white text-sm font-bold px-4 py-2.5 rounded-full active:scale-95 transition-all"
+        >
+          <Plus size={15} /> 광고 등록
+        </button>
+      </div>
+
+      {/* 등록 모달 */}
+      {createOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-[55]" onClick={() => setCreateOpen(false)} />
+          <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] bg-white rounded-t-3xl shadow-2xl max-h-[85dvh] flex flex-col">
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-pick-border flex-shrink-0">
+              <h2 className="font-black text-pick-text text-lg">광고 등록 📢</h2>
+              <button onClick={() => setCreateOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-pick-bg">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-4">
+              {/* 가게 ID */}
+              <div>
+                <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">가게 ID (UUID) *</label>
+                <input
+                  value={fStoreId}
+                  onChange={(e) => setFStoreId(e.target.value)}
+                  placeholder="가게 UUID를 입력하세요"
+                  className="w-full border-2 border-pick-border rounded-2xl px-3 py-2.5 text-xs font-mono focus:outline-none focus:border-pick-purple"
+                />
+                <p className="text-[10px] text-pick-text-sub mt-1">회원관리 → 가게승인 탭에서 가게 ID 확인 가능</p>
+              </div>
+
+              {/* 광고 타입 */}
+              <div>
+                <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">광고 유형 *</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["banner", "top"] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setFType(t)}
+                      className={`py-3 rounded-2xl text-sm font-bold border-2 transition-all ${
+                        fType === t
+                          ? "border-pick-purple bg-pick-bg text-pick-purple"
+                          : "border-pick-border bg-white text-pick-text-sub"
+                      }`}
+                    >
+                      {t === "banner" ? "🎨 배너 (슬라이드)" : "⭐ 상단 노출 카드"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 기간 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">시작일 *</label>
+                  <input type="date" value={fStart} onChange={(e) => setFStart(e.target.value)}
+                    className="w-full border-2 border-pick-border rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:border-pick-purple" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">종료일 *</label>
+                  <input type="date" value={fEnd} onChange={(e) => setFEnd(e.target.value)}
+                    className="w-full border-2 border-pick-border rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:border-pick-purple" />
+                </div>
+              </div>
+
+              {/* 배너 전용 옵션 */}
+              {fType === "banner" && (
+                <>
+                  <div>
+                    <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">배너 제목 *</label>
+                    <input value={fTitle} onChange={(e) => setFTitle(e.target.value)}
+                      placeholder="예: 오늘만! 치킨 특가 🍗"
+                      className="w-full border-2 border-pick-border rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:border-pick-purple" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">배너 본문 (선택)</label>
+                    <textarea value={fSub} onChange={(e) => setFSub(e.target.value)}
+                      placeholder="예: 1만원 이상 주문 시\n배달비 무료!"
+                      rows={2}
+                      className="w-full border-2 border-pick-border rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:border-pick-purple resize-none" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">배너 색상 *</label>
+                    <div className="flex flex-col gap-2">
+                      {GRADIENT_OPTIONS.map((g) => (
+                        <button
+                          key={g.value}
+                          onClick={() => setFGradient(g.value)}
+                          className={`flex items-center gap-3 rounded-2xl border-2 p-2 transition-all ${
+                            fGradient === g.value ? "border-pick-purple" : "border-pick-border"
+                          }`}
+                        >
+                          <div className={`w-12 h-8 rounded-xl bg-gradient-to-r ${g.value} flex-shrink-0`} />
+                          <span className="text-sm font-bold text-pick-text">{g.label}</span>
+                          {fGradient === g.value && <Check size={14} className="ml-auto text-pick-purple" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 미리보기 */}
+                  {fTitle && (
+                    <div className={`rounded-3xl px-6 py-6 bg-gradient-to-r ${fGradient} text-white`}>
+                      <p className="text-[10px] text-white/60 mb-2">미리보기</p>
+                      <p className="font-black text-lg leading-snug mb-1">{fTitle}</p>
+                      {fSub && <p className="text-xs text-white/80 whitespace-pre-line">{fSub}</p>}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {formErr && <p className="text-xs text-red-500 font-bold">{formErr}</p>}
+            </div>
+            <div className="flex-shrink-0 px-5 pb-8 pt-3 border-t border-pick-border">
+              <button
+                onClick={() => void handleCreate()}
+                disabled={saving}
+                className="w-full bg-gradient-to-r from-pick-purple to-pick-purple-light text-white font-black py-4 rounded-full flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {saving
+                  ? <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  : <><Megaphone size={18} /> 광고 등록하기</>
+                }
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 광고 목록 */}
+      {loading ? (
+        <div className="flex flex-col gap-3 animate-pulse">
+          {[0,1,2].map((i) => <div key={i} className="h-28 bg-gray-100 rounded-3xl" />)}
+        </div>
+      ) : ads.length === 0 ? (
+        <div className="bg-white rounded-3xl border-2 border-pick-border p-10 flex flex-col items-center text-pick-text-sub">
+          <Megaphone size={36} className="mb-3 opacity-20" />
+          <p className="text-sm font-medium">등록된 광고가 없어요</p>
+          <p className="text-xs mt-1 opacity-70">광고 등록 버튼을 눌러 첫 광고를 추가해보세요!</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {ads.map((ad) => {
+            const isLive = ad.status === "active" && ad.endDate >= today && ad.startDate <= today;
+            const isExpired = ad.endDate < today;
+            return (
+              <div
+                key={ad.id}
+                className={`bg-white rounded-3xl border-2 shadow-sm overflow-hidden ${
+                  isLive    ? "border-green-200" :
+                  isExpired ? "border-gray-100 opacity-60" :
+                  ad.status === "paused" ? "border-amber-200" :
+                  "border-pick-border"
+                }`}
+              >
+                <div className="px-4 pt-4 pb-3">
+                  {/* 상단: 뱃지 + 액션 */}
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${
+                        isLive    ? "bg-green-50 text-green-600" :
+                        isExpired ? "bg-gray-100 text-gray-400" :
+                        ad.status === "paused" ? "bg-amber-50 text-amber-600" :
+                        "bg-pick-bg text-pick-purple"
+                      }`}>
+                        {isLive ? "✅ 진행중" : isExpired ? "⏰ 만료" : ad.status === "paused" ? "⏸️ 일시정지" : "🕐 예정"}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-pick-bg text-pick-purple">
+                        {ad.type === "banner" ? "🎨 배너" : "⭐ 상단노출"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {!isExpired && (
+                        <button
+                          onClick={() => void handleToggle(ad)}
+                          disabled={toggling === ad.id}
+                          className="disabled:opacity-40"
+                        >
+                          {ad.status === "active"
+                            ? <ToggleRight size={22} className="text-pick-purple" />
+                            : <ToggleLeft  size={22} className="text-gray-400" />
+                          }
+                        </button>
+                      )}
+                      <button
+                        onClick={() => void handleDelete(ad)}
+                        disabled={deleting === ad.id}
+                        className="w-7 h-7 rounded-full bg-red-50 flex items-center justify-center active:scale-90 transition-transform disabled:opacity-40"
+                      >
+                        <Trash2 size={13} className="text-red-400" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 가게명 */}
+                  <p className="font-black text-pick-text text-sm mb-1">
+                    {ad.store?.name ?? "알 수 없는 가게"}
+                  </p>
+
+                  {/* 기간 */}
+                  <div className="flex items-center gap-1.5 text-xs text-pick-text-sub mb-2">
+                    <CalendarDays size={11} />
+                    <span>{ad.startDate} ~ {ad.endDate}</span>
+                  </div>
+
+                  {/* 배너 미리보기 */}
+                  {ad.type === "banner" && ad.bannerTitle && (
+                    <div className={`rounded-2xl px-4 py-3 bg-gradient-to-r ${ad.bannerGradient ?? "from-pick-purple to-pick-purple-light"} text-white`}>
+                      <p className="font-black text-sm leading-snug">{ad.bannerTitle}</p>
+                      {ad.bannerSub && (
+                        <p className="text-[11px] text-white/80 mt-0.5 whitespace-pre-line">{ad.bannerSub}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── 메인 페이지 ───────────────────────────────────────
 export default function AdminDashboardPage() {
   const router = useRouter();
-  const [activeTab,    setActiveTab]    = useState<"stats" | "users" | "stores" | "coupons" | "push">("stats");
+  const [activeTab,    setActiveTab]    = useState<"stats" | "users" | "stores" | "coupons" | "push" | "ads">("stats");
   const [users,        setUsers]        = useState<UserRow[]>([]);
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
   const [loading,      setLoading]      = useState(true);
@@ -1210,7 +1556,8 @@ export default function AdminDashboardPage() {
                 {activeTab === "stats"   ? "플랫폼 통계" :
                  activeTab === "users"   ? `전체 ${users.length}명` :
                  activeTab === "stores"  ? "가게 승인 관리" :
-                 activeTab === "coupons" ? "쿠폰 생성 및 관리" : "일괄 푸시 알림 발송"}
+                 activeTab === "coupons" ? "쿠폰 생성 및 관리" :
+                 activeTab === "ads"     ? "광고 등록 및 관리" : "일괄 푸시 알림 발송"}
               </p>
             </div>
           </div>
@@ -1227,8 +1574,9 @@ export default function AdminDashboardPage() {
             { key: "stats"   as const, label: "통계",      icon: <BarChart2 size={13} />, badge: undefined as number | undefined },
             { key: "users"   as const, label: "회원 관리", icon: <Users    size={13} />, badge: undefined as number | undefined },
             { key: "stores"  as const, label: "가게 승인", icon: <Store    size={13} />, badge: pendingCount as number | undefined },
-            { key: "coupons" as const, label: "쿠폰 관리", icon: <Ticket   size={13} />, badge: undefined as number | undefined },
-            { key: "push"    as const, label: "푸시 알림", icon: <Bell     size={13} />, badge: undefined as number | undefined },
+            { key: "coupons" as const, label: "쿠폰 관리", icon: <Ticket     size={13} />, badge: undefined as number | undefined },
+            { key: "ads"     as const, label: "광고 관리", icon: <Megaphone size={13} />, badge: undefined as number | undefined },
+            { key: "push"    as const, label: "푸시 알림", icon: <Bell       size={13} />, badge: undefined as number | undefined },
           ]).map(({ key, label, icon, badge }) => (
             <button
               key={key}
@@ -1354,6 +1702,7 @@ export default function AdminDashboardPage() {
 
       {activeTab === "stores"  && <StoresTab />}
       {activeTab === "coupons" && <CouponsTab />}
+      {activeTab === "ads"     && <AdsTab />}
       {activeTab === "push"    && <PushTab />}
     </div>
   );
