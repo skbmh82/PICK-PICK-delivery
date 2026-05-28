@@ -67,18 +67,22 @@ export default function AutoScrollBanner({ items }: { items: BannerItem[] }) {
               key={b.id}
               href={b.href}
               onClick={() => scrollTo(i)}
-              className={`flex-shrink-0 w-full snap-start bg-gradient-to-r ${b.gradient} px-6 py-8 text-white active:opacity-90 transition-opacity`}
+              className={`relative flex-shrink-0 w-full snap-start overflow-hidden bg-gradient-to-r ${b.gradient} active:opacity-90 transition-opacity`}
             >
-              <div className="flex items-start justify-between mb-4">
-                <span className={`text-[11px] font-black px-3 py-1 rounded-full ${b.badgeBg}`}>
-                  {b.badge}
-                </span>
-                <span className="text-[11px] text-white/60 font-semibold">
-                  {i + 1} / {total}
-                </span>
+              {/* 파스텔 오버레이 */}
+              <div className="absolute inset-0 bg-white/50" />
+              <div className="relative px-6 py-6">
+                <div className="flex items-start justify-between mb-3">
+                  <span className={`text-[11px] font-black px-3 py-1 rounded-full ${b.badgeBg}`}>
+                    {b.badge}
+                  </span>
+                  <span className="text-[11px] text-gray-400 font-semibold">
+                    {i + 1} / {total}
+                  </span>
+                </div>
+                <p className="font-black text-lg leading-snug mb-1.5 text-gray-800">{b.title}</p>
+                <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-line">{b.sub}</p>
               </div>
-              <p className="font-black text-xl leading-snug mb-2">{b.title}</p>
-              <p className="text-sm text-white/80 leading-relaxed whitespace-pre-line">{b.sub}</p>
             </Link>
           ))}
         </div>
@@ -92,8 +96,8 @@ export default function AutoScrollBanner({ items }: { items: BannerItem[] }) {
             onClick={() => scrollTo(i)}
             className={`rounded-full transition-all duration-300 ${
               i === current
-                ? "w-5 h-1.5 bg-pick-purple"
-                : "w-1.5 h-1.5 bg-pick-border"
+                ? "w-5 h-1.5 bg-pick-purple/60"
+                : "w-1.5 h-1.5 bg-gray-200"
             }`}
           />
         ))}
