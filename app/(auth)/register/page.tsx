@@ -40,10 +40,15 @@ export default function RegisterPage() {
 
   const handleKakaoLogin = async () => {
     setKakaoLoading(true);
-    const callbackUrl = `${window.location.origin}/api/auth/callback`;
+    const cb = new URL(`${window.location.origin}/api/auth/callback`);
+    // 초대 코드가 있으면 콜백 URL에 포함 → 서버에서 PICK 지급
+    if (referralCode) {
+      cb.searchParams.set("ref",  referralCode);
+      cb.searchParams.set("ref_role", watch("role"));
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "kakao",
-      options:  { redirectTo: callbackUrl },
+      options:  { redirectTo: cb.toString() },
     });
     if (error) {
       setKakaoLoading(false);
