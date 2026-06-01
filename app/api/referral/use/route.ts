@@ -7,6 +7,7 @@ import { createNotification } from "@/lib/notifications";
 
 const UseSchema = z.object({
   code: z.string().length(8, "레퍼럴 코드는 8자리입니다"),
+  role: z.enum(["user", "owner", "rider"]).optional(),
 });
 
 const REFERRAL_REWARD = Number(process.env.PICK_REFERRAL_REWARD_USER ?? 5000);
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { code } = parsed.data;
+  const { code, role: newRole } = parsed.data;
 
   // 현재 사용자 정보
   const { data: me } = await admin
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
   const referrerNewBalance = Number(referrerWallet.pick_balance) + REFERRAL_REWARD;
 
   await Promise.all([
-    // 피초대자 지급 (pick_balance + total_earned 모두 증가)
+    // 피초대자 지급 + 역할 변경
     admin.from("wallets")
       .update({
         pick_balance: myNewBalance,
@@ -99,8 +100,13 @@ export async function POST(request: NextRequest) {
       balance_after: myNewBalance,
       description:   `친구초대 가입 보상 (초대자: ${referrer.name})`,
     }),
+    // 역할 업데이트 (요청한 경우)
+    ...(newRole
+      ? [admin.from("users").update({ role: newRole }).eq("id", me.id)]
+      : []
+    ),
 
-    // 초대자 지급 (pick_balance + total_earned 모두 증가)
+    // 초대자 지급
     admin.from("wallets")
       .update({
         pick_balance: referrerNewBalance,
@@ -126,9 +132,10 @@ export async function POST(request: NextRequest) {
     }),
   ]);
 
+  const roleLabel: Record<string, string> = { user: "일반 이용자", owner: "사장님", rider: "라이더" };
   return NextResponse.json({
     ok:      true,
     reward:  REFERRAL_REWARD,
-    message: `${REFERRAL_REWARD.toLocaleString()} PICK이 지갑에 적립됐어요!`,
+    message: `${REFERRAL_REWARD.toLocaleString()} PICK 적립 완료!${newRole ? ` (${roleLabel[newRole]} 입장으로 설정됐어요)` : ""}`,
   });
 }
