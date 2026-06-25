@@ -803,20 +803,22 @@ export default function WalletPage() {
         </div>
 
         {/* 충전 / 보내기 버튼 */}
-        <div className="grid grid-cols-2 gap-3">
-          <button disabled
-            className="flex flex-col items-center justify-center gap-0.5 bg-white/40 text-white/50 rounded-full py-3 font-bold text-sm cursor-not-allowed shadow-sm">
-            <span className="flex items-center gap-1.5">
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-3">
+            <button disabled
+              className="flex items-center justify-center gap-2 bg-white/40 text-white/50 rounded-full py-3.5 font-bold text-sm cursor-not-allowed shadow-sm">
               <ArrowDownLeft size={16} />
               충전하기
-            </span>
-            <span className="text-[10px] font-medium text-white/40">토큰 발행 후 오픈 예정</span>
-          </button>
-          <button onClick={() => setTransferOpen(true)}
-            className="flex items-center justify-center gap-2 bg-white/20 text-white border border-white/30 rounded-full py-3.5 font-bold text-sm active:scale-95 transition-all">
-            <ArrowUpRight size={16} />
-            보내기
-          </button>
+            </button>
+            <button disabled
+              className="flex items-center justify-center gap-2 bg-white/20 text-white/50 border border-white/20 rounded-full py-3.5 font-bold text-sm cursor-not-allowed">
+              <ArrowUpRight size={16} />
+              보내기
+            </button>
+          </div>
+          <p className="text-center text-xs font-bold text-pick-yellow-light">
+            ⚠ 토큰 발행 후 오픈 예정
+          </p>
         </div>
       </div>
 
