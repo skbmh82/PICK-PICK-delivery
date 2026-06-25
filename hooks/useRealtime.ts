@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export type OrderStatus =
+  | "awaiting_pi_payment"
   | "pending" | "confirmed" | "preparing" | "calling_rider" | "ready"
   | "picked_up" | "delivering" | "delivered" | "cancelled" | "refunded";
 
@@ -80,8 +81,11 @@ export function useStoreOrderRealtime(
           table:  "orders",
         },
         (payload) => {
-          const row = payload.new as { id: string; store_id: string };
-          if (row.id && storeIdSet.has(row.store_id)) cbRef.current(row.id);
+          const row = payload.new as { id: string; store_id: string; status: string };
+          // Pi 결제 대기 중인 주문은 결제 완료 후 pending으로 바뀔 때 알림
+          if (row.id && storeIdSet.has(row.store_id) && row.status !== "awaiting_pi_payment") {
+            cbRef.current(row.id);
+          }
         }
       )
       .subscribe();

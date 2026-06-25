@@ -5,13 +5,10 @@ import {
   Check, X, ChefHat, Clock, Bike, CheckCircle,
   XCircle, ChevronDown, ChevronUp, RefreshCw, Bell, Volume2, VolumeX,
 } from "lucide-react";
-import { useStoreOrderRealtime, useStoreOrderStatusRealtime } from "@/hooks/useRealtime";
+import { useStoreOrderRealtime, useStoreOrderStatusRealtime, type OrderStatus } from "@/hooks/useRealtime";
 import { useOrderSound } from "@/lib/useOrderSound";
 
 // ── 타입 ──────────────────────────────────────────────
-type OrderStatus =
-  | "pending" | "confirmed" | "preparing" | "calling_rider" | "ready"
-  | "picked_up" | "delivering" | "delivered" | "cancelled" | "refunded";
 
 interface OrderItem {
   id: string;
@@ -44,6 +41,7 @@ interface Order {
 
 // ── 상태 설정 ─────────────────────────────────────────
 const STATUS_LABEL: Record<OrderStatus, string> = {
+  awaiting_pi_payment: "Pi 결제 대기",
   pending:        "신규 주문 🔴",
   confirmed:      "수락됨",
   preparing:      "조리 중 🍳",
@@ -57,6 +55,7 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
 };
 
 const STATUS_CONFIG: Record<OrderStatus, { color: string; bg: string; border: string }> = {
+  awaiting_pi_payment: { color: "text-pick-purple", bg: "bg-pick-bg", border: "border-pick-border" },
   pending:       { color: "text-red-600",    bg: "bg-red-50",    border: "border-red-200" },
   confirmed:     { color: "text-blue-600",   bg: "bg-blue-50",   border: "border-blue-200" },
   preparing:     { color: "text-amber-600",  bg: "bg-amber-50",  border: "border-amber-200" },

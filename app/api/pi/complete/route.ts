@@ -82,6 +82,13 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (orderRow?.store_id) {
+        // Pi 결제 완료 → 주문 상태를 pending으로 전환 (Realtime UPDATE 트리거)
+        await admin
+          .from("orders")
+          .update({ status: "pending", updated_at: new Date().toISOString() })
+          .eq("id", orderId)
+          .eq("status", "awaiting_pi_payment");
+
         const { data: storeOwner } = await admin
           .from("stores")
           .select("owner_id")

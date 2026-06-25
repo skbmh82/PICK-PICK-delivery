@@ -176,8 +176,10 @@ export async function POST(request: NextRequest) {
     .insert({
       user_id:          profile.id,
       store_id:         storeId,
-      // 모든 결제 수단 → pending 으로 시작, 사장님이 수락해야 confirmed
-      status:           "pending",
+      // PI/PI_MIX: Pi 결제 완료 후 pending으로 전환 (그때 사장님 알림 발송)
+      status:           (paymentMethod === "PI" || paymentMethod === "PI_MIX")
+                          ? "awaiting_pi_payment"
+                          : "pending",
       confirmed_at:     null,
       payment_method:   dbPaymentMethod,
       total_amount:     totalAmount + deliveryFee - pickUsed,
