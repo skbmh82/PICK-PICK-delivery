@@ -279,10 +279,26 @@ function PiLogin() {
 
 // ── 메인 페이지 ───────────────────────────────────────────
 export default function LoginPage() {
-  const [isPiBrowser, setIsPiBrowser] = useState<boolean | null>(null);
+  // null = 판단 중, true = Pi 환경, false = 일반 브라우저
+  const [isPiEnv, setIsPiEnv] = useState<boolean | null>(null);
 
   useEffect(() => {
-    setIsPiBrowser(/PiBrowser/i.test(navigator.userAgent));
+    // Pi Browser / Pi Desktop은 window.Pi를 자동으로 주입함
+    // 최대 1.5초 기다린 후 window.Pi 존재 여부로 판단
+    let elapsed = 0;
+    const interval = setInterval(() => {
+      if (window.Pi) {
+        clearInterval(interval);
+        setIsPiEnv(true);
+        return;
+      }
+      elapsed += 100;
+      if (elapsed >= 1500) {
+        clearInterval(interval);
+        setIsPiEnv(false);
+      }
+    }, 100);
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -295,11 +311,11 @@ export default function LoginPage() {
         <p className="text-sm text-gray-500 mt-1">맛있는 음식을 PICK 하세요!</p>
       </div>
 
-      {isPiBrowser === null && (
+      {isPiEnv === null && (
         <div className="w-9 h-9 border-4 border-[#A855F7] border-t-transparent rounded-full animate-spin" />
       )}
-      {isPiBrowser === true  && <PiLogin />}
-      {isPiBrowser === false && <NormalLogin />}
+      {isPiEnv === true  && <PiLogin />}
+      {isPiEnv === false && <NormalLogin />}
     </div>
   );
 }
