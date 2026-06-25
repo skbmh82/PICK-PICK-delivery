@@ -651,10 +651,12 @@ export default function WalletPage() {
   const [transferOpen,  setTransferOpen]  = useState(false);
 
   // 출석 체크인
-  const [checkedToday,  setCheckedToday]  = useState(false);
-  const [streak,        setStreak]        = useState(0);
-  const [checkLoading,  setCheckLoading]  = useState(false);
-  const [checkDone,     setCheckDone]     = useState(false);
+  const [checkedToday,   setCheckedToday]   = useState(false);
+  const [streak,         setStreak]         = useState(0);
+  const [checkLoading,   setCheckLoading]   = useState(false);
+  const [checkDone,      setCheckDone]      = useState(false);
+  const [weekComplete,   setWeekComplete]   = useState(false);
+  const [weekNumber,     setWeekNumber]     = useState(1);
   const checkinFetched = useRef(false);
 
   const fetchWallet = useCallback(async () => {
@@ -692,6 +694,8 @@ export default function WalletPage() {
         const json = await res.json();
         setCheckedToday(true);
         setStreak(json.streak);
+        setWeekComplete(json.isWeekComplete ?? false);
+        setWeekNumber(json.weekNumber ?? 1);
         setCheckDone(true);
         const walletRes = await fetch("/api/wallet/transactions");
         if (walletRes.ok) setData(await walletRes.json());
@@ -826,109 +830,120 @@ export default function WalletPage() {
         {checkedToday ? (
           /* ── 출석 완료 상태 ── */
           <div className="px-5 pt-5 pb-6">
+            {(() => {
+              const dayInWeek  = streak === 0 ? 0 : ((streak - 1) % 7) + 1;
+              const wkNum      = Math.ceil(streak / 7);
+              const todayBonus = weekComplete; // 방금 7일 완료한 경우
+              const totalToday = todayBonus ? 150 : 50;
+              return (
+                <>
+                  {/* 헤더 */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{todayBonus ? "🏆" : "🎉"}</span>
+                      <p className="text-base font-black text-white">
+                        {todayBonus ? "7일 완료 보너스!" : "오늘 출석 완료!"}
+                      </p>
+                    </div>
+                    {streak > 0 && (
+                      <div className="flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full">
+                        <Flame size={13} className="text-pick-yellow-light" />
+                        <span className="text-xs font-black text-white">{streak}일 연속 🔥</span>
+                      </div>
+                    )}
+                  </div>
 
-            {/* 헤더 */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">🎉</span>
-                <p className="text-base font-black text-white">오늘 출석 완료!</p>
-              </div>
-              {streak > 0 && (
-                <div className="flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full">
-                  <Flame size={13} className="text-pick-yellow-light" />
-                  <span className="text-xs font-black text-white">{streak}일 연속 🔥</span>
-                </div>
-              )}
-            </div>
-
-            {/* PICK 적립 확인 카드 */}
-            <div className="bg-white/15 rounded-3xl px-5 py-5 mb-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-white/70 font-medium mb-1">오늘 적립된 PICK</p>
-                <div className="flex items-end gap-1.5">
-                  <span className="text-4xl font-black text-white">+50</span>
-                  <span className="text-pick-yellow-light font-black text-lg mb-1">PICK</span>
-                </div>
-                <p className="text-xs text-white/60 mt-0.5">≈ ₩50 지갑에 추가됐어요</p>
-              </div>
-              {/* 코인 스택 시각화 */}
-              <div className="flex flex-col items-center gap-0.5">
-                {[...Array(5)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-10 h-3 rounded-full bg-pick-yellow-light shadow-sm"
-                    style={{
-                      opacity: 1 - i * 0.12,
-                      transform: `scaleX(${1 - i * 0.08})`,
-                    }}
-                  />
-                ))}
-                <span className="text-lg mt-1">🪙</span>
-              </div>
-            </div>
-
-            {/* 현재 잔액 */}
-            <div className="bg-white/10 rounded-2xl px-4 py-3 mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Wallet size={14} className="text-white/60" />
-                <span className="text-xs text-white/70 font-medium">현재 잔액</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-base font-black text-white">{balance.toLocaleString()}</span>
-                <span className="text-xs text-pick-yellow-light font-black">PICK</span>
-              </div>
-            </div>
-
-            {/* 7일 연속 출석 달력 */}
-            <div className="bg-white/10 rounded-2xl px-4 py-3 mb-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs text-white/70 font-medium">7일 연속 출석 현황</span>
-                <span className="text-xs font-black text-pick-yellow-light">{Math.min(streak, 7)}/7일</span>
-              </div>
-              {/* 날짜 원형 뱃지 */}
-              <div className="flex justify-between gap-1">
-                {[...Array(7)].map((_, i) => {
-                  const dayStreak = streak >= 7 ? 7 : streak;
-                  const filled = i < dayStreak;
-                  const isToday = i === dayStreak - 1;
-                  return (
-                    <div key={i} className="flex flex-col items-center gap-1">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                        isToday
-                          ? "bg-pick-yellow-light shadow-lg scale-110"
-                          : filled
-                            ? "bg-white/80"
-                            : "bg-white/15 border border-white/20"
-                      }`}>
-                        {filled
-                          ? <Check size={14} className={isToday ? "text-pick-purple-dark" : "text-pick-purple"} strokeWidth={3} />
-                          : <span className="text-[10px] text-white/40 font-bold">{i + 1}</span>
-                        }
+                  {/* 7일 완료 보너스 배너 */}
+                  {todayBonus && (
+                    <div className="bg-pick-yellow/30 border border-pick-yellow-light/50 rounded-2xl px-4 py-3 mb-3 flex items-center gap-3">
+                      <span className="text-2xl">🎁</span>
+                      <div>
+                        <p className="text-xs font-black text-pick-yellow-light">7일 연속 출석 달성!</p>
+                        <p className="text-[11px] text-white/80">기본 50 + 보너스 100 PICK 지급됐어요</p>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-              {/* 진행 바 */}
-              <div className="mt-3 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-pick-yellow-light rounded-full transition-all duration-700"
-                  style={{ width: `${Math.min((streak / 7) * 100, 100)}%` }}
-                />
-              </div>
-            </div>
+                  )}
 
-            {/* 별 누적 적립 */}
-            <div className="flex items-center justify-center gap-2">
-              <Star size={12} className="text-pick-yellow-light fill-pick-yellow-light" />
-              <p className="text-xs text-white/70">
-                누적 출석 적립 <span className="font-black text-white">{(streak * 50).toLocaleString()} PICK</span> 이상 달성 중
-              </p>
-              <Star size={12} className="text-pick-yellow-light fill-pick-yellow-light" />
-            </div>
+                  {/* PICK 적립 확인 카드 */}
+                  <div className="bg-white/15 rounded-3xl px-5 py-5 mb-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-white/70 font-medium mb-1">오늘 적립된 PICK</p>
+                      <div className="flex items-end gap-1.5">
+                        <span className="text-4xl font-black text-white">+{totalToday}</span>
+                        <span className="text-pick-yellow-light font-black text-lg mb-1">PICK</span>
+                      </div>
+                      <p className="text-xs text-white/60 mt-0.5">≈ ₩{totalToday} 지갑에 추가됐어요</p>
+                    </div>
+                    <div className="flex flex-col items-center gap-0.5">
+                      {[...Array(5)].map((_, i) => (
+                        <div key={i} className="w-10 h-3 rounded-full bg-pick-yellow-light shadow-sm"
+                          style={{ opacity: 1 - i * 0.12, transform: `scaleX(${1 - i * 0.08})` }} />
+                      ))}
+                      <span className="text-lg mt-1">🪙</span>
+                    </div>
+                  </div>
 
-            {/* 내일 안내 */}
-            <p className="text-center text-xs text-white/50 mt-3">내일도 잊지 말고 출석하세요 👋</p>
+                  {/* 현재 잔액 */}
+                  <div className="bg-white/10 rounded-2xl px-4 py-3 mb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Wallet size={14} className="text-white/60" />
+                      <span className="text-xs text-white/70 font-medium">현재 잔액</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-base font-black text-white">{balance.toLocaleString()}</span>
+                      <span className="text-xs text-pick-yellow-light font-black">PICK</span>
+                    </div>
+                  </div>
+
+                  {/* 7일 사이클 달력 */}
+                  <div className="bg-white/10 rounded-2xl px-4 py-3 mb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs text-white/70 font-medium">{wkNum}번째 주 출석 현황</span>
+                      <span className="text-xs font-black text-pick-yellow-light">{dayInWeek}/7일</span>
+                    </div>
+                    <div className="flex justify-between gap-1">
+                      {[...Array(7)].map((_, i) => {
+                        const filled  = i < dayInWeek;
+                        const isToday = i === dayInWeek - 1;
+                        return (
+                          <div key={i} className="flex flex-col items-center gap-1">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                              isToday
+                                ? "bg-pick-yellow-light shadow-lg scale-110"
+                                : filled
+                                  ? "bg-white/80"
+                                  : "bg-white/15 border border-white/20"
+                            }`}>
+                              {filled
+                                ? <Check size={14} className={isToday ? "text-pick-purple-dark" : "text-pick-purple"} strokeWidth={3} />
+                                : <span className="text-[10px] text-white/40 font-bold">{i + 1}</span>
+                              }
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-3 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                      <div className="h-full bg-pick-yellow-light rounded-full transition-all duration-700"
+                        style={{ width: `${(dayInWeek / 7) * 100}%` }} />
+                    </div>
+                    <p className="text-[10px] text-white/50 text-center mt-2">
+                      7일 완료 시 보너스 <span className="text-pick-yellow-light font-black">+100 PICK</span> 추가 지급
+                    </p>
+                  </div>
+
+                  {/* 누적 적립 */}
+                  <div className="flex items-center justify-center gap-2">
+                    <Star size={12} className="text-pick-yellow-light fill-pick-yellow-light" />
+                    <p className="text-xs text-white/70">
+                      <span className="font-black text-white">{wkNum}번째 주</span> · {streak}일 연속 출석 중
+                    </p>
+                    <Star size={12} className="text-pick-yellow-light fill-pick-yellow-light" />
+                  </div>
+                  <p className="text-center text-xs text-white/50 mt-3">내일도 잊지 말고 출석하세요 👋</p>
+                </>
+              );
+            })()}
           </div>
 
         ) : (
@@ -974,15 +989,18 @@ export default function WalletPage() {
             {streak > 0 && (
               <div className="mt-3">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[11px] text-pick-text-sub">연속 출석 현황</span>
-                  <span className="text-[11px] font-black text-pick-purple">{Math.min(streak, 7)}/7일</span>
+                  <span className="text-[11px] text-pick-text-sub">{Math.ceil(streak / 7)}번째 주 출석 현황</span>
+                  <span className="text-[11px] font-black text-pick-purple">{((streak - 1) % 7) + 1}/7일</span>
                 </div>
                 <div className="h-2 bg-pick-border rounded-full overflow-hidden">
                   <div
                     className="h-full bg-gradient-to-r from-pick-purple to-pick-purple-light rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min((streak / 7) * 100, 100)}%` }}
+                    style={{ width: `${((((streak - 1) % 7) + 1) / 7) * 100}%` }}
                   />
                 </div>
+                <p className="text-[10px] text-pick-text-sub mt-1.5 text-right">
+                  7일 완료 시 <span className="font-black text-pick-purple">+100 PICK</span> 보너스
+                </p>
               </div>
             )}
           </div>

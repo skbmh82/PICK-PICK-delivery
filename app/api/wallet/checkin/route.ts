@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 
-const CHECKIN_REWARD = 50; // PICK
+const CHECKIN_REWARD  = 50;  // 매일 기본 PICK
+const WEEKLY_BONUS    = 100; // 7일 완료 보너스 PICK
 
 // GET /api/wallet/checkin — 오늘 출석 여부 + 연속 출석일 조회
 export async function GET() {
@@ -89,13 +90,15 @@ export async function POST() {
     .eq("checked_date", yesterday)
     .maybeSingle();
 
-  const streak = yesterdayCheckin ? yesterdayCheckin.streak + 1 : 1;
+  const streak         = yesterdayCheckin ? yesterdayCheckin.streak + 1 : 1;
+  const isWeekComplete = streak % 7 === 0;
+  const totalReward    = CHECKIN_REWARD + (isWeekComplete ? WEEKLY_BONUS : 0);
 
   // 출석 기록 저장
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: checkinError } = await (admin as any)
     .from("daily_checkins")
-    .insert({ user_id: profile.id, checked_date: today, streak, pick_earned: CHECKIN_REWARD });
+    .insert({ user_id: profile.id, checked_date: today, streak, pick_earned: totalReward });
 
   if (checkinError) {
     return NextResponse.json({ error: "출석 처리에 실패했습니다" }, { status: 500 });
@@ -110,8 +113,8 @@ export async function POST() {
     .maybeSingle();
 
   if (wallet) {
-    const newBalance    = Number(wallet.pick_balance) + CHECKIN_REWARD;
-    const newTotalEarned = Number(wallet.total_earned) + CHECKIN_REWARD;
+    const newBalance     = Number(wallet.pick_balance) + totalReward;
+    const newTotalEarned = Number(wallet.total_earned) + totalReward;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (admin as any)
@@ -119,17 +122,28 @@ export async function POST() {
       .update({ pick_balance: newBalance, total_earned: newTotalEarned, updated_at: new Date().toISOString() })
       .eq("id", wallet.id);
 
+    const description = isWeekComplete
+      ? `7일 연속 출석 완료 보너스! (${streak}일 연속, 기본 ${CHECKIN_REWARD} + 보너스 ${WEEKLY_BONUS})`
+      : `오늘의 출석 보상 (${streak}일 연속)`;
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (admin as any)
       .from("wallet_transactions")
       .insert({
-        wallet_id:    wallet.id,
-        type:         "reward",
-        amount:       CHECKIN_REWARD,
+        wallet_id:     wallet.id,
+        type:          "reward",
+        amount:        totalReward,
         balance_after: newBalance,
-        description:  `오늘의 출석 보상 (${streak}일 연속)`,
+        description,
       });
   }
 
-  return NextResponse.json({ success: true, streak, reward: CHECKIN_REWARD });
+  return NextResponse.json({
+    success:        true,
+    streak,
+    reward:         CHECKIN_REWARD,
+    bonusReward:    isWeekComplete ? WEEKLY_BONUS : 0,
+    isWeekComplete,
+    weekNumber:     Math.ceil(streak / 7),
+  });
 }
