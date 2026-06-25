@@ -678,13 +678,13 @@ export default function CartBottomSheet({ onClose }: Props) {
                 <input
                   type="range"
                   min={0} max={100} step={5}
-                  value={piRatio}
-                  onChange={(e) => setPiRatio(Number(e.target.value))}
+                  value={100 - piRatio}
+                  onChange={(e) => setPiRatio(100 - Number(e.target.value))}
                   className="w-full accent-amber-500"
                 />
                 <div className="flex justify-between text-[10px] text-pick-text-sub mt-0.5">
-                  <span>← 현금</span>
-                  <span>π →</span>
+                  <span>현금</span>
+                  <span>π</span>
                 </div>
               </div>
 
