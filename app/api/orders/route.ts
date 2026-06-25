@@ -241,24 +241,27 @@ export async function POST(request: NextRequest) {
   }
 
   // 12. 사장님에게 신규 주문 알림
-  const { data: storeOwner } = await admin
-    .from("stores")
-    .select("owner_id, name")
-    .eq("id", storeId)
-    .single();
+  // PI/PI_MIX 결제는 Pi 결제 완료 후(/api/pi/complete) 알림 전송 — 결제 전 선발송 방지
+  if (paymentMethod !== "PI" && paymentMethod !== "PI_MIX") {
+    const { data: storeOwner } = await admin
+      .from("stores")
+      .select("owner_id, name")
+      .eq("id", storeId)
+      .single();
 
-  if (storeOwner?.owner_id) {
-    const itemSummary = items
-      .slice(0, 2)
-      .map((i) => `${i.menuName} x${i.quantity}`)
-      .join(", ");
-    await createNotification({
-      userId: storeOwner.owner_id,
-      type:   "order_update",
-      title:  "새 주문이 들어왔어요! 🔔",
-      body:   `${itemSummary}${items.length > 2 ? ` 외 ${items.length - 2}개` : ""}`,
-      data:   { orderId, storeId },
-    });
+    if (storeOwner?.owner_id) {
+      const itemSummary = items
+        .slice(0, 2)
+        .map((i) => `${i.menuName} x${i.quantity}`)
+        .join(", ");
+      await createNotification({
+        userId: storeOwner.owner_id,
+        type:   "order_update",
+        title:  "새 주문이 들어왔어요! 🔔",
+        body:   `${itemSummary}${items.length > 2 ? ` 외 ${items.length - 2}개` : ""}`,
+        data:   { orderId, storeId },
+      });
+    }
   }
 
   return NextResponse.json({ orderId }, { status: 201 });

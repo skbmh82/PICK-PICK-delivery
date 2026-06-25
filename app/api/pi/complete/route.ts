@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import { createNotification } from "@/lib/notifications";
 
 const PI_API_BASE = "https://api.minepi.com";
 const PI_TO_PICK  = 300; // 1 Pi = 300 PICK
@@ -8,6 +9,8 @@ interface PiPaymentDTO {
   identifier: string;
   user_uid:   string;
   amount:     number;
+  memo:       string;
+  metadata:   Record<string, unknown>;
   status: {
     developer_approved:   boolean;
     transaction_verified: boolean;
@@ -60,12 +63,52 @@ export async function POST(req: NextRequest) {
 
     const payment = await piRes.json() as PiPaymentDTO;
 
-    // 이미 PICK 지급된 결제는 중복 지급 없이 종료
+    // 이미 처리된 결제는 중복 처리 없이 종료
     if (existing) {
       return NextResponse.json({ success: true, duplicate: true });
     }
 
-    // Pi UID로 사용자 조회
+    // metadata에 orderId가 있으면 주문 결제 — 사장님 알림 발송
+    const orderId = typeof payment.metadata?.orderId === "string"
+      ? payment.metadata.orderId
+      : null;
+
+    if (orderId) {
+      // 주문 정보 + 가게 오너 조회
+      const { data: orderRow } = await admin
+        .from("orders")
+        .select("id, store_id, order_items(menu_name, quantity)")
+        .eq("id", orderId)
+        .maybeSingle();
+
+      if (orderRow?.store_id) {
+        const { data: storeOwner } = await admin
+          .from("stores")
+          .select("owner_id")
+          .eq("id", orderRow.store_id)
+          .single();
+
+        if (storeOwner?.owner_id) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const orderItems = (orderRow as any).order_items as { menu_name: string; quantity: number }[];
+          const itemSummary = (orderItems ?? [])
+            .slice(0, 2)
+            .map((i) => `${i.menu_name} x${i.quantity}`)
+            .join(", ");
+          await createNotification({
+            userId: storeOwner.owner_id,
+            type:   "order_update",
+            title:  "새 주문이 들어왔어요! 🔔",
+            body:   `${itemSummary}${(orderItems?.length ?? 0) > 2 ? ` 외 ${orderItems.length - 2}개` : ""}`,
+            data:   { orderId, storeId: orderRow.store_id },
+          });
+        }
+      }
+
+      return NextResponse.json({ success: true, orderId });
+    }
+
+    // orderId 없는 경우: Pi → PICK 지갑 충전 플로우
     const { data: userRow } = await admin
       .from("users")
       .select("id")
@@ -76,7 +119,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "사용자를 찾을 수 없습니다" }, { status: 404 });
     }
 
-    // 지갑 조회
     const { data: wallet } = await admin
       .from("wallets")
       .select("id, pick_balance, total_earned")
