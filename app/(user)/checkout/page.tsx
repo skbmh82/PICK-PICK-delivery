@@ -1,21 +1,23 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ArrowLeft, ShieldCheck, AlertCircle } from "lucide-react";
 import { useOrderStore } from "@/stores/orderStore";
 import { useCartStore } from "@/stores/cartStore";
+import { loadPiSdk } from "@/components/pwa/PiSdkLoader";
 
 const PI_KRW_RATE_FALLBACK = 50000; // 1π 가격 미설정 시 fallback
 
 function usePiCheckoutPayment(onSuccess: () => void) {
   const [status, setStatus] = useState<"idle" | "auth" | "paying" | "done" | "error">("idle");
   const [error,  setError]  = useState("");
+  const [hasPi,  setHasPi]  = useState(false);
 
-  const hasPi =
-    typeof window !== "undefined" &&
-    !!window.Pi &&
-    /PiBrowser/i.test(navigator.userAgent);
+  // SDK 로드 후 window.Pi 존재 여부로 Pi 환경 판단 (UA 체크 제거)
+  useEffect(() => {
+    loadPiSdk().then(() => setHasPi(!!window.Pi));
+  }, []);
 
   const pay = useCallback(
     async (piAmount: number, memo: string, metadata: Record<string, unknown>) => {
