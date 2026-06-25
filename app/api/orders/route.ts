@@ -24,7 +24,7 @@ const CreateOrderSchema = z.object({
   deliveryLat:     z.number().optional(),
   deliveryLng:     z.number().optional(),
   deliveryNote:    z.string().optional(),
-  paymentMethod:   z.enum(["PICK", "PI"]).default("PICK"),
+  paymentMethod:   z.enum(["PICK", "PI", "PI_MIX"]).default("PICK"),
   orderType:       z.enum(["delivery", "takeout"]).default("delivery"),
 });
 
