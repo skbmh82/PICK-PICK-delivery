@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { X, Trash2, Minus, Plus, ShoppingBag, Bike, Coins, MapPin, ChevronRight, Home, Briefcase, Check, Ticket, ChevronDown, Package } from "lucide-react";
+import { X, Trash2, Minus, Plus, ShoppingBag, Bike, Coins, MapPin, ChevronRight, Home, Briefcase, Check, Ticket, ChevronDown, Package, RefreshCw } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 import { useOrderStore } from "@/stores/orderStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -139,8 +139,14 @@ export default function CartBottomSheet({ onClose }: Props) {
   const [pickBalance,    setPickBalance]    = useState(0);
   const [usePick,        setUsePick]        = useState(false);
   const [isOrdering,     setIsOrdering]     = useState(false);
-  const [paymentMethod,  setPaymentMethod]  = useState<"PICK" | "PI">("PICK");
+  const [paymentMethod,  setPaymentMethod]  = useState<"PICK" | "PI" | "PI_MIX">("PICK");
   const [orderType,      setOrderType]      = useState<"delivery" | "takeout">("delivery");
+
+  // Pi 혼합 결제 상태
+  const [usdKrw,     setUsdKrw]     = useState<number>(1380);
+  const [piPriceUsd, setPiPriceUsd] = useState<string>("");
+  const [piPriceKrw, setPiPriceKrw] = useState<number>(0);
+  const [piRatio,    setPiRatio]    = useState<number>(20); // Pi 비율 % (기본 20%)
 
   // 배달 주소
   const [addresses,      setAddresses]      = useState<UserAddress[]>([]);
@@ -161,6 +167,34 @@ export default function CartBottomSheet({ onClose }: Props) {
     if (!user) return;
     fetchMyPickBalance(user.id).then(setPickBalance);
   }, [user]);
+
+  // Pi 환율 + 가격 — localStorage 캐시 우선
+  useEffect(() => {
+    const cached = parseFloat(localStorage.getItem("usd_krw") ?? "");
+    if (!isNaN(cached) && cached > 0) setUsdKrw(cached);
+
+    const cachedUsd = localStorage.getItem("pi_price_usd") ?? "";
+    const cachedKrw = parseFloat(localStorage.getItem("pi_price_krw") ?? "");
+    if (cachedUsd) setPiPriceUsd(cachedUsd);
+    if (!isNaN(cachedKrw) && cachedKrw > 0) setPiPriceKrw(cachedKrw);
+
+    // 실시간 환율 갱신
+    fetch("/api/exchange-rate")
+      .then((r) => r.json())
+      .then((d: { rate?: number }) => {
+        if (d.rate && d.rate > 0) {
+          setUsdKrw(d.rate);
+          localStorage.setItem("usd_krw", d.rate.toFixed(2));
+          const usd = parseFloat(cachedUsd);
+          if (!isNaN(usd) && usd > 0) {
+            const krw = Math.round(usd * d.rate);
+            setPiPriceKrw(krw);
+            localStorage.setItem("pi_price_krw", String(krw));
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // 배달 주소 fetch
   const fetchAddresses = useCallback(async () => {
@@ -532,32 +566,158 @@ export default function CartBottomSheet({ onClose }: Props) {
           {/* 결제 수단 선택 */}
           <div className="mx-4 mb-3">
             <p className="text-xs font-black text-pick-text mb-2 px-1">결제 수단</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {[
-                { id: "PICK",  label: "PICK 토큰",   emoji: "🪙", sub: "잔액으로 결제" },
-                { id: "PI",    label: "π Pi 코인",   emoji: "π",  sub: "Pi Browser 결제" },
+                { id: "PICK",   label: "PICK 토큰", emoji: "🪙", sub: "잔액 결제" },
+                { id: "PI",     label: "π Pi 코인", emoji: "π",  sub: "Pi 전액" },
+                { id: "PI_MIX", label: "π 혼합",    emoji: "⚖️", sub: "현금+Pi" },
               ].map((m) => (
                 <button
                   key={m.id}
                   type="button"
-                  onClick={() => setPaymentMethod(m.id as "PICK" | "PI")}
-                  className={`flex items-center gap-2.5 px-3.5 py-3 rounded-2xl border-2 transition-all text-left ${
+                  onClick={() => setPaymentMethod(m.id as "PICK" | "PI" | "PI_MIX")}
+                  className={`flex items-center gap-2 px-2.5 py-3 rounded-2xl border-2 transition-all text-left ${
                     paymentMethod === m.id
                       ? "border-pick-purple bg-pick-purple/5"
                       : "border-pick-border bg-white"
                   }`}
                 >
-                  <span className="text-xl flex-shrink-0">{m.emoji}</span>
+                  <span className="text-lg flex-shrink-0">{m.emoji}</span>
                   <div>
-                    <p className={`text-xs font-black leading-tight ${paymentMethod === m.id ? "text-pick-purple" : "text-pick-text"}`}>
+                    <p className={`text-[11px] font-black leading-tight ${paymentMethod === m.id ? "text-pick-purple" : "text-pick-text"}`}>
                       {m.label}
                     </p>
-                    <p className="text-[10px] text-pick-text-sub leading-tight mt-0.5">{m.sub}</p>
+                    <p className="text-[9px] text-pick-text-sub leading-tight mt-0.5">{m.sub}</p>
                   </div>
                 </button>
               ))}
             </div>
           </div>
+
+          {/* Pi 혼합 결제 설정 패널 */}
+          {paymentMethod === "PI_MIX" && (
+            <div className="mx-4 mb-3 bg-amber-50 border-2 border-amber-200 rounded-2xl px-4 py-4 flex flex-col gap-4">
+              {/* 환율 표시 */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <RefreshCw size={12} className="text-amber-500" />
+                  <span className="text-[11px] font-bold text-amber-700">실시간 환율</span>
+                </div>
+                <span className="text-[11px] font-black text-amber-800">
+                  1$ = {usdKrw.toLocaleString()}원
+                </span>
+              </div>
+
+              {/* 1π 가격 설정 */}
+              <div>
+                <p className="text-xs font-black text-amber-800 mb-2">1π 테스트 토큰 가격 설정</p>
+                <div className="flex gap-2 items-center">
+                  <div className="flex-1 relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-green-600">$</span>
+                    <input
+                      type="number"
+                      value={piPriceUsd}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setPiPriceUsd(v);
+                        localStorage.setItem("pi_price_usd", v);
+                        const usd = parseFloat(v);
+                        if (!isNaN(usd) && usd > 0 && usdKrw > 0) {
+                          const krw = Math.round(usd * usdKrw);
+                          setPiPriceKrw(krw);
+                          localStorage.setItem("pi_price_krw", String(krw));
+                        } else {
+                          setPiPriceKrw(0);
+                        }
+                      }}
+                      placeholder="USD 입력"
+                      className="w-full border-2 border-green-300 rounded-xl pl-7 pr-3 py-2 text-sm font-bold text-pick-text focus:outline-none focus:border-green-500 bg-white"
+                    />
+                  </div>
+                  <span className="text-pick-text-sub font-bold">=</span>
+                  <div className="flex-1 relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-amber-600">₩</span>
+                    <input
+                      type="number"
+                      value={piPriceKrw || ""}
+                      onChange={(e) => {
+                        const krw = parseFloat(e.target.value);
+                        setPiPriceKrw(isNaN(krw) ? 0 : krw);
+                        if (!isNaN(krw) && usdKrw > 0) {
+                          const usd = (krw / usdKrw).toFixed(2);
+                          setPiPriceUsd(usd);
+                          localStorage.setItem("pi_price_usd", usd);
+                          localStorage.setItem("pi_price_krw", String(krw));
+                        }
+                      }}
+                      placeholder="원화 자동 계산"
+                      className="w-full border-2 border-amber-300 rounded-xl pl-7 pr-3 py-2 text-sm font-bold text-pick-text focus:outline-none focus:border-amber-500 bg-white"
+                    />
+                  </div>
+                </div>
+                {piPriceKrw > 0 && (
+                  <p className="text-[10px] text-amber-700 mt-1.5 text-center font-bold">
+                    1π = ${parseFloat(piPriceUsd).toLocaleString()} = ₩{piPriceKrw.toLocaleString()}
+                  </p>
+                )}
+              </div>
+
+              {/* 결제 비율 설정 */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-black text-amber-800">결제 비율</p>
+                  <div className="flex items-center gap-2 text-[11px] font-bold">
+                    <span className="text-pick-text">현금 <span className="text-pick-purple">{100 - piRatio}%</span></span>
+                    <span className="text-pick-text-sub">·</span>
+                    <span className="text-pick-text">π <span className="text-amber-600">{piRatio}%</span></span>
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  min={0} max={100} step={5}
+                  value={piRatio}
+                  onChange={(e) => setPiRatio(Number(e.target.value))}
+                  className="w-full accent-amber-500"
+                />
+                <div className="flex justify-between text-[10px] text-pick-text-sub mt-0.5">
+                  <span>현금 100%</span>
+                  <span>π 100%</span>
+                </div>
+              </div>
+
+              {/* 계산 결과 */}
+              {(() => {
+                const cashAmount  = Math.round(totalPaid * (100 - piRatio) / 100);
+                const piAmountWon = totalPaid - cashAmount;
+                const piAmountPi  = piPriceKrw > 0 ? piAmountWon / piPriceKrw : 0;
+                return (
+                  <div className="bg-white rounded-xl border border-amber-200 px-3 py-3 flex flex-col gap-1.5">
+                    <p className="text-[10px] font-black text-amber-700 mb-1">💡 결제 금액 분배</p>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-pick-text-sub">💵 현금 결제</span>
+                      <span className="font-black text-pick-text">{cashAmount.toLocaleString()}원</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-pick-text-sub">π Pi 결제</span>
+                      <span className="font-black text-amber-700">{piAmountWon.toLocaleString()}원</span>
+                    </div>
+                    {piPriceKrw > 0 && (
+                      <div className="flex justify-between text-xs border-t border-amber-100 pt-1.5 mt-0.5">
+                        <span className="text-pick-text-sub">필요한 π 수량</span>
+                        <span className="font-black text-amber-600">
+                          {piAmountPi < 0.000001
+                            ? piAmountPi.toFixed(8)
+                            : piAmountPi < 0.001
+                            ? piAmountPi.toFixed(6)
+                            : piAmountPi.toFixed(4)} π
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
 
           {/* PICK 토큰 사용 (PICK 결제일 때만) */}
           {paymentMethod === "PICK" && (
@@ -665,6 +825,8 @@ export default function CartBottomSheet({ onClose }: Props) {
               <><span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />주문 중...</>
             ) : paymentMethod === "PI" ? (
               <><span className="text-base font-black">π</span>{totalPaid.toLocaleString()}원 Pi 결제</>
+            ) : paymentMethod === "PI_MIX" ? (
+              <><span className="text-base font-black">⚖️</span>{totalPaid.toLocaleString()}원 혼합 결제 (현금+π)</>
             ) : (
               <><ShoppingBag size={18} />{totalPaid.toLocaleString()}원 {orderType === "takeout" ? "포장" : "PICK"} 결제</>
             )}
