@@ -683,8 +683,8 @@ export default function CartBottomSheet({ onClose }: Props) {
                   className="w-full accent-amber-500"
                 />
                 <div className="flex justify-between text-[10px] text-pick-text-sub mt-0.5">
-                  <span>현금 100%</span>
-                  <span>π 100%</span>
+                  <span>← 현금</span>
+                  <span>π →</span>
                 </div>
               </div>
 
