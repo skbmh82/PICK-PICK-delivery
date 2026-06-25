@@ -71,15 +71,9 @@ export default function SplashPage() {
       // getSession 실패 시 Pi 인증으로 진행
     }
 
-    // window.Pi 최대 1.5초 대기 (Pi Browser / Pi Desktop은 자동 주입)
-    if (!window.Pi) {
-      let ms = 0;
-      while (!window.Pi && ms < 1_500) {
-        await new Promise<void>((r) => setTimeout(r, 100));
-        ms += 100;
-      }
-    }
-    // Pi SDK 없으면 일반 브라우저 → /login으로
+    // Pi SDK 로드 후 window.Pi 존재 여부로 판단 (Pi Browser + Pi Desktop 대응)
+    const { loadPiSdk } = await import("@/components/pwa/PiSdkLoader");
+    await loadPiSdk();
     if (!window.Pi) {
       window.location.replace("/login");
       return;

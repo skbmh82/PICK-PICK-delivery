@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
+import { loadPiSdk } from "@/components/pwa/PiSdkLoader";
 
 // ── Pi Browser 전용 타입 ─────────────────────────────────
 type PiStatus =
@@ -283,22 +284,11 @@ export default function LoginPage() {
   const [isPiEnv, setIsPiEnv] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Pi Browser / Pi Desktop은 window.Pi를 자동으로 주입함
-    // 최대 1.5초 기다린 후 window.Pi 존재 여부로 판단
-    let elapsed = 0;
-    const interval = setInterval(() => {
-      if (window.Pi) {
-        clearInterval(interval);
-        setIsPiEnv(true);
-        return;
-      }
-      elapsed += 100;
-      if (elapsed >= 1500) {
-        clearInterval(interval);
-        setIsPiEnv(false);
-      }
-    }, 100);
-    return () => clearInterval(interval);
+    // Pi SDK 스크립트 로드 후 window.Pi 존재 여부로 Pi 환경 판단
+    // Pi Browser(모바일) / Pi Desktop(데스크톱) 모두 대응
+    loadPiSdk().then(() => {
+      setIsPiEnv(!!window.Pi);
+    });
   }, []);
 
   return (
