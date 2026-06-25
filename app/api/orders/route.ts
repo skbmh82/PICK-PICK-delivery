@@ -168,6 +168,8 @@ export async function POST(request: NextRequest) {
   // 9. 주문 생성 (admin 클라이언트로 RLS 우회)
   // PI 결제: 서버 측 Pi 콜백에서 orderId로 연결하므로 별도 ref 불필요
   const tossOrderId = null;
+  // DB CHECK 제약: 'PICK'|'CASH'|'PI' — PI_MIX는 PI로 저장
+  const dbPaymentMethod = paymentMethod === "PI_MIX" ? "PI" : paymentMethod;
 
   const { data: orderData, error: orderError } = await admin
     .from("orders")
@@ -177,7 +179,7 @@ export async function POST(request: NextRequest) {
       // 모든 결제 수단 → pending 으로 시작, 사장님이 수락해야 confirmed
       status:           "pending",
       confirmed_at:     null,
-      payment_method:   paymentMethod,
+      payment_method:   dbPaymentMethod,
       total_amount:     totalAmount + deliveryFee - pickUsed,
       delivery_fee:     deliveryFee,
       pick_used:        paymentMethod === "PICK" ? pickUsed : 0,
