@@ -670,9 +670,9 @@ export default function CartBottomSheet({ onClose }: Props) {
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-black text-amber-800">결제 비율</p>
                   <div className="flex items-center gap-2 text-[11px] font-bold">
-                    <span className="text-pick-text">현금 <span className="text-pick-purple">{100 - piRatio}%</span></span>
+                    <span className="text-amber-500">현금 {100 - piRatio}%</span>
                     <span className="text-pick-text-sub">·</span>
-                    <span className="text-pick-text">π <span className="text-amber-600">{piRatio}%</span></span>
+                    <span className="text-pick-purple">π {piRatio}%</span>
                   </div>
                 </div>
                 <input
@@ -680,11 +680,14 @@ export default function CartBottomSheet({ onClose }: Props) {
                   min={0} max={100} step={5}
                   value={100 - piRatio}
                   onChange={(e) => setPiRatio(100 - Number(e.target.value))}
-                  className="w-full accent-amber-500"
+                  className="w-full h-2 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-amber-400 [&::-webkit-slider-thumb]:shadow-md"
+                  style={{
+                    background: `linear-gradient(to right, #F59E0B ${100 - piRatio}%, #6B21A8 ${100 - piRatio}%)`,
+                  }}
                 />
-                <div className="flex justify-between text-[10px] text-pick-text-sub mt-0.5">
-                  <span>현금</span>
-                  <span>π</span>
+                <div className="flex justify-between text-[10px] font-bold mt-1">
+                  <span className="text-amber-500">현금</span>
+                  <span className="text-pick-purple">π</span>
                 </div>
               </div>
 
