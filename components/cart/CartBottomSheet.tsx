@@ -139,7 +139,7 @@ export default function CartBottomSheet({ onClose }: Props) {
   const [pickBalance,    setPickBalance]    = useState(0);
   const [usePick,        setUsePick]        = useState(false);
   const [isOrdering,     setIsOrdering]     = useState(false);
-  const [paymentMethod,  setPaymentMethod]  = useState<"PICK" | "PI" | "PI_MIX">("PICK");
+  const [paymentMethod,  setPaymentMethod]  = useState<"PICK" | "PI" | "PI_MIX">("PI_MIX");
   const [orderType,      setOrderType]      = useState<"delivery" | "takeout">("delivery");
 
   // Pi 혼합 결제 상태
@@ -568,23 +568,26 @@ export default function CartBottomSheet({ onClose }: Props) {
             <p className="text-xs font-black text-pick-text mb-2 px-1">결제 수단</p>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { id: "PICK",   label: "PICK 토큰", emoji: "🪙", sub: "잔액 결제" },
-                { id: "PI",     label: "π Pi 코인", emoji: "π",  sub: "Pi 전액" },
-                { id: "PI_MIX", label: "π 혼합",    emoji: "⚖️", sub: "현금+Pi" },
+                { id: "PICK",   label: "PICK 토큰", emoji: "🪙", sub: "준비 중",   disabled: true },
+                { id: "PI",     label: "π Pi 코인", emoji: "π",  sub: "준비 중",   disabled: true },
+                { id: "PI_MIX", label: "π 혼합",    emoji: "⚖️", sub: "현금+Pi",   disabled: false },
               ].map((m) => (
                 <button
                   key={m.id}
                   type="button"
+                  disabled={m.disabled}
                   onClick={() => setPaymentMethod(m.id as "PICK" | "PI" | "PI_MIX")}
                   className={`flex items-center gap-2 px-2.5 py-3 rounded-2xl border-2 transition-all text-left ${
-                    paymentMethod === m.id
+                    m.disabled
+                      ? "border-pick-border bg-gray-50 opacity-40 cursor-not-allowed"
+                      : paymentMethod === m.id
                       ? "border-pick-purple bg-pick-purple/5"
                       : "border-pick-border bg-white"
                   }`}
                 >
                   <span className="text-lg flex-shrink-0">{m.emoji}</span>
                   <div>
-                    <p className={`text-[11px] font-black leading-tight ${paymentMethod === m.id ? "text-pick-purple" : "text-pick-text"}`}>
+                    <p className={`text-[11px] font-black leading-tight ${!m.disabled && paymentMethod === m.id ? "text-pick-purple" : "text-pick-text"}`}>
                       {m.label}
                     </p>
                     <p className="text-[9px] text-pick-text-sub leading-tight mt-0.5">{m.sub}</p>
