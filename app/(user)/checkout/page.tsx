@@ -6,7 +6,7 @@ import { ArrowLeft, ShieldCheck, AlertCircle } from "lucide-react";
 import { useOrderStore } from "@/stores/orderStore";
 import { useCartStore } from "@/stores/cartStore";
 
-const PI_KRW_RATE = 50000; // 1π ≈ ₩50,000 (테스트넷 기준 placeholder)
+const PI_KRW_RATE_FALLBACK = 50000; // 1π 가격 미설정 시 fallback
 
 function usePiCheckoutPayment(onSuccess: () => void) {
   const [status, setStatus] = useState<"idle" | "auth" | "paying" | "done" | "error">("idle");
@@ -90,11 +90,17 @@ export default function CheckoutPage() {
   const clearCart    = useCartStore((s) => s.clearCart);
   const cart         = useCartStore();
 
-  const orderId   = searchParams.get("orderId")   ?? "";
-  const amount    = Number(searchParams.get("amount") ?? "0");
-  const orderName = searchParams.get("orderName") ?? "PICK PICK 주문";
+  const orderId     = searchParams.get("orderId")     ?? "";
+  const amount      = Number(searchParams.get("amount") ?? "0");
+  const orderName   = searchParams.get("orderName")   ?? "PICK PICK 주문";
+  const paymentMode = searchParams.get("paymentMode") ?? "PI";
+  const cashAmount  = Number(searchParams.get("cashAmount")  ?? "0");
+  const piAmountWon = Number(searchParams.get("piAmountWon") ?? String(amount));
+  const piPriceKrw  = Number(searchParams.get("piPriceKrw")  ?? "0");
+  const isMixed     = paymentMode === "PI_MIX";
 
-  const piAmount = Math.max(0.001, Math.round((amount / PI_KRW_RATE) * 1000) / 1000);
+  const effectivePiKrwRate = piPriceKrw > 0 ? piPriceKrw : PI_KRW_RATE_FALLBACK;
+  const piAmount = Math.max(0.000001, piAmountWon / effectivePiKrwRate);
 
   const handleSuccess = useCallback(() => {
     const now = new Date();
@@ -151,13 +157,38 @@ export default function CheckoutPage() {
         <div className="bg-white rounded-3xl border-2 border-pick-border px-5 py-5">
           <p className="text-xs text-pick-text-sub font-medium mb-1">{orderName}</p>
           <p className="font-black text-pick-text text-2xl">{amount.toLocaleString()}원</p>
-          <div className="mt-3 pt-3 border-t border-pick-border flex items-center justify-between">
-            <span className="text-sm text-pick-text-sub">Pi 결제 금액</span>
-            <span className="font-black text-pick-purple text-xl">π {piAmount.toLocaleString()}</span>
-          </div>
-          <p className="text-[11px] text-pick-text-sub mt-1 text-right">
-            1π ≈ ₩{PI_KRW_RATE.toLocaleString()} 기준 (테스트넷)
-          </p>
+
+          {isMixed ? (
+            <div className="mt-3 pt-3 border-t border-pick-border flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-pick-text-sub">💵 현금 결제 (계좌이체)</span>
+                <span className="font-black text-amber-600">{cashAmount.toLocaleString()}원</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-pick-text-sub">π Pi 테스트 결제</span>
+                <span className="font-black text-pick-purple">{piAmountWon.toLocaleString()}원</span>
+              </div>
+              <div className="flex items-center justify-between border-t border-dashed border-pick-border pt-2">
+                <span className="text-sm text-pick-text-sub">필요한 π 수량</span>
+                <span className="font-black text-pick-purple text-lg">
+                  π {piAmount < 0.001 ? piAmount.toFixed(6) : piAmount.toFixed(4)}
+                </span>
+              </div>
+              <p className="text-[11px] text-pick-text-sub text-right">
+                1π = ₩{effectivePiKrwRate.toLocaleString()} 기준 (테스트넷)
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="mt-3 pt-3 border-t border-pick-border flex items-center justify-between">
+                <span className="text-sm text-pick-text-sub">Pi 결제 금액</span>
+                <span className="font-black text-pick-purple text-xl">π {piAmount.toLocaleString()}</span>
+              </div>
+              <p className="text-[11px] text-pick-text-sub mt-1 text-right">
+                1π ≈ ₩{effectivePiKrwRate.toLocaleString()} 기준 (테스트넷)
+              </p>
+            </>
+          )}
         </div>
 
         {/* Pi Browser 안내 */}

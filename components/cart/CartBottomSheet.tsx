@@ -295,14 +295,22 @@ export default function CartBottomSheet({ onClose }: Props) {
         const data = await res.json();
         if (data.orderId) orderId = data.orderId;
 
-        // Pi 결제 → 체크아웃 페이지로 이동
-        if (paymentMethod === "PI" && data.orderId) {
+        // Pi / Pi 혼합 결제 → 체크아웃 페이지로 이동
+        if ((paymentMethod === "PI" || paymentMethod === "PI_MIX") && data.orderId) {
           const orderName = `${cart.storeName} ${cart.items[0]?.menuName ?? "주문"}${cart.items.length > 1 ? ` 외 ${cart.items.length - 1}개` : ""}`;
+          const cashAmount   = Math.round(totalPaid * (100 - piRatio) / 100);
+          const piAmountWon  = totalPaid - cashAmount;
           const params = new URLSearchParams({
-            orderId:   data.orderId,
-            amount:    String(totalPaid),
+            orderId:     data.orderId,
+            amount:      String(totalPaid),
             orderName,
+            paymentMode: paymentMethod,
           });
+          if (paymentMethod === "PI_MIX") {
+            params.set("cashAmount",  String(cashAmount));
+            params.set("piAmountWon", String(piAmountWon));
+            params.set("piPriceKrw",  String(piPriceKrw));
+          }
           router.push(`/checkout?${params.toString()}`);
           return;
         }
