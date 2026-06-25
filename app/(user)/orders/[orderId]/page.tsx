@@ -57,6 +57,7 @@ interface OrderDetail {
 
 // ── 상태 설정 ─────────────────────────────────────────
 const STATUS_CONFIG: Record<OrderStatus, { label: string; emoji: string; color: string; bg: string; border: string }> = {
+  awaiting_pi_payment: { label: "Pi 결제 대기 중", emoji: "π", color: "text-pick-purple", bg: "bg-pick-bg", border: "border-pick-border" },
   pending:        { label: "결제 확인 중",     emoji: "⏳", color: "text-yellow-600",  bg: "bg-yellow-50",  border: "border-yellow-200" },
   confirmed:      { label: "주문 수락됨",      emoji: "✅", color: "text-blue-600",    bg: "bg-blue-50",    border: "border-blue-200" },
   preparing:      { label: "조리 중",          emoji: "🍳", color: "text-orange-600",  bg: "bg-orange-50",  border: "border-orange-200" },
