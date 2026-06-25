@@ -62,6 +62,9 @@ async function refreshPiSession() {
 
 export default function PiSdkLoader() {
   useEffect(() => {
+    // Pi Browser가 아닌 일반 브라우저에서는 Pi SDK를 로드하지 않음
+    if (!/PiBrowser/i.test(navigator.userAgent)) return;
+
     if (window.Pi) {
       void refreshPiSession();
       return;
@@ -69,7 +72,6 @@ export default function PiSdkLoader() {
 
     // Avoid duplicate script tags
     if (document.querySelector('script[src="https://sdk.minepi.com/pi-sdk.js"]')) {
-      // Script already injected — wait for it
       const poll = setInterval(() => {
         if (window.Pi) {
           clearInterval(poll);

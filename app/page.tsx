@@ -71,7 +71,13 @@ export default function SplashPage() {
       // getSession 실패 시 Pi 인증으로 진행
     }
 
-    // Pi SDK 없으면 일반 브라우저 → /login으로
+    // Pi Browser가 아니면 일반 로그인으로
+    if (!/PiBrowser/i.test(navigator.userAgent)) {
+      window.location.replace("/login");
+      return;
+    }
+
+    // Pi Browser인데 SDK가 아직 없으면 최대 3초 대기
     if (!window.Pi) {
       let ms = 0;
       while (!window.Pi && ms < 3_000) {
