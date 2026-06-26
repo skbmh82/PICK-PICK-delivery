@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
-import { loadPiSdk } from "@/components/pwa/PiSdkLoader";
 
 // ── Pi Browser 전용 타입 ─────────────────────────────────
 type PiStatus =
@@ -280,22 +279,20 @@ function PiLogin() {
 
 // ── 메인 페이지 ───────────────────────────────────────────
 export default function LoginPage() {
-  // null = 판단 중, true = Pi 환경, false = 일반 브라우저
-  const [isPiEnv, setIsPiEnv] = useState<boolean | null>(null);
+  // "normal" = 이메일/카카오, "pi" = Pi 인증
+  const [mode, setMode] = useState<"normal" | "pi">("normal");
 
   useEffect(() => {
-    const ua       = navigator.userAgent;
-    const hostname = window.location.hostname;
-
-    // PiSdkLoader가 /login에서 SDK를 로드하지 않으므로
-    // window.Pi가 이미 있으면 Pi Browser/Desktop의 네이티브 주입
-    const piNative  = !!window.Pi && !window.__piSdkLoaded;
-    const piUA      = /PiBrowser/i.test(ua);
-    const piDomain  = hostname.endsWith(".pinet.com") ||
-                      hostname.endsWith(".minepi.com") ||
-                      hostname === "pinet.com";
-
-    setIsPiEnv(piNative || piUA || piDomain);
+    // UA 또는 도메인 확인으로 Pi 환경 빠르게 감지 → 자동 전환
+    const ua   = navigator.userAgent;
+    const host = window.location.hostname;
+    if (
+      /PiBrowser/i.test(ua) ||
+      host.endsWith(".pinet.com") ||
+      host.endsWith(".minepi.com")
+    ) {
+      setMode("pi");
+    }
   }, []);
 
   return (
@@ -308,11 +305,27 @@ export default function LoginPage() {
         <p className="text-sm text-gray-500 mt-1">맛있는 음식을 PICK 하세요!</p>
       </div>
 
-      {isPiEnv === null && (
-        <div className="w-9 h-9 border-4 border-[#A855F7] border-t-transparent rounded-full animate-spin" />
+      {mode === "pi" ? (
+        <>
+          <PiLogin />
+          <button
+            onClick={() => setMode("normal")}
+            className="text-xs text-gray-400 underline underline-offset-2"
+          >
+            이메일로 로그인
+          </button>
+        </>
+      ) : (
+        <>
+          <NormalLogin />
+          <button
+            onClick={() => setMode("pi")}
+            className="text-xs text-[#6B21A8] underline underline-offset-2"
+          >
+            π Pi Browser로 로그인
+          </button>
+        </>
       )}
-      {isPiEnv === true  && <PiLogin />}
-      {isPiEnv === false && <NormalLogin />}
     </div>
   );
 }
