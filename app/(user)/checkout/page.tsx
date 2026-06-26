@@ -85,6 +85,11 @@ function usePiCheckoutPayment(onSuccess: () => void) {
   return { hasPi, status, error, pay };
 }
 
+// 유효숫자 6자리 표시 (예: 0.0000134040)
+function formatPi(value: number): string {
+  return Number(value.toPrecision(6)).toString();
+}
+
 export default function CheckoutPage() {
   const searchParams = useSearchParams();
   const router       = useRouter();
@@ -173,7 +178,7 @@ export default function CheckoutPage() {
               <div className="flex items-center justify-between border-t border-dashed border-pick-border pt-2">
                 <span className="text-sm text-pick-text-sub">필요한 π 수량</span>
                 <span className="font-black text-pick-purple text-lg">
-                  π {piAmount < 0.001 ? piAmount.toFixed(6) : piAmount.toFixed(4)}
+                  {formatPi(piAmount)} π
                 </span>
               </div>
               <p className="text-[11px] text-pick-text-sub text-right">
@@ -255,8 +260,7 @@ export default function CheckoutPage() {
             </>
           ) : (
             <>
-              <span className="text-lg leading-none">π</span>
-              π {piAmount} 결제하기
+              {formatPi(piAmount)} π 결제하기
             </>
           )}
         </button>
