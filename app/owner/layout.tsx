@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 import FcmProvider from "@/components/pwa/FcmProvider";
+import { registerFcmToken } from "@/hooks/useFcmToken";
 import {
   LayoutDashboard,
   ClipboardList,
@@ -27,24 +28,19 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
   const [storeName,    setStoreName]    = useState<string | null>(null);
   const [isOpen,       setIsOpen]       = useState<boolean | null>(null);
   const [toggling,     setToggling]     = useState(false);
-  const [notifDenied,  setNotifDenied]  = useState(false);
+  const [notifState,   setNotifState]   = useState<"loading" | "default" | "granted" | "denied">("loading");
 
-  // 알림 권한 확인 — 미허용 시 배너 표시
+  // 알림 권한 상태 읽기 — 자동 요청 안 함 (Chrome은 user gesture 없이 팝업 안 뜸)
   useEffect(() => {
     if (typeof window === "undefined" || !("Notification" in window)) return;
-    if (Notification.permission === "default") {
-      // 아직 결정 안 됨 → 자동 요청
-      Notification.requestPermission().then((p) => {
-        if (p === "denied") setNotifDenied(true);
-      });
-    } else if (Notification.permission === "denied") {
-      setNotifDenied(true);
-    }
+    setNotifState(Notification.permission as "default" | "granted" | "denied");
   }, []);
 
+  // 버튼 클릭 시 권한 요청 (user gesture → 팝업 뜸)
   const handleRequestNotif = useCallback(async () => {
     const p = await Notification.requestPermission();
-    if (p === "granted") setNotifDenied(false);
+    setNotifState(p as "default" | "granted" | "denied");
+    if (p === "granted") await registerFcmToken();
   }, []);
 
   useEffect(() => {
@@ -119,16 +115,21 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
         </button>
       </header>
 
-      {/* 알림 권한 차단 배너 */}
-      {notifDenied && (
-        <div className="mx-4 mt-2 bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
-          <p className="text-xs text-red-700 font-bold">🔕 알림 차단됨 — 새 주문 소리를 받으려면 브라우저 설정에서 알림을 허용해주세요</p>
+      {/* 알림 권한 배너 */}
+      {notifState === "default" && (
+        <div className="mx-4 mt-2 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
+          <p className="text-xs text-amber-800 font-bold">🔔 새 주문 알림을 받으려면 알림을 허용해주세요</p>
           <button
             onClick={() => void handleRequestNotif()}
-            className="shrink-0 text-xs font-black text-red-700 underline"
+            className="shrink-0 text-xs font-black text-white bg-amber-500 px-3 py-1.5 rounded-full active:scale-95"
           >
             허용하기
           </button>
+        </div>
+      )}
+      {notifState === "denied" && (
+        <div className="mx-4 mt-2 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
+          <p className="text-xs text-red-700 font-bold">🔕 알림 차단됨 — 브라우저 주소창 자물쇠 아이콘 → 알림 허용으로 변경해주세요</p>
         </div>
       )}
 

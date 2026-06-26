@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { Navigation, Bike, Wallet, ChevronLeft, User } from "lucide-react";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 import FcmProvider from "@/components/pwa/FcmProvider";
-import { useState, useEffect, useRef } from "react";
+import { registerFcmToken } from "@/hooks/useFcmToken";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuthStore } from "@/stores/authStore";
 
 const RIDER_NAV = [
@@ -18,9 +19,21 @@ const RIDER_NAV = [
 export default function RiderLayout({ children }: { children: React.ReactNode }) {
   const pathname   = usePathname();
   const user       = useAuthStore((s) => s.user);
-  const [isOnline, setIsOnline] = useState(false);
-  const [toggling, setToggling] = useState(false);
-  const [name,     setName]     = useState("라이더");
+  const [isOnline,   setIsOnline]   = useState(false);
+  const [toggling,   setToggling]   = useState(false);
+  const [name,       setName]       = useState("라이더");
+  const [notifState, setNotifState] = useState<"loading" | "default" | "granted" | "denied">("loading");
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    setNotifState(Notification.permission as "default" | "granted" | "denied");
+  }, []);
+
+  const handleRequestNotif = useCallback(async () => {
+    const p = await Notification.requestPermission();
+    setNotifState(p as "default" | "granted" | "denied");
+    if (p === "granted") await registerFcmToken();
+  }, []);
   const lastLatRef = useRef(0);
   const lastLngRef = useRef(0);
 
@@ -117,6 +130,24 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
           </span>
         </button>
       </header>
+
+      {/* 알림 권한 배너 */}
+      {notifState === "default" && (
+        <div className="mx-4 mt-2 bg-sky-50 border border-sky-200 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
+          <p className="text-xs text-sky-800 font-bold">🔔 배달 요청 알림을 받으려면 알림을 허용해주세요</p>
+          <button
+            onClick={() => void handleRequestNotif()}
+            className="shrink-0 text-xs font-black text-white bg-sky-500 px-3 py-1.5 rounded-full active:scale-95"
+          >
+            허용하기
+          </button>
+        </div>
+      )}
+      {notifState === "denied" && (
+        <div className="mx-4 mt-2 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
+          <p className="text-xs text-red-700 font-bold">🔕 알림 차단됨 — 브라우저 주소창 자물쇠 아이콘 → 알림 허용으로 변경해주세요</p>
+        </div>
+      )}
 
       {/* 콘텐츠 */}
       <main className="pb-20">{children}</main>
