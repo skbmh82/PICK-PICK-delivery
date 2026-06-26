@@ -1033,6 +1033,13 @@ export default function MyPickPage() {
         )}
         <MenuItem icon={<Bell    size={18} />} label="알림" href="/notifications" />
         <MenuItem icon={<HelpCircle size={18} />} label="공지사항 / FAQ" href="/faq" />
+        {user && (
+          <MenuItem
+            icon={<LogOut size={18} className="text-red-400" />}
+            label="로그아웃"
+            onClick={() => void handleSignOut()}
+          />
+        )}
         {/* 다크모드 토글 */}
         <div className="flex items-center justify-between px-5 py-4">
           <div className="flex items-center gap-3.5">
