@@ -286,17 +286,16 @@ export default function LoginPage() {
   useEffect(() => {
     const ua       = navigator.userAgent;
     const hostname = window.location.hostname;
-    // Pi Browser(모바일 UA) 또는 Pi Desktop(pinet.com 도메인) 환경 감지
-    const isPiContext =
-      /PiBrowser/i.test(ua) ||
-      hostname.endsWith(".pinet.com") ||
-      hostname === "pinet.com";
 
-    if (!isPiContext) {
-      setIsPiEnv(false);
-      return;
-    }
-    loadPiSdk().then(() => setIsPiEnv(!!window.Pi));
+    // PiSdkLoader가 /login에서 SDK를 로드하지 않으므로
+    // window.Pi가 이미 있으면 Pi Browser/Desktop의 네이티브 주입
+    const piNative  = !!window.Pi && !window.__piSdkLoaded;
+    const piUA      = /PiBrowser/i.test(ua);
+    const piDomain  = hostname.endsWith(".pinet.com") ||
+                      hostname.endsWith(".minepi.com") ||
+                      hostname === "pinet.com";
+
+    setIsPiEnv(piNative || piUA || piDomain);
   }, []);
 
   return (

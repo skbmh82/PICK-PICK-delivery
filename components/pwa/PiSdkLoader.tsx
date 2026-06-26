@@ -80,7 +80,10 @@ export function loadPiSdk(): Promise<void> {
 
 export default function PiSdkLoader() {
   useEffect(() => {
-    // SDK 로드 후 session refresh (/ 와 /login은 자체 처리)
+    const path = window.location.pathname;
+    // 로그인/회원가입은 자체 Pi 감지 처리 — SDK 로드 건너뜀
+    // (SDK가 일반 Chrome에서도 window.Pi mock을 생성하므로 로그인 페이지 오염 방지)
+    if (path === "/" || path === "/login" || path === "/register") return;
     loadPiSdk().then(() => { void refreshPiSession(); });
   }, []);
 
