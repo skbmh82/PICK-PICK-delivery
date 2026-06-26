@@ -284,11 +284,12 @@ export default function LoginPage() {
   const [isPiEnv, setIsPiEnv] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Pi SDK 스크립트 로드 후 window.Pi 존재 여부로 Pi 환경 판단
-    // Pi Browser(모바일) / Pi Desktop(데스크톱) 모두 대응
-    loadPiSdk().then(() => {
-      setIsPiEnv(!!window.Pi);
-    });
+    // UA에 PiBrowser가 없으면 즉시 일반 브라우저로 확정 (SDK 로드 불필요)
+    if (!/PiBrowser/i.test(navigator.userAgent)) {
+      setIsPiEnv(false);
+      return;
+    }
+    loadPiSdk().then(() => setIsPiEnv(!!window.Pi));
   }, []);
 
   return (
