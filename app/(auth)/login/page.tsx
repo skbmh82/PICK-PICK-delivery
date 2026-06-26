@@ -284,8 +284,15 @@ export default function LoginPage() {
   const [isPiEnv, setIsPiEnv] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // UA에 PiBrowser가 없으면 즉시 일반 브라우저로 확정 (SDK 로드 불필요)
-    if (!/PiBrowser/i.test(navigator.userAgent)) {
+    const ua       = navigator.userAgent;
+    const hostname = window.location.hostname;
+    // Pi Browser(모바일 UA) 또는 Pi Desktop(pinet.com 도메인) 환경 감지
+    const isPiContext =
+      /PiBrowser/i.test(ua) ||
+      hostname.endsWith(".pinet.com") ||
+      hostname === "pinet.com";
+
+    if (!isPiContext) {
       setIsPiEnv(false);
       return;
     }
