@@ -654,9 +654,7 @@ export default function WalletPage() {
   const [checkedToday,   setCheckedToday]   = useState(false);
   const [streak,         setStreak]         = useState(0);
   const [checkLoading,   setCheckLoading]   = useState(false);
-  const [checkDone,      setCheckDone]      = useState(false);
   const [weekComplete,   setWeekComplete]   = useState(false);
-  const [weekNumber,     setWeekNumber]     = useState(1);
   const checkinFetched = useRef(false);
 
   const fetchWallet = useCallback(async () => {
@@ -695,11 +693,8 @@ export default function WalletPage() {
         setCheckedToday(true);
         setStreak(json.streak);
         setWeekComplete(json.isWeekComplete ?? false);
-        setWeekNumber(json.weekNumber ?? 1);
-        setCheckDone(true);
         const walletRes = await fetch("/api/wallet/transactions");
         if (walletRes.ok) setData(await walletRes.json());
-        setTimeout(() => setCheckDone(false), 3000);
       }
     } finally { setCheckLoading(false); }
   };
@@ -837,7 +832,6 @@ export default function WalletPage() {
           <div className="px-5 pt-5 pb-6">
             {(() => {
               const dayInWeek  = streak === 0 ? 0 : ((streak - 1) % 7) + 1;
-              const wkNum      = Math.ceil(streak / 7);
               const todayBonus = weekComplete; // 방금 7일 완료한 경우
               const totalToday = todayBonus ? 150 : 50;
               return (
@@ -903,7 +897,7 @@ export default function WalletPage() {
                   {/* 7일 사이클 달력 */}
                   <div className="bg-white/10 rounded-2xl px-4 py-3 mb-4">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs text-white/70 font-medium">{wkNum}번째 주 출석 현황</span>
+                      <span className="text-xs text-white/70 font-medium">연속 출석 현황</span>
                       <span className="text-xs font-black text-pick-yellow-light">{dayInWeek}/7일</span>
                     </div>
                     <div className="flex justify-between gap-1">
@@ -941,7 +935,7 @@ export default function WalletPage() {
                   <div className="flex items-center justify-center gap-2">
                     <Star size={12} className="text-pick-yellow-light fill-pick-yellow-light" />
                     <p className="text-xs text-white/70">
-                      <span className="font-black text-white">{wkNum}번째 주</span> · {streak}일 연속 출석 중
+                      {streak}일 연속 출석 중 🔥
                     </p>
                     <Star size={12} className="text-pick-yellow-light fill-pick-yellow-light" />
                   </div>
@@ -994,7 +988,7 @@ export default function WalletPage() {
             {streak > 0 && (
               <div className="mt-3">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[11px] text-pick-text-sub">{Math.ceil(streak / 7)}번째 주 출석 현황</span>
+                  <span className="text-[11px] text-pick-text-sub">연속 출석 현황</span>
                   <span className="text-[11px] font-black text-pick-purple">{((streak - 1) % 7) + 1}/7일</span>
                 </div>
                 <div className="h-2 bg-pick-border rounded-full overflow-hidden">
