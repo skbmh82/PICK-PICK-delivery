@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
+import { loadPiSdk } from "@/components/pwa/PiSdkLoader";
 
 // ── Pi Browser 전용 타입 ─────────────────────────────────
 type PiStatus =
@@ -177,11 +178,8 @@ function PiLogin() {
     if (started.current) return;
     started.current = true;
     setStatus("sdk");
-    let ms = 0;
-    while (!window.Pi && ms < 10_000) {
-      await new Promise<void>((r) => setTimeout(r, 200));
-      ms += 200;
-    }
+    // PiSdkLoader가 /login에서 건너뛰므로 여기서 직접 로드
+    await loadPiSdk();
     if (!window.Pi) { setError("Pi SDK를 불러올 수 없어요. 다시 시도해주세요."); setStatus("error"); return; }
 
     try {
