@@ -43,7 +43,7 @@ function KakaoIcon() {
 }
 
 // ── 일반 브라우저용 이메일/카카오 로그인 ─────────────────
-function NormalLogin() {
+function NormalLogin({ onPiClick }: { onPiClick: () => void }) {
   const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState("");
   const [showPw,   setShowPw]   = useState(false);
@@ -51,7 +51,7 @@ function NormalLogin() {
   const [kakaoLoading, setKakaoLoading] = useState(false);
   const [error,    setError]    = useState("");
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleEmailLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!email || !password) return;
     setLoading(true);
@@ -82,6 +82,21 @@ function NormalLogin() {
 
   return (
     <div className="w-full max-w-xs flex flex-col gap-4">
+      {/* Pi Browser 로그인 */}
+      <button
+        onClick={onPiClick}
+        className="w-full flex items-center justify-center gap-3 py-3.5 rounded-full bg-gradient-to-r from-[#4C1D95] to-[#A855F7] font-bold text-white text-sm active:scale-95 transition-all shadow-md"
+      >
+        <span className="text-lg leading-none">π</span>
+        Pi Browser로 로그인
+      </button>
+
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px bg-gray-200" />
+        <span className="text-xs text-gray-400">또는</span>
+        <div className="flex-1 h-px bg-gray-200" />
+      </div>
+
       {/* 카카오 로그인 */}
       <button
         onClick={() => void handleKakaoLogin()}
@@ -93,12 +108,6 @@ function NormalLogin() {
           : <KakaoIcon />}
         카카오로 로그인
       </button>
-
-      <div className="flex items-center gap-3">
-        <div className="flex-1 h-px bg-gray-200" />
-        <span className="text-xs text-gray-400">또는 이메일로</span>
-        <div className="flex-1 h-px bg-gray-200" />
-      </div>
 
       {/* 이메일 로그인 폼 */}
       <form onSubmit={(e) => void handleEmailLogin(e)} className="flex flex-col gap-3">
@@ -314,15 +323,7 @@ export default function LoginPage() {
           </button>
         </>
       ) : (
-        <>
-          <NormalLogin />
-          <button
-            onClick={() => setMode("pi")}
-            className="text-xs text-[#6B21A8] underline underline-offset-2"
-          >
-            π Pi Browser로 로그인
-          </button>
-        </>
+        <NormalLogin onPiClick={() => setMode("pi")} />
       )}
     </div>
   );
