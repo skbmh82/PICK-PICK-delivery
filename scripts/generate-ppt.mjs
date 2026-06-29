@@ -64,7 +64,7 @@ const C = {
     fill: { color: C.purpleLight }, line: { color: C.purpleLight },
   });
 
-  slide.addText("2026년 4월 22일  |  Pi Network SDK 연동 · 개발자 체크리스트 10/10 · Ecosystem Listing 신청", {
+  slide.addText("2026년 6월 29일  |  레퍼럴 보안 강화 · 조건부 보상 지급 · Pi 로그인 UX 개선", {
     x: 1, y: 3.6, w: 11.6, h: 0.5,
     fontSize: 14, color: "C4B5FD",
     align: "center",
@@ -88,7 +88,7 @@ const C = {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("📊  PICK PICK 진행 현황 (4/22 최신)", {
+  slide.addText("📊  PICK PICK 진행 현황 (6/29 최신)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 26, bold: true, color: C.purpleDark,
   });
@@ -123,6 +123,10 @@ const C = {
     { label: "주문 pending 흐름 · 라이더 heartbeat · Pi Network 플랜", pct: 100, color: C.green },
     { label: "다중 가게 통합 조회 · 안드로이드 알람 Web Audio 선예약", pct: 100, color: C.green },
     { label: "Pi SDK 통합 · 개발자 체크리스트 10/10 · Ecosystem Listing 신청", pct: 100, color: C.green },
+    { label: "초대 코드 레퍼럴 플로우 재설계 + 카카오 레퍼럴 버그 수정",      pct: 100, color: C.green },
+    { label: "DB 관리형 프로모션 배너 시스템",                               pct: 100, color: C.green },
+    { label: "Pi 로그인 UX 개선 + 환경 감지 + FCM 알림 팝업 개선",           pct: 100, color: C.green },
+    { label: "레퍼럴 역할별 보상 + 5명 한도 + 조건부 지급 시스템",            pct: 100, color: C.green },
   ];
 
   progressItems.forEach((item, i) => {
@@ -153,7 +157,7 @@ const C = {
 
   // 우측 요약 박스
   const summary = [
-    { icon: "✅", label: "완료 기능",  value: "80개+", color: C.green,  pale: C.greenPale },
+    { icon: "✅", label: "완료 기능",  value: "90개+", color: C.green,  pale: C.greenPale },
     { icon: "🚧", label: "진행 중",    value: "0개",   color: C.yellow, pale: "FFFBEB" },
     { icon: "⏳", label: "미착수",     value: "0개",   color: C.textSub, pale: "F3F4F6" },
   ];
@@ -1355,7 +1359,171 @@ const C = {
   });
 }
 
-// ── 슬라이드 18 — Pi Network 현황 & 아키텍처 ───────────
+// ── 슬라이드 18 — Day 17 작업 내역 (6/29) — Pi 로그인 UX · FCM · 출석 개선 ──
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fill: { color: "F0FDFA" }, line: { color: "0D9488" },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 06. 29 (Day 17)", {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fontSize: 11, bold: true, color: "0D9488", align: "center",
+  });
+
+  slide.addText("🎨  Pi 로그인 UX · FCM 알림 개선 · 출석 UI · Pi 환경 감지", {
+    x: 3.8, y: 0.22, w: 9.8, h: 0.55,
+    fontSize: 17, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day17 = [
+    {
+      emoji: "🚪", title: "로그아웃 버튼 복원",
+      desc: "MyPICK 페이지 로그아웃 버튼 재추가\n공지사항·FAQ 아래 배치\nhandleSignOut 기존 함수 활용\n빨간 LogOut 아이콘 적용",
+    },
+    {
+      emoji: "🔔", title: "FCM 알림 팝업 개선",
+      desc: "Chrome: user gesture 없이 팝업 불가\n자동 requestPermission() 제거\n사장님(amber)·라이더(sky) 배너 추가\n'허용하기' 버튼 클릭 시 팝업 표시",
+    },
+    {
+      emoji: "π", title: "Pi 환경 감지 개선",
+      desc: "UA 'PiBrowser' 감지 → 자동 전환\n도메인 .pinet.com/.minepi.com 감지\n기본: 이메일 표시 (Pi 환경만 자동 전환)\nPi Desktop 지원 (도메인 기반)",
+    },
+    {
+      emoji: "🛡️", title: "PiSdkLoader 개선",
+      desc: "/login·/register 페이지 SDK 로드 건너뜀\n일반 Chrome window.Pi mock 오염 방지\nPiLogin이 직접 loadPiSdk() 호출\n로그인 후 정상 페이지에서만 SDK 로드",
+    },
+    {
+      emoji: "📅", title: "출석 주차 표시 제거",
+      desc: "'N번째 주 출석 현황' → '연속 출석 현황'\n'N번째 주·X일 연속' → 'X일 연속 🔥'\n매일 50 PICK · 7연속 달성 +100 PICK\n하루 미체크 시 다음날 1일차로 리셋",
+    },
+    {
+      emoji: "🎨", title: "Pi 로그인 버튼 디자인 개선",
+      desc: "카카오 버튼 위로 이동 (최상단)\n보라 그라데이션 풀버튼 (#4C1D95→#A855F7)\n이메일 로그인 버튼 파랑 (#1d4ed8→#38bdf8)\n세 버튼 색상 명확히 구분",
+    },
+  ];
+
+  day17.forEach((item, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
+    const y = 1.0 + row * 2.55;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.1, h: 2.35,
+      fill: { color: "F0FDFA" }, line: { color: "5EEAD4" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: y + 0.2, w: 0.58, h: 0.58,
+      fill: { color: C.white }, line: { color: "5EEAD4" },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.18, y: y + 0.18, w: 0.6, h: 0.6,
+      fontSize: 18, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
+      fontSize: 12, bold: true, color: "0D9488",
+    });
+    slide.addText(item.desc, {
+      x: x + 0.22, y: y + 0.78, w: 3.65, h: 1.42,
+      fontSize: 10, color: C.textDark, wrap: true,
+    });
+  });
+}
+
+// ── 슬라이드 19 — Day 18 작업 내역 (6/29) — 레퍼럴 보안 강화 ───────────
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fill: { color: "EEF2FF" }, line: { color: "4338CA" },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 06. 29 (Day 18)", {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fontSize: 11, bold: true, color: "4338CA", align: "center",
+  });
+
+  slide.addText("🔐  레퍼럴 보안 강화 · 역할별 보상 · 조건부 지급 시스템", {
+    x: 3.8, y: 0.22, w: 9.8, h: 0.55,
+    fontSize: 17, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day18 = [
+    {
+      emoji: "💰", title: "역할별 레퍼럴 보상",
+      desc: "user:  5,000 PICK (즉시 지급)\nowner: 20,000 PICK (조건부 대기)\nrider: 10,000 PICK (조건부 대기)\n초대자: 5,000 PICK 고정",
+    },
+    {
+      emoji: "🔒", title: "초대자 5명 제한",
+      desc: "완료된 보상 + pending 합산 카운트\n5명 초과 시 초대자 보상 없음\n피초대자는 여전히 보상 수령\n한도 초과 시 알림만 발송",
+    },
+    {
+      emoji: "🔍", title: "부정 사용 시나리오 분석",
+      desc: "단일계정 역할 사이클링 → 차단됨\n다계정 반복 (이메일 환경 위험)\n가짜 사장님 이탈 (PICK만 취득)\nPi 전용 전환 시 다계정 자연 차단",
+    },
+    {
+      emoji: "💾", title: "pending_referral_rewards 테이블",
+      desc: "조건 타입: owner_first_order / rider_first_delivery\ninvitee_amount + referrer_amount 저장\nfulfilled 플래그로 상태 관리\nunique index (미완료 1건 제한)",
+    },
+    {
+      emoji: "⏳", title: "조건부 보상 지급 로직",
+      desc: "owner: 가게 등록 + 첫 주문 delivered 시\nrider: 첫 배달 delivered 시\nalreadyUsed: wallet_txn + pending 모두 체크\n환경변수로 보상액 설정 가능",
+    },
+    {
+      emoji: "⚡", title: "자동 지급 처리",
+      desc: "orders status='delivered' 시 자동 체크\n사장님·라이더 pending 각각 조회\n첫 주문/배달 count=1 확인 후 지급\n피초대자 + 초대자 모두 알림 발송",
+    },
+  ];
+
+  day18.forEach((item, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
+    const y = 1.0 + row * 2.55;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.1, h: 2.35,
+      fill: { color: "EEF2FF" }, line: { color: "A5B4FC" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: y + 0.2, w: 0.58, h: 0.58,
+      fill: { color: C.white }, line: { color: "A5B4FC" },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.18, y: y + 0.18, w: 0.6, h: 0.6,
+      fontSize: 18, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
+      fontSize: 12, bold: true, color: "4338CA",
+    });
+    slide.addText(item.desc, {
+      x: x + 0.22, y: y + 0.78, w: 3.65, h: 1.42,
+      fontSize: 10, color: C.textDark, wrap: true,
+    });
+  });
+}
+
+// ── 슬라이드 20 — Pi Network 현황 & 아키텍처 ───────────
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
