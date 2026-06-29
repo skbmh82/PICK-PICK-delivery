@@ -4,6 +4,69 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createNotification, ORDER_STATUS_NOTIFICATION } from "@/lib/notifications";
 
+// pending_referral_rewards 조건 충족 시 지급
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function fulfillPendingReferral(admin: any, pending: any) {
+  const [{ data: iw }, { data: rw }] = await Promise.all([
+    admin.from("wallets").select("pick_balance, total_earned").eq("id", pending.invitee_wallet_id).single(),
+    admin.from("wallets").select("pick_balance, total_earned").eq("id", pending.referrer_wallet_id).single(),
+  ]);
+  if (!iw) return;
+
+  const inviteeNew  = Number(iw.pick_balance)  + Number(pending.invitee_amount);
+  const ops: Promise<unknown>[] = [
+    admin.from("pending_referral_rewards")
+      .update({ fulfilled: true, fulfilled_at: new Date().toISOString() })
+      .eq("id", pending.id),
+    admin.from("wallets").update({
+      pick_balance: inviteeNew,
+      total_earned: Number(iw.total_earned ?? 0) + Number(pending.invitee_amount),
+      updated_at:   new Date().toISOString(),
+    }).eq("id", pending.invitee_wallet_id),
+    admin.from("wallet_transactions").insert({
+      wallet_id:     pending.invitee_wallet_id,
+      type:          "reward",
+      amount:        pending.invitee_amount,
+      balance_after: inviteeNew,
+      description:   `친구초대 가입 보상 (초대자: ${pending.referrer_name})`,
+    }),
+    createNotification({
+      userId: pending.invitee_user_id,
+      type:   "reward",
+      title:  "🎉 초대 보상이 지급됐어요!",
+      body:   `${Number(pending.invitee_amount).toLocaleString()} PICK이 지갑에 추가됐습니다.`,
+      data:   { type: "referral" },
+    }),
+  ];
+
+  if (rw && Number(pending.referrer_amount) > 0) {
+    const referrerNew = Number(rw.pick_balance) + Number(pending.referrer_amount);
+    ops.push(
+      admin.from("wallets").update({
+        pick_balance: referrerNew,
+        total_earned: Number(rw.total_earned ?? 0) + Number(pending.referrer_amount),
+        updated_at:   new Date().toISOString(),
+      }).eq("id", pending.referrer_wallet_id),
+      admin.from("wallet_transactions").insert({
+        wallet_id:     pending.referrer_wallet_id,
+        type:          "reward",
+        amount:        pending.referrer_amount,
+        balance_after: referrerNew,
+        description:   `친구초대 보상 (초대: ${pending.invitee_name})`,
+      }),
+      createNotification({
+        userId: pending.referrer_user_id,
+        type:   "reward",
+        title:  `${pending.invitee_name}님이 조건을 달성했어요! 🎉`,
+        body:   `${Number(pending.referrer_amount).toLocaleString()} PICK이 지갑에 추가됐습니다.`,
+        data:   { type: "referral" },
+      }),
+    );
+  }
+
+  await Promise.all(ops);
+}
+
 // 배달 요청 알림을 보낼 라이더 최대 반경 (km)
 const RIDER_NOTIFY_RADIUS_KM = 5;
 
@@ -222,6 +285,73 @@ export async function PATCH(
             .update({ status: "settled", settled_at: new Date().toISOString() })
             .eq("id", earning.id),
         ]);
+      }
+    }
+  }
+
+  // 배달 완료 시 pending 레퍼럴 보상 조건 체크
+  if (status === "delivered") {
+    // 주문의 store_id, rider_id 조회
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: orderRef } = await (admin as any)
+      .from("orders")
+      .select("store_id, rider_id, stores!inner(owner_id)")
+      .eq("id", orderId)
+      .single();
+
+    // ── 사장님: 첫 주문 완료 ─────────────────────────────────
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const storeOwnerId = (orderRef?.stores as any)?.owner_id as string | undefined;
+    if (storeOwnerId) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: ownerPending } = await (admin as any)
+        .from("pending_referral_rewards")
+        .select("*")
+        .eq("invitee_user_id", storeOwnerId)
+        .eq("condition_type", "owner_first_order")
+        .eq("fulfilled", false)
+        .limit(1)
+        .maybeSingle();
+
+      if (ownerPending) {
+        // 이 사장님의 모든 가게에서 completed 주문 수 확인 (지금 막 delivered 됐으니 1이면 첫 주문)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { count: ownerDeliveredCount } = await (admin as any)
+          .from("orders")
+          .select("id, stores!inner(owner_id)", { count: "exact", head: true })
+          .eq("stores.owner_id", storeOwnerId)
+          .eq("status", "delivered");
+
+        if ((ownerDeliveredCount ?? 0) === 1) {
+          await fulfillPendingReferral(admin, ownerPending);
+        }
+      }
+    }
+
+    // ── 라이더: 첫 배달 완료 ─────────────────────────────────
+    const riderId = orderRef?.rider_id as string | undefined;
+    if (riderId) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: riderPending } = await (admin as any)
+        .from("pending_referral_rewards")
+        .select("*")
+        .eq("invitee_user_id", riderId)
+        .eq("condition_type", "rider_first_delivery")
+        .eq("fulfilled", false)
+        .limit(1)
+        .maybeSingle();
+
+      if (riderPending) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { count: riderDeliveredCount } = await (admin as any)
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .eq("rider_id", riderId)
+          .eq("status", "delivered");
+
+        if ((riderDeliveredCount ?? 0) === 1) {
+          await fulfillPendingReferral(admin, riderPending);
+        }
       }
     }
   }
