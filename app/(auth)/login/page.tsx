@@ -142,7 +142,7 @@ function NormalLogin({ onPiClick }: { onPiClick: () => void }) {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3.5 rounded-full bg-gradient-to-r from-pick-purple-dark to-pick-purple-light text-white font-black text-sm active:scale-95 transition-all disabled:opacity-60 shadow-md"
+          className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#1d4ed8] to-[#38bdf8] text-white font-black text-sm active:scale-95 transition-all disabled:opacity-60 shadow-md"
         >
           {loading
             ? <span className="inline-block w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
