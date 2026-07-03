@@ -31,12 +31,17 @@ export async function GET() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: profile } = await (admin as any)
     .from("users")
-    .select("id, role")
+    .select("id, role, rider_is_approved")
     .eq("auth_id", user.id)
     .single();
 
   if (!profile || !["rider", "admin"].includes(profile.role)) {
     return NextResponse.json({ error: "라이더 권한이 필요합니다" }, { status: 403 });
+  }
+
+  // 미승인 라이더는 주문 목록 비어있음
+  if (!profile.rider_is_approved && profile.role !== "admin") {
+    return NextResponse.json({ orders: [] });
   }
 
   // 라이더 위치 + 온라인 여부 조회

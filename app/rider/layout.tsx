@@ -22,6 +22,7 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
   const [isOnline,   setIsOnline]   = useState(false);
   const [toggling,   setToggling]   = useState(false);
   const [name,       setName]       = useState("라이더");
+  const [isApproved, setIsApproved] = useState(false);
   const [notifState, setNotifState] = useState<"loading" | "default" | "granted" | "denied">("loading");
 
   useEffect(() => {
@@ -42,7 +43,8 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
     fetch("/api/rider/status")
       .then((r) => r.json())
       .then((d) => {
-        if (typeof d.isActive === "boolean") setIsOnline(d.isActive);
+        if (typeof d.isActive  === "boolean") setIsOnline(d.isActive);
+        if (typeof d.isApproved === "boolean") setIsApproved(d.isApproved);
         if (d.name) setName(d.name as string);
       })
       .catch(() => {/* 비로그인 등 무시 */});
@@ -115,8 +117,9 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
         {/* 온/오프라인 토글 */}
         <button
           onClick={() => void handleToggle()}
-          disabled={toggling}
-          className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 transition-all disabled:opacity-60 ${
+          disabled={toggling || !isApproved}
+          title={!isApproved ? "서류 심사 승인 후 배달 가능합니다" : undefined}
+          className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 transition-all disabled:opacity-50 ${
             isOnline
               ? "bg-white/20 border border-white/30"
               : "bg-white/10 border border-white/10"
@@ -130,6 +133,17 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
           </span>
         </button>
       </header>
+
+      {/* 미승인 배너 */}
+      {!isApproved && (
+        <div className="mx-4 mt-2 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center gap-3">
+          <span className="text-xl flex-shrink-0">⏳</span>
+          <div>
+            <p className="text-xs font-black text-amber-800">서류 심사 대기 중입니다</p>
+            <p className="text-[11px] text-amber-700 mt-0.5">승인 완료 후 배달을 시작할 수 있어요.</p>
+          </div>
+        </div>
+      )}
 
       {/* 알림 권한 배너 */}
       {notifState === "default" && (

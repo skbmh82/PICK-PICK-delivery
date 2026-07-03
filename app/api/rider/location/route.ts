@@ -28,7 +28,7 @@ export async function PATCH(request: NextRequest) {
 
   const { data: profile } = await admin
     .from("users")
-    .select("id, role")
+    .select("id, role, rider_is_approved")
     .eq("auth_id", user.id)
     .single();
 
@@ -37,6 +37,14 @@ export async function PATCH(request: NextRequest) {
   }
 
   const { lat, lng, isActive = true } = parsed.data;
+
+  // 미승인 라이더는 온라인 전환 불가
+  if (isActive && !profile.rider_is_approved && profile.role !== "admin") {
+    return NextResponse.json(
+      { error: "서류 심사 승인 후 배달을 시작할 수 있습니다", code: "NOT_APPROVED" },
+      { status: 403 }
+    );
+  }
 
   // upsert — 없으면 insert, 있으면 update
   const { error: upsertError } = await admin

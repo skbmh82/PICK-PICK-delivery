@@ -15,12 +15,12 @@ export async function GET() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: profile } = await (admin as any)
     .from("users")
-    .select("id, name, role")
+    .select("id, name, role, rider_is_approved")
     .eq("auth_id", user.id)
     .single();
 
   if (!profile || !["rider", "admin"].includes(profile.role)) {
-    return NextResponse.json({ isActive: false, name: "라이더" });
+    return NextResponse.json({ isActive: false, name: "라이더", isApproved: false });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -31,7 +31,8 @@ export async function GET() {
     .single();
 
   return NextResponse.json({
-    isActive: loc?.is_active ?? false,
-    name:     profile.name ?? "라이더",
+    isActive:   loc?.is_active ?? false,
+    name:       profile.name ?? "라이더",
+    isApproved: profile.rider_is_approved ?? false,
   });
 }
