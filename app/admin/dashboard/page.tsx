@@ -560,6 +560,7 @@ interface RiderRow {
 }
 
 const VEHICLE_LABEL: Record<string, string> = {
+  car:        "🚗 차량",
   motorcycle: "🛵 오토바이",
   bicycle:    "🚴 자전거",
   kickboard:  "🛴 킥보드",

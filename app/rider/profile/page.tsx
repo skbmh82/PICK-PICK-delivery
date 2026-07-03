@@ -13,7 +13,7 @@ interface RiderProfile {
   email:              string;
   phone:              string | null;
   profileImage:       string | null;
-  vehicleType:        "motorcycle" | "bicycle" | "kickboard";
+  vehicleType:        "car" | "motorcycle" | "bicycle" | "kickboard";
   isOnline:           boolean;
   idImageUrl:         string | null;
   vehicleRegImageUrl: string | null;
@@ -29,17 +29,23 @@ interface RiderData {
 }
 
 const VEHICLE_OPTIONS = [
+  { value: "car",        label: "차량",     emoji: "🚗" },
   { value: "motorcycle", label: "오토바이", emoji: "🛵" },
   { value: "bicycle",    label: "자전거",   emoji: "🚴" },
   { value: "kickboard",  label: "킥보드",   emoji: "🛴" },
 ] as const;
 
-// 오토바이는 면허증+차량등록증+보험 3종 / 자전거·킥보드는 신분증 1종
+// 차량·오토바이: 면허증+차량등록증+보험 3종 / 자전거·킥보드: 신분증 1종
 const DOC_REQUIREMENTS = {
+  car:        [
+    { key: "idImageUrl",         label: "면허증 사본",   required: true },
+    { key: "vehicleRegImageUrl", label: "차량등록증",     required: true },
+    { key: "insuranceImageUrl",  label: "보험가입증명서", required: true },
+  ],
   motorcycle: [
-    { key: "idImageUrl",         label: "면허증 사본",      required: true },
-    { key: "vehicleRegImageUrl", label: "차량등록증",        required: true },
-    { key: "insuranceImageUrl",  label: "보험가입증명서",    required: true },
+    { key: "idImageUrl",         label: "면허증 사본",   required: true },
+    { key: "vehicleRegImageUrl", label: "차량등록증",     required: true },
+    { key: "insuranceImageUrl",  label: "보험가입증명서", required: true },
   ],
   bicycle:   [{ key: "idImageUrl", label: "신분증 또는 면허증", required: true }],
   kickboard: [{ key: "idImageUrl", label: "신분증 또는 면허증", required: true }],

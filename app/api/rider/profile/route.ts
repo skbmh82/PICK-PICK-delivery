@@ -109,7 +109,7 @@ export async function GET() {
 const UpdateRiderSchema = z.object({
   name:               z.string().min(2).max(50).optional(),
   phone:              z.string().max(20).optional(),
-  vehicleType:        z.enum(["motorcycle", "bicycle", "kickboard"]).optional(),
+  vehicleType:        z.enum(["car", "motorcycle", "bicycle", "kickboard"]).optional(),
   profileImage:       z.string().url().nullable().optional(),
   idImageUrl:         z.string().min(1).nullable().optional(),
   vehicleRegImageUrl: z.string().min(1).nullable().optional(),
