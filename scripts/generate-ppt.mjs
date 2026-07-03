@@ -64,7 +64,7 @@ const C = {
     fill: { color: C.purpleLight }, line: { color: C.purpleLight },
   });
 
-  slide.addText("2026년 6월 29일  |  레퍼럴 보안 강화 · 조건부 보상 지급 · Pi 로그인 UX 개선", {
+  slide.addText("2026년 7월 3일  |  서류 인증 · 3상태 심사 · 거리별 배달비 · 관리자 UX 강화", {
     x: 1, y: 3.6, w: 11.6, h: 0.5,
     fontSize: 14, color: "C4B5FD",
     align: "center",
@@ -88,7 +88,7 @@ const C = {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("📊  PICK PICK 진행 현황 (6/29 최신)", {
+  slide.addText("📊  PICK PICK 진행 현황 (7/3 최신)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 26, bold: true, color: C.purpleDark,
   });
@@ -127,6 +127,9 @@ const C = {
     { label: "DB 관리형 프로모션 배너 시스템",                               pct: 100, color: C.green },
     { label: "Pi 로그인 UX 개선 + 환경 감지 + FCM 알림 팝업 개선",           pct: 100, color: C.green },
     { label: "레퍼럴 역할별 보상 + 5명 한도 + 조건부 지급 시스템",            pct: 100, color: C.green },
+    { label: "서류 인증 시스템 (가게·라이더) + 3상태 승인 (null/true/false)",    pct: 100, color: C.green },
+    { label: "거리별 배달비 구역 (delivery_zones) + Haversine 거리 계산",        pct: 100, color: C.green },
+    { label: "관리자 서류 이미지 뷰어 (dialog top-layer) + 라이더 배달 차단",     pct: 100, color: C.green },
   ];
 
   progressItems.forEach((item, i) => {
@@ -1523,7 +1526,171 @@ const C = {
   });
 }
 
-// ── 슬라이드 20 — Pi Network 현황 & 아키텍처 ───────────
+// ── 슬라이드 20 — Day 19 작업 내역 (7/3) — 서류 인증 · 차량 유형 · 거리 배달비 ──
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fill: { color: "FFF7ED" }, line: { color: "C2410C" },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 07. 03 (Day 19)", {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fontSize: 11, bold: true, color: "C2410C", align: "center",
+  });
+
+  slide.addText("📋  서류 인증 · 차량 유형 확장 · 거리별 배달비 구역 시스템", {
+    x: 3.8, y: 0.22, w: 9.8, h: 0.55,
+    fontSize: 17, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day19 = [
+    {
+      emoji: "📱", title: "주문 시 전화번호 필수 검증",
+      desc: "주문 생성 전 phone 필드 필수 체크\n없으면 입력 유도 팝업 표시\n역할 전환 시 phone null 사이드이펙트 방지\nmy-pick 프로필 편집 연동",
+    },
+    {
+      emoji: "🏪", title: "사업자등록증 업로드 필수화",
+      desc: "가게 등록 폼 businessRegImageUrl 추가\nZod Required 유효성 강제\nSupabase pick-pick-image 버킷 업로드\n미제출 시 등록 API 차단",
+    },
+    {
+      emoji: "🚴", title: "라이더 서류 제출 플로우",
+      desc: "신분증·차량등록증·보험증명서 3종\n각 이미지 Storage 업로드\nrider_documents 테이블 저장\n미제출 시 배달 배정 차단",
+    },
+    {
+      emoji: "🚗", title: "라이더 차량 유형 자동차 추가",
+      desc: "motorcycle·scooter·bicycle에 car 추가\nDB ALTER TYPE enum 적용\nAPI·폼 ENUM 동기화\n기존 라이더 데이터 호환 유지",
+    },
+    {
+      emoji: "🗺️", title: "거리별 배달비 구역 시스템",
+      desc: "delivery_zones 테이블 신설\n반경 km 단위 구역 + 구역별 배달비\nHaversine 공식 거리 계산\n가게 상세 + 주문 API 연동",
+    },
+    {
+      emoji: "🚫", title: "미승인 라이더 배달 차단",
+      desc: "rider_is_approved NULL/false 체크\n/api/rider/accept API 레벨 차단\n라이더 레이아웃 심사중 배너 표시\n승인 후 정상 플로우 자동 복원",
+    },
+  ];
+
+  day19.forEach((item, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
+    const y = 1.0 + row * 2.55;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.1, h: 2.35,
+      fill: { color: "FFF7ED" }, line: { color: "FED7AA" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: y + 0.2, w: 0.58, h: 0.58,
+      fill: { color: C.white }, line: { color: "FED7AA" },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.18, y: y + 0.18, w: 0.6, h: 0.6,
+      fontSize: 18, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
+      fontSize: 12, bold: true, color: "C2410C",
+    });
+    slide.addText(item.desc, {
+      x: x + 0.22, y: y + 0.78, w: 3.65, h: 1.42,
+      fontSize: 10, color: C.textDark, wrap: true,
+    });
+  });
+}
+
+// ── 슬라이드 21 — Day 20 작업 내역 (7/3) — 3상태 심사 · 관리자 서류 UX ──
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fill: { color: "FFF1F2" }, line: { color: "BE123C" },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 07. 03 (Day 20)", {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fontSize: 11, bold: true, color: "BE123C", align: "center",
+  });
+
+  slide.addText("🔐  3상태 승인 시스템 · 관리자 서류 심사 UI · 이미지 뷰어", {
+    x: 3.8, y: 0.22, w: 9.8, h: 0.55,
+    fontSize: 17, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day20 = [
+    {
+      emoji: "✅", title: "가게 3상태 승인 시스템",
+      desc: "null=심사중, true=승인, false=반려\n관리자 [승인] [반려] 버튼 쌍\nis_approved NULL 기본값 적용\n사장님에게 알림 자동 발송",
+    },
+    {
+      emoji: "🏍️", title: "라이더 3상태 승인 시스템",
+      desc: "rider_is_approved NULL/true/false\n신규 라이더 null 상태로 시작\n관리자 [승인] [반려] 처리\n미승인 시 배달 자동 차단",
+    },
+    {
+      emoji: "🖼️", title: "관리자 서류 이미지 뷰어",
+      desc: "<dialog> showModal() top-layer 방식\nz-index·overflow 충돌 없음\niOS PWA 뒤로가기 안전 유지\n화면 탭 or Esc로 닫기",
+    },
+    {
+      emoji: "📊", title: "관리자 가게 심사 UI",
+      desc: "사업자등록증 이미지 표시\n주소·카테고리·사장님 정보 표시\n[승인][반려] 버튼 + 반려 사유 입력\n심사 상태 배지 (심사중/승인/반려)",
+    },
+    {
+      emoji: "📋", title: "관리자 라이더 심사 UI",
+      desc: "신분증·차량등록증·보험증명서 뷰어\n라이더 기본 정보 + 차량 유형 표시\n[승인][반려] 버튼 쌍\n서류 이미지 탭 → 전체화면 확대",
+    },
+    {
+      emoji: "🔒", title: "역할 기반 접근 제어 강화",
+      desc: "미승인 가게 공개 노출 차단\n미승인 라이더 배달 배정 차단\n심사중 라이더 전용 레이아웃 배너\n승인 후 정상 플로우 자동 복원",
+    },
+  ];
+
+  day20.forEach((item, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
+    const y = 1.0 + row * 2.55;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.1, h: 2.35,
+      fill: { color: "FFF1F2" }, line: { color: "FCA5A5" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: y + 0.2, w: 0.58, h: 0.58,
+      fill: { color: C.white }, line: { color: "FCA5A5" },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.18, y: y + 0.18, w: 0.6, h: 0.6,
+      fontSize: 18, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
+      fontSize: 12, bold: true, color: "BE123C",
+    });
+    slide.addText(item.desc, {
+      x: x + 0.22, y: y + 0.78, w: 3.65, h: 1.42,
+      fontSize: 10, color: C.textDark, wrap: true,
+    });
+  });
+}
+
+// ── 슬라이드 22 — Pi Network 현황 & 아키텍처 ───────────
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
