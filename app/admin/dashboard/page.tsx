@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { Users, Coins, RefreshCw, Search, X, Check, ChevronDown, Store, MapPin, Phone, Clock, XCircle, CheckCircle, BarChart2, ShoppingBag, Ticket, Plus, Tag, ToggleLeft, ToggleRight, Trash2, Bell, Send, ArrowLeft, Megaphone, CalendarDays, Bike, ShieldCheck, FileImage } from "lucide-react";
@@ -60,6 +61,35 @@ const CATEGORY_EMOJI: Record<string, string> = {
 // ── 서류 이미지 라이트박스 ──────────────────────────────
 function DocImage({ url, label }: { url: string; label: string }) {
   const [open, setOpen] = useState(false);
+
+  const overlay = (
+    <div
+      className="fixed inset-0 z-[9999] bg-black/95 flex flex-col items-center justify-center px-4"
+      style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0 }}
+      onClick={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        className="absolute top-5 right-5 w-11 h-11 flex items-center justify-center rounded-full bg-white/20 text-white"
+      >
+        <X size={22} />
+      </button>
+
+      <p className="text-white/80 text-sm font-bold mb-4">{label}</p>
+
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={url}
+        alt={label}
+        className="max-w-full max-h-[80dvh] object-contain rounded-2xl shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      />
+
+      <p className="text-white/50 text-xs mt-4">화면을 탭하면 닫힙니다</p>
+    </div>
+  );
+
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className="block w-full text-left">
@@ -68,35 +98,7 @@ function DocImage({ url, label }: { url: string; label: string }) {
         <p className="text-[10px] text-pick-purple text-center mt-0.5 font-bold">{label} — 탭하여 크게 보기 🔍</p>
       </button>
 
-      {open && (
-        <div
-          className="fixed inset-0 z-[300] bg-black/95 flex flex-col items-center justify-center px-4"
-          onClick={() => setOpen(false)}
-        >
-          {/* 닫기 버튼 */}
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="absolute top-5 right-5 w-10 h-10 flex items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
-          >
-            <X size={20} />
-          </button>
-
-          {/* 문서 라벨 */}
-          <p className="text-white/80 text-sm font-bold mb-4">{label}</p>
-
-          {/* 확대 이미지 */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={url}
-            alt={label}
-            className="max-w-full max-h-[80dvh] object-contain rounded-2xl shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
-
-          <p className="text-white/50 text-xs mt-4">화면을 탭하면 닫힙니다</p>
-        </div>
-      )}
+      {open && typeof document !== "undefined" && createPortal(overlay, document.body)}
     </>
   );
 }
