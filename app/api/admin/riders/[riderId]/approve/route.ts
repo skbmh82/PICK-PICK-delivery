@@ -5,8 +5,9 @@ import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 // PATCH /api/admin/riders/[riderId]/approve — 라이더 승인/반려
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { riderId: string } }
+  { params }: { params: Promise<{ riderId: string }> }
 ) {
+  const { riderId } = await params;
   const supabase = await createServerSupabaseClient();
   const admin    = getAdminSupabaseClient() as any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -29,7 +30,7 @@ export async function PATCH(
   const { error } = await admin
     .from("users")
     .update({ rider_is_approved: body.approved, updated_at: new Date().toISOString() })
-    .eq("id", params.riderId)
+    .eq("id", riderId)
     .eq("role", "rider");
 
   if (error) {
