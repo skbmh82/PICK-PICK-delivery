@@ -39,15 +39,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
   }
 
-  // 2. users 테이블에서 내부 userId 조회
+  // 2. users 테이블에서 내부 userId + 전화번호 조회
   const { data: profile } = await admin
     .from("users")
-    .select("id")
+    .select("id, phone")
     .eq("auth_id", user.id)
     .single();
 
   if (!profile) {
     return NextResponse.json({ error: "사용자 프로필을 찾을 수 없습니다" }, { status: 404 });
+  }
+
+  // 테스트넷 기간: 현금/Pi 결제 연락을 위해 전화번호 필수
+  if (!profile.phone || String(profile.phone).trim() === "") {
+    return NextResponse.json(
+      { error: "전화번호를 등록해야 주문할 수 있어요. 장바구니에서 전화번호를 입력해주세요.", code: "PHONE_REQUIRED" },
+      { status: 400 }
+    );
   }
 
   // 3. 요청 바디 파싱 및 유효성 검사

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { X, Trash2, Minus, Plus, ShoppingBag, Bike, Coins, MapPin, ChevronRight, Home, Briefcase, Check, Ticket, ChevronDown, Package, RefreshCw } from "lucide-react";
+import { X, Trash2, Minus, Plus, ShoppingBag, Bike, Coins, MapPin, ChevronRight, Home, Briefcase, Check, Ticket, ChevronDown, Package, RefreshCw, Phone } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 import { useOrderStore } from "@/stores/orderStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -154,6 +154,12 @@ export default function CartBottomSheet({ onClose }: Props) {
   const [manualAddr,     setManualAddr]     = useState("");
   const [showPicker,     setShowPicker]     = useState(false);
 
+  // 전화번호
+  const [userPhone,   setUserPhone]   = useState<string | null>(null);
+  const [phoneInput,  setPhoneInput]  = useState("");
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [phoneError,  setPhoneError]  = useState("");
+
   // 배달 메모
   const [note, setNote] = useState("");
 
@@ -195,6 +201,41 @@ export default function CartBottomSheet({ onClose }: Props) {
       })
       .catch(() => {});
   }, []);
+
+  // 전화번호 fetch
+  useEffect(() => {
+    if (!user) return;
+    fetch("/api/users/me")
+      .then((r) => r.json())
+      .then((d: { profile?: { phone?: string | null } }) => {
+        const ph = d.profile?.phone ?? null;
+        setUserPhone(ph);
+        setPhoneInput(ph ?? "");
+      })
+      .catch(() => {});
+  }, [user]);
+
+  const handleSavePhone = async () => {
+    const trimmed = phoneInput.trim();
+    if (!trimmed) return setPhoneError("전화번호를 입력해주세요");
+    setSavingPhone(true);
+    setPhoneError("");
+    try {
+      const res = await fetch("/api/users/me", {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ phone: trimmed }),
+      });
+      if (res.ok) {
+        setUserPhone(trimmed);
+      } else {
+        const j = await res.json().catch(() => ({})) as { error?: string };
+        setPhoneError(j.error ?? "저장에 실패했습니다");
+      }
+    } finally {
+      setSavingPhone(false);
+    }
+  };
 
   // 배달 주소 fetch
   const fetchAddresses = useCallback(async () => {
@@ -480,6 +521,55 @@ export default function CartBottomSheet({ onClose }: Props) {
                 />
               )}
             </>
+          )}
+
+          {/* 전화번호 */}
+          {user && (
+            <div className="px-4 pb-3">
+              <div className={`rounded-2xl border-2 px-4 py-3 ${!userPhone ? "border-red-300 bg-red-50" : "border-pick-border bg-pick-bg"}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Phone size={14} className={!userPhone ? "text-red-500" : "text-pick-purple"} />
+                  <p className={`text-xs font-black ${!userPhone ? "text-red-600" : "text-pick-text"}`}>
+                    연락처 {!userPhone && <span className="text-red-500">— 결제 연락을 위해 필수예요</span>}
+                  </p>
+                </div>
+                {userPhone ? (
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold text-pick-text">{userPhone}</p>
+                    <button
+                      onClick={() => setUserPhone(null)}
+                      className="text-xs text-pick-purple font-bold"
+                    >
+                      변경
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="tel"
+                        value={phoneInput}
+                        onChange={(e) => setPhoneInput(e.target.value)}
+                        placeholder="010-0000-0000"
+                        className="flex-1 border-2 border-red-200 rounded-xl px-3 py-2 text-sm text-pick-text focus:outline-none focus:border-red-400 bg-white"
+                      />
+                      <button
+                        onClick={() => void handleSavePhone()}
+                        disabled={savingPhone || !phoneInput.trim()}
+                        className="flex-shrink-0 px-4 py-2 rounded-xl bg-pick-purple text-white text-xs font-black disabled:opacity-40 flex items-center gap-1.5"
+                      >
+                        {savingPhone
+                          ? <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                          : <Check size={12} />
+                        }
+                        저장
+                      </button>
+                    </div>
+                    {phoneError && <p className="text-xs text-red-500 font-bold">{phoneError}</p>}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
           {/* 배달 메모 */}
@@ -824,6 +914,11 @@ export default function CartBottomSheet({ onClose }: Props) {
               ⚠️ 로그인 후 주문하면 PICK이 적립됩니다
             </p>
           )}
+          {user && !userPhone && (
+            <p className="text-xs text-red-500 font-bold text-center mb-2">
+              📞 전화번호를 등록해야 주문할 수 있어요
+            </p>
+          )}
           {orderType === "delivery" && !deliveryAddressText && (
             <p className="text-xs text-red-500 font-bold text-center mb-2">
               📍 배달 주소를 입력해주세요
@@ -832,7 +927,7 @@ export default function CartBottomSheet({ onClose }: Props) {
 
           <button
             onClick={() => void handleOrder()}
-            disabled={isBelowMin || isOrdering}
+            disabled={isBelowMin || isOrdering || (!!user && !userPhone)}
             className="w-full bg-gradient-to-r from-pick-purple to-pick-purple-light text-white font-black py-4 rounded-full shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isOrdering ? (

@@ -20,9 +20,9 @@ export async function PATCH(req: NextRequest) {
 
   const admin = createAdminClient();
 
-  // 현재 역할 확인 — admin은 본인이 변경 불가
+  // 현재 역할 + user id 확인 — admin은 본인이 변경 불가
   const { data: me } = await admin
-    .from("users").select("role").eq("auth_id", user.id).single();
+    .from("users").select("id, role").eq("auth_id", user.id).single();
   if (me?.role === "admin") {
     return NextResponse.json({ error: "관리자 역할은 직접 변경할 수 없습니다" }, { status: 403 });
   }
@@ -34,6 +34,19 @@ export async function PATCH(req: NextRequest) {
 
   if (error) {
     return NextResponse.json({ error: "역할 변경에 실패했습니다" }, { status: 500 });
+  }
+
+  // 역할 전환 사이드 이펙트
+  if (me?.id) {
+    const prevRole = me.role as string;
+    // 사장님 → 다른 역할: 모든 가게 임시 휴무
+    if (prevRole === "owner" && newRole !== "owner") {
+      await admin.from("stores").update({ is_open: false }).eq("owner_id", me.id);
+    }
+    // 라이더 → 다른 역할: 온라인 상태 해제
+    if (prevRole === "rider" && newRole !== "rider") {
+      await admin.from("rider_locations").update({ is_active: false }).eq("rider_id", me.id);
+    }
   }
 
   return NextResponse.json({ role: newRole });
