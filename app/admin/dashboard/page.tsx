@@ -682,7 +682,7 @@ function RiderApproveCard({ rider, onAction }: { rider: RiderRow; onAction: (id:
 function RidersTab() {
   const [riders,      setRiders]      = useState<RiderRow[]>([]);
   const [loading,     setLoading]     = useState(true);
-  const [riderFilter, setRiderFilter] = useState<"all" | "pending" | "rejected" | "approved">("pending");
+  const [riderFilter, setRiderFilter] = useState<"pending" | "approved" | "rejected">("pending");
 
   const fetchRiders = useCallback(async () => {
     setLoading(true);
@@ -706,26 +706,33 @@ function RidersTab() {
   const pendingCount  = riders.filter((r) => r.isApproved === null).length;
   const rejectedCount = riders.filter((r) => r.isApproved === false).length;
 
+  const approvedCount = riders.filter((r) => r.isApproved === true).length;
+
   const filtered = riders.filter((r) => {
-    if (riderFilter === "all")      return true;
     if (riderFilter === "pending")  return r.isApproved === null;
     if (riderFilter === "rejected") return r.isApproved === false;
     return r.isApproved === true;
   });
 
+  const FILTER_TABS = [
+    { key: "pending"  as const, label: "심사 중",  count: pendingCount,  activeColor: "bg-amber-500"  },
+    { key: "approved" as const, label: "승인됨",   count: approvedCount, activeColor: "bg-green-500"  },
+    { key: "rejected" as const, label: "반려됨",   count: rejectedCount, activeColor: "bg-red-500"    },
+  ];
+
   return (
     <div className="px-4 pt-4 pb-24">
-      {/* 필터 */}
-      <div className="flex gap-2 mb-4 flex-wrap">
-        {([
-          ["pending",  `심사 중${pendingCount  > 0 ? ` (${pendingCount})`  : ""}`],
-          ["rejected", `반려됨${rejectedCount  > 0 ? ` (${rejectedCount})` : ""}`],
-          ["approved", "승인됨"],
-          ["all",      "전체"],
-        ] as const).map(([v, label]) => (
-          <button key={v} onClick={() => setRiderFilter(v)}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${riderFilter === v ? "bg-pick-purple text-white" : "bg-pick-bg text-pick-text-sub border border-pick-border"}`}>
-            {label}
+      {/* 요약 카운터 */}
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        {FILTER_TABS.map(({ key, label, count, activeColor }) => (
+          <button key={key} onClick={() => setRiderFilter(key)}
+            className={`rounded-2xl p-3 text-center border-2 transition-all ${
+              riderFilter === key
+                ? `${activeColor} text-white border-transparent shadow-md`
+                : "bg-white text-pick-text border-pick-border"
+            }`}>
+            <p className="text-lg font-black">{count}</p>
+            <p className="text-[10px] font-bold mt-0.5">{label}</p>
           </button>
         ))}
       </div>
@@ -735,7 +742,11 @@ function RidersTab() {
       ) : filtered.length === 0 ? (
         <div className="text-center py-12 text-pick-text-sub">
           <Bike size={40} className="mx-auto mb-3 opacity-30" />
-          <p className="font-bold">{riderFilter === "pending" ? "심사 대기 중인 라이더가 없어요" : "해당하는 라이더가 없어요"}</p>
+          <p className="font-bold">
+            {riderFilter === "pending"  ? "심사 대기 중인 라이더가 없어요" :
+             riderFilter === "rejected" ? "반려된 라이더가 없어요" :
+             "승인된 라이더가 없어요"}
+          </p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
