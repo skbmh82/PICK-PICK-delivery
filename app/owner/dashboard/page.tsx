@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { ClipboardList, TrendingUp, Bell, CheckCircle, XCircle, Clock, RefreshCw, Store, ChevronDown, X, Check, BarChart2, Utensils, Zap, ArrowUp, ArrowDown, Settings, MapPin, Navigation, Gift, Copy, Share2, Upload, FileImage } from "lucide-react";
+import { ClipboardList, TrendingUp, Bell, CheckCircle, XCircle, Clock, RefreshCw, Store, ChevronDown, X, Check, BarChart2, Utensils, Zap, ArrowUp, ArrowDown, Settings, MapPin, Navigation, Upload, FileImage } from "lucide-react";
 
 import { useStoreOrderRealtime, useStoreOrderStatusRealtime } from "@/hooks/useRealtime";
 import { useOrderSound } from "@/lib/useOrderSound";
@@ -825,61 +825,6 @@ function RegisterStoreModal({ onClose, onRegistered }: {
   );
 }
 
-// ── 신규 가맹점 초대 카드 ──────────────────────────────
-function StoreReferralCard() {
-  const [copied,       setCopied]       = useState(false);
-  const [referralCode, setReferralCode] = useState<string>("");
-
-  useEffect(() => {
-    fetch("/api/referral")
-      .then((r) => r.json())
-      .then((d: { code?: string }) => { if (d.code) setReferralCode(d.code); })
-      .catch(() => {});
-  }, []);
-
-  const handleShare = () => {
-    const base = typeof window !== "undefined" ? window.location.origin : "";
-    const url  = referralCode ? `${base}/register?ref=${referralCode}&role=owner` : base;
-    const text = "PICK PICK에 가게를 등록하고 무료로 배달 주문을 받아보세요! 지금 가입하면 신규 가맹점 보너스 20,000 PICK 지급!";
-    if (navigator.share) {
-      navigator.share({ title: "PICK PICK 가맹점 초대", text, url }).catch(() => {});
-    } else {
-      void navigator.clipboard.writeText(`${text}\n${url}`);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  return (
-    <div className="mx-4 mb-4 bg-gradient-to-br from-pick-purple-dark via-pick-purple to-pick-purple-light rounded-3xl p-5 text-white shadow-lg">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="w-9 h-9 rounded-2xl bg-white/20 flex items-center justify-center">
-          <Gift size={18} className="text-pick-yellow-light" />
-        </span>
-        <div>
-          <p className="font-black text-sm">신규 가맹점 초대 🏪</p>
-          <p className="text-xs text-white/70">사장님 지인을 초대하고 보상을 받으세요</p>
-        </div>
-      </div>
-      <div className="bg-white/15 rounded-2xl px-4 py-3 mb-4 flex items-center justify-between">
-        <div>
-          <p className="text-xs text-white/70">신규 사장님 가입 시</p>
-          <p className="text-2xl font-black text-pick-yellow-light">20,000 <span className="text-base">PICK</span></p>
-          <p className="text-[11px] text-white/60">신규 사장님에게 지급 · 나에게 5,000 P</p>
-        </div>
-        <span className="text-4xl">🎁</span>
-      </div>
-      <button
-        onClick={handleShare}
-        className="w-full flex items-center justify-center gap-2 bg-white text-pick-purple font-black py-3 rounded-full active:scale-95 transition-all text-sm shadow-sm"
-      >
-        {copied ? <Copy size={15} /> : <Share2 size={15} />}
-        {copied ? "링크 복사됐어요!" : "가맹점 초대 링크 공유"}
-      </button>
-    </div>
-  );
-}
-
 // ── 가게 없음 배너 ─────────────────────────────────────
 function NoStoreBanner({ onRegister }: { onRegister: () => void }) {
   return (
@@ -1103,7 +1048,6 @@ export default function OwnerDashboardPage() {
       <TodayRevenue today={today} />
       {weekly.length > 0 && <WeeklyChart weekly={weekly} />}
       <AnalyticsSection />
-      <StoreReferralCard />
 
       {/* 빠른 메뉴 */}
       <div className="mx-4 mb-4">
