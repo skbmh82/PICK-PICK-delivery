@@ -73,7 +73,6 @@ function DocImage({ url, label }: { url: string; label: string }) {
         <p className="text-[11px] text-pick-purple text-center mt-1 font-black">{label} 🔍 탭하면 크게 보기</p>
       </button>
 
-      {/* eslint-disable-next-line @next/next/no-img-element */}
       <dialog
         ref={dialogRef}
         onClick={() => dialogRef.current?.close()}
@@ -81,50 +80,37 @@ function DocImage({ url, label }: { url: string; label: string }) {
           position: "fixed",
           inset: 0,
           margin: 0,
-          padding: "16px",
+          padding: 0,
           width: "100vw",
           height: "100dvh",
           maxWidth: "100vw",
           maxHeight: "100dvh",
           border: "none",
           background: "rgba(0,0,0,0.93)",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
         }}
       >
-        <button
-          type="button"
+        {/* display:flex는 dialog 안 컨테이너에만 — dialog 자체엔 지정하지 않음 */}
+        <div
           onClick={() => dialogRef.current?.close()}
-          style={{
-            position: "absolute",
-            top: 20,
-            right: 20,
-            width: 44,
-            height: 44,
-            borderRadius: "50%",
-            background: "rgba(255,255,255,0.2)",
-            border: "none",
-            color: "white",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            fontSize: 20,
-          }}
+          style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", height: "100%", padding: 16, position: "relative" }}
         >
-          ✕
-        </button>
-        <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{label}</p>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={url}
-          alt={label}
-          onClick={(e) => e.stopPropagation()}
-          style={{ maxWidth: "100%", maxHeight: "80dvh", objectFit: "contain", borderRadius: 12 }}
-        />
-        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, marginTop: 12 }}>화면을 탭하면 닫힙니다</p>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); dialogRef.current?.close(); }}
+            style={{ position: "absolute", top: 20, right: 20, width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,0.2)", border: "none", color: "white", cursor: "pointer", fontSize: 20 }}
+          >
+            ✕
+          </button>
+          <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{label}</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={url}
+            alt={label}
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "100%", maxHeight: "80dvh", objectFit: "contain", borderRadius: 12 }}
+          />
+          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, marginTop: 12 }}>화면을 탭하면 닫힙니다</p>
+        </div>
       </dialog>
     </>
   );
