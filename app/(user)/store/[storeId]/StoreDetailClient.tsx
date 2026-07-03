@@ -81,6 +81,13 @@ export interface ReviewItem {
   ownerRepliedAt?: string | null;
 }
 
+export interface DeliveryZone {
+  min_km:           number;
+  max_km:           number;
+  delivery_fee:     number;
+  min_order_amount: number;
+}
+
 export interface StoreDetail {
   id: string;
   name: string;
@@ -102,6 +109,8 @@ export interface StoreDetail {
   phone: string | null;
   lat: number;
   lng: number;
+  // 거리별 배달비 구역
+  deliveryZones?: DeliveryZone[];
 }
 
 /* ────────────── 옵션 선택 모달 ────────────── */
@@ -710,9 +719,11 @@ export default function StoreDetailClient({
           <div className="flex items-center gap-1.5 bg-pick-bg border border-pick-border rounded-full px-3.5 py-2">
             <Bike size={13} className="text-pick-purple" />
             <span className="text-xs font-semibold text-pick-text">
-              {store.deliveryFee === 0
-                ? "무료배달"
-                : `배달비 ${store.deliveryFee.toLocaleString()}원`}
+              {store.deliveryZones && store.deliveryZones.length > 0
+                ? "배달비 거리별 상이"
+                : store.deliveryFee === 0
+                  ? "무료배달"
+                  : `배달비 ${store.deliveryFee.toLocaleString()}원`}
             </span>
           </div>
         </div>
@@ -740,6 +751,36 @@ export default function StoreDetailClient({
 
       {/* ── 정보 탭 ── */}
       {activeTab === "info" && <>
+
+      {/* ── 거리별 배달비 ── */}
+      {store.deliveryZones && store.deliveryZones.length > 0 && (
+        <div className="mx-4 mb-5 bg-white rounded-3xl border-2 border-pick-border p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <Bike size={15} className="text-pick-purple" />
+            <p className="font-black text-pick-text text-sm">거리별 배달비</p>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {/* 헤더 */}
+            <div className="grid grid-cols-3 px-2">
+              <p className="text-[10px] font-bold text-pick-text-sub">거리</p>
+              <p className="text-[10px] font-bold text-pick-text-sub text-center">배달비</p>
+              <p className="text-[10px] font-bold text-pick-text-sub text-right">최소주문</p>
+            </div>
+            {store.deliveryZones.map((z, i) => (
+              <div key={i} className="grid grid-cols-3 bg-pick-bg rounded-2xl px-3 py-2.5 border border-pick-border">
+                <p className="text-xs font-bold text-pick-text">{z.min_km}~{z.max_km}km</p>
+                <p className="text-xs font-black text-pick-purple text-center">
+                  {z.delivery_fee === 0 ? "무료" : `${z.delivery_fee.toLocaleString()}원`}
+                </p>
+                <p className="text-xs font-semibold text-pick-text-sub text-right">
+                  {z.min_order_amount > 0 ? `${z.min_order_amount.toLocaleString()}원` : "-"}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── 영업 상태 / 영업시간 ── */}
       {todayHours && (
         <div className={`mx-4 mb-5 rounded-3xl border-2 px-4 py-3.5 flex items-center gap-3 ${

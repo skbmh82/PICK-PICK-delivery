@@ -5,6 +5,18 @@ import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createNotification } from "@/lib/notifications";
 import { geocodeAddress } from "@/lib/kakao/geocode";
 
+/** Haversine 공식 — 두 좌표 간 거리(km) */
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R    = 6371;
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLng = (lng2 - lng1) * (Math.PI / 180);
+  const a    =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 const OrderItemSchema = z.object({
   menuId:   z.string().uuid(),
   menuName: z.string().min(1),
@@ -74,7 +86,7 @@ export async function POST(request: NextRequest) {
   // 4. 가맹점 존재/영업 여부 확인
   const { data: store } = await admin
     .from("stores")
-    .select("id, is_open, min_order_amount, delivery_fee, delivery_time")
+    .select("id, is_open, min_order_amount, delivery_fee, delivery_time, lat, lng")
     .eq("id", storeId)
     .single();
 
@@ -173,6 +185,46 @@ export async function POST(request: NextRequest) {
     if (coords) { finalLat = coords.lat; finalLng = coords.lng; }
   }
 
+  // 8-1. 구역별 배달비 서버 계산 (delivery 주문 + 좌표 확보된 경우)
+  let finalDeliveryFee = deliveryFee; // 클라이언트 값 기본 사용
+  if (orderType === "delivery" && finalLat != null && finalLng != null) {
+    const storeLat = Number(store.lat);
+    const storeLng = Number(store.lng);
+
+    if (storeLat && storeLng) {
+      const { data: zones } = await admin
+        .from("delivery_zones")
+        .select("min_km, max_km, delivery_fee, min_order_amount")
+        .eq("store_id", storeId)
+        .order("sort_order", { ascending: true });
+
+      if (zones && zones.length > 0) {
+        const distKm = haversineKm(storeLat, storeLng, finalLat, finalLng);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const matchedZone = (zones as any[]).find(
+          (z) => distKm >= Number(z.min_km) && distKm < Number(z.max_km)
+        );
+
+        if (!matchedZone) {
+          return NextResponse.json(
+            { error: `배달 불가 지역입니다. 가게의 배달 범위(${zones[zones.length - 1].max_km}km)를 초과했습니다.` },
+            { status: 400 }
+          );
+        }
+
+        finalDeliveryFee = Number(matchedZone.delivery_fee);
+
+        const zoneMinOrder = Number(matchedZone.min_order_amount);
+        if (zoneMinOrder > 0 && totalAmount < zoneMinOrder) {
+          return NextResponse.json(
+            { error: `이 지역의 최소 주문금액은 ${zoneMinOrder.toLocaleString()}원입니다.` },
+            { status: 400 }
+          );
+        }
+      }
+    }
+  }
+
   // 9. 주문 생성 (admin 클라이언트로 RLS 우회)
   // PI 결제: 서버 측 Pi 콜백에서 orderId로 연결하므로 별도 ref 불필요
   const tossOrderId = null;
@@ -190,8 +242,8 @@ export async function POST(request: NextRequest) {
                           : "pending",
       confirmed_at:     null,
       payment_method:   dbPaymentMethod,
-      total_amount:     totalAmount + deliveryFee - pickUsed,
-      delivery_fee:     deliveryFee,
+      total_amount:     totalAmount + finalDeliveryFee - pickUsed,
+      delivery_fee:     finalDeliveryFee,
       pick_used:        paymentMethod === "PICK" ? pickUsed : 0,
       pick_reward:      pickReward,
       delivery_address: deliveryAddress,

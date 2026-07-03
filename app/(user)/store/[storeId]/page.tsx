@@ -3,7 +3,7 @@ import { fetchStoreById, fetchMenusByStoreId } from "@/lib/supabase/stores";
 import { getCategoryEmoji, getMenuEmoji } from "@/lib/utils/categoryEmoji";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
-import StoreDetailClient, { type StoreDetail, type MenuItem, type ReviewItem, type OptionGroup, type TodayHours, type WeeklyHour } from "./StoreDetailClient";
+import StoreDetailClient, { type StoreDetail, type MenuItem, type ReviewItem, type OptionGroup, type TodayHours, type WeeklyHour, type DeliveryZone } from "./StoreDetailClient";
 
 export default async function StoreDetailPage({
   params,
@@ -119,6 +119,27 @@ export default async function StoreDetailPage({
     }
   }
 
+  // 배달 구역 조회
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const adminForZones = getAdminSupabaseClient() as any;
+  let deliveryZones: DeliveryZone[] = [];
+  try {
+    const { data: zoneRows } = await adminForZones
+      .from("delivery_zones")
+      .select("min_km, max_km, delivery_fee, min_order_amount")
+      .eq("store_id", storeId)
+      .order("sort_order", { ascending: true });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    deliveryZones = (zoneRows ?? []).map((z: any) => ({
+      min_km:           Number(z.min_km),
+      max_km:           Number(z.max_km),
+      delivery_fee:     Number(z.delivery_fee),
+      min_order_amount: Number(z.min_order_amount),
+    }));
+  } catch {
+    // 구역 없으면 무시
+  }
+
   // 리뷰 목록 (최근 10개)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const adminForReviews = getAdminSupabaseClient() as any;
@@ -161,6 +182,7 @@ export default async function StoreDetailPage({
     phone:          (storeRow as unknown as { phone?: string | null }).phone ?? null,
     lat:            storeRow.lat,
     lng:            storeRow.lng,
+    deliveryZones:  deliveryZones.length > 0 ? deliveryZones : undefined,
     menus: menuRows.map((m): MenuItem => ({
       id:           m.id,
       name:         m.name,

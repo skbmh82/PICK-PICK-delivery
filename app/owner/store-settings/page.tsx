@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Store, MapPin, Phone, Clock, Wallet, ToggleLeft, ToggleRight,
   ChevronLeft, Check, Loader2, Star, FileText, AlertCircle,
-  ImagePlus, Camera, Ticket, Plus, X, Tag, CalendarDays, Gift, Image,
+  ImagePlus, Camera, Ticket, Plus, X, Tag, CalendarDays, Gift, Image, Truck, Trash2,
 } from "lucide-react";
 
 // ── 타입 ──────────────────────────────────────────────
@@ -390,6 +390,196 @@ function PhotoReviewRewardSection({ storeId, initialKrw }: PhotoReviewRewardSect
                 : <><Gift size={14} /> 보상 설정 저장</>
             }
           </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── 배달 구역별 배달비 설정 섹션 ──────────────────────
+interface DeliveryZone {
+  id?:              string;
+  min_km:           number;
+  max_km:           number;
+  delivery_fee:     number;
+  min_order_amount: number;
+}
+
+function DeliveryZonesSection({ storeId }: { storeId: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [zones,    setZones]    = useState<DeliveryZone[]>([]);
+  const [loading,  setLoading]  = useState(false);
+  const [saving,   setSaving]   = useState(false);
+  const [saved,    setSaved]    = useState(false);
+  const [err,      setErr]      = useState("");
+
+  const fetchZones = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/stores/${storeId}/delivery-zones`);
+      if (res.ok) {
+        const { zones: rows } = await res.json() as { zones: DeliveryZone[] };
+        setZones(rows ?? []);
+      }
+    } finally { setLoading(false); }
+  }, [storeId]);
+
+  useEffect(() => { if (expanded) fetchZones(); }, [expanded, fetchZones]);
+
+  const addZone = () => {
+    const last = zones[zones.length - 1];
+    setZones((prev) => [...prev, {
+      min_km:           last ? last.max_km : 0,
+      max_km:           last ? last.max_km + 2 : 2,
+      delivery_fee:     0,
+      min_order_amount: 0,
+    }]);
+  };
+
+  const removeZone = (i: number) =>
+    setZones((prev) => prev.filter((_, idx) => idx !== i));
+
+  const update = (i: number, field: keyof DeliveryZone, value: number) =>
+    setZones((prev) => prev.map((z, idx) => idx === i ? { ...z, [field]: value } : z));
+
+  const handleSave = async () => {
+    if (zones.length === 0) return setErr("구역을 최소 1개 이상 추가해주세요");
+    for (let i = 0; i < zones.length; i++) {
+      if (zones[i].max_km <= zones[i].min_km)
+        return setErr(`구역 ${i + 1}: 최대 거리가 최소 거리보다 커야 해요`);
+      if (i > 0 && zones[i].min_km < zones[i - 1].max_km)
+        return setErr(`구역 ${i + 1}: 이전 구역과 범위가 겹쳐요`);
+    }
+    setSaving(true); setErr("");
+    try {
+      const res = await fetch(`/api/stores/${storeId}/delivery-zones`, {
+        method:  "PUT",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ zones }),
+      });
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+        await fetchZones();
+      } else {
+        const j = await res.json().catch(() => ({}));
+        setErr((j.error as string) ?? "저장에 실패했습니다");
+      }
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="bg-white rounded-3xl shadow-sm border border-pick-border overflow-hidden">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center justify-between px-5 py-4 active:bg-pick-bg transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Truck size={16} className="text-pick-purple" />
+          <span className="font-black text-pick-text text-sm">거리별 배달비 설정</span>
+          {zones.length > 0 && (
+            <span className="bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-0.5 rounded-full">
+              {zones.length}구역 설정됨
+            </span>
+          )}
+        </div>
+        <span className="text-xs text-pick-purple font-bold">{expanded ? "접기 ▲" : "열기 ▼"}</span>
+      </button>
+
+      {expanded && (
+        <div className="border-t border-pick-border px-4 py-4 flex flex-col gap-3">
+          {/* 안내 */}
+          <div className="bg-pick-bg rounded-2xl px-4 py-3 border border-pick-border">
+            <p className="text-xs font-bold text-pick-text mb-1">🚚 거리별 배달비란?</p>
+            <p className="text-[11px] text-pick-text-sub leading-relaxed">
+              가게 주소 기준 거리에 따라 배달비를 다르게 설정해요.<br />
+              구역이 설정되면 위의 <strong>기본 배달비</strong>는 구역 미해당 시에만 사용돼요.
+            </p>
+          </div>
+
+          {loading ? (
+            Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="h-20 bg-gray-50 rounded-2xl animate-pulse" />
+            ))
+          ) : (
+            <>
+              {/* 구역 목록 */}
+              {zones.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 py-6 text-pick-text-sub">
+                  <Truck size={28} className="opacity-20" />
+                  <p className="text-xs">아직 설정된 구역이 없어요</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  {/* 헤더 */}
+                  <div className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-1.5 px-1">
+                    {["최소km", "최대km", "배달비(원)", "최소주문(원)", ""].map((h) => (
+                      <p key={h} className="text-[9px] font-bold text-pick-text-sub text-center">{h}</p>
+                    ))}
+                  </div>
+                  {zones.map((z, i) => (
+                    <div key={i} className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-1.5 items-center bg-pick-bg rounded-2xl p-2.5 border border-pick-border">
+                      <input
+                        type="number" min="0" step="0.5"
+                        value={z.min_km}
+                        onChange={(e) => update(i, "min_km", parseFloat(e.target.value) || 0)}
+                        className="w-full border border-pick-border rounded-xl px-2 py-2 text-xs text-right font-bold bg-white focus:outline-none focus:border-pick-purple"
+                      />
+                      <input
+                        type="number" min="0" step="0.5"
+                        value={z.max_km}
+                        onChange={(e) => update(i, "max_km", parseFloat(e.target.value) || 0)}
+                        className="w-full border border-pick-border rounded-xl px-2 py-2 text-xs text-right font-bold bg-white focus:outline-none focus:border-pick-purple"
+                      />
+                      <input
+                        type="number" min="0" step="500"
+                        value={z.delivery_fee}
+                        onChange={(e) => update(i, "delivery_fee", parseInt(e.target.value) || 0)}
+                        className="w-full border border-pick-border rounded-xl px-2 py-2 text-xs text-right font-bold bg-white focus:outline-none focus:border-pick-purple"
+                      />
+                      <input
+                        type="number" min="0" step="1000"
+                        value={z.min_order_amount}
+                        onChange={(e) => update(i, "min_order_amount", parseInt(e.target.value) || 0)}
+                        className="w-full border border-pick-border rounded-xl px-2 py-2 text-xs text-right font-bold bg-white focus:outline-none focus:border-pick-purple"
+                      />
+                      <button
+                        onClick={() => removeZone(i)}
+                        className="w-7 h-7 rounded-full bg-red-50 border border-red-100 flex items-center justify-center active:scale-90 transition-transform flex-shrink-0"
+                      >
+                        <Trash2 size={12} className="text-red-400" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 구역 추가 버튼 */}
+              <button
+                onClick={addZone}
+                className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-pick-border rounded-2xl py-3 text-xs font-bold text-pick-purple active:scale-95 transition-transform"
+              >
+                <Plus size={14} /> 구역 추가
+              </button>
+
+              {err && <p className="text-xs text-red-500 font-bold text-center">{err}</p>}
+
+              <button
+                onClick={() => void handleSave()}
+                disabled={saving || zones.length === 0}
+                className={`w-full py-3 rounded-full font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 ${
+                  saved ? "bg-green-500 text-white" : "bg-pick-purple text-white"
+                }`}
+              >
+                {saving
+                  ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> 저장 중...</>
+                  : saved
+                    ? <><Check size={14} /> 저장 완료!</>
+                    : <><Truck size={14} /> 배달 구역 저장</>
+                }
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -1106,6 +1296,9 @@ export default function StoreSettingsPage() {
 
         {/* 영업시간 관리 */}
         <StoreHoursSection />
+
+        {/* 거리별 배달비 설정 */}
+        <DeliveryZonesSection storeId={store.id} />
 
         {/* 사진 리뷰 보상 설정 */}
         <PhotoReviewRewardSection storeId={store.id} initialKrw={photoReviewRewardKrw} />
