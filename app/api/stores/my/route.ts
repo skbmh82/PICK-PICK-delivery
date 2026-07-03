@@ -27,15 +27,16 @@ const UpdateStoreSchema = z.object({
 });
 
 const RegisterStoreSchema = z.object({
-  name:             z.string().min(2, "가게 이름은 2자 이상 입력해주세요").max(50),
-  category:         z.enum(CATEGORIES, { message: "카테고리를 선택해주세요" }),
-  description:      z.string().max(200).optional(),
-  phone:            z.string().max(20).optional(),
-  address:          z.string().min(5, "주소를 입력해주세요").max(200),
-  deliveryFee:      z.number().min(0).max(100000),
-  minOrderAmount:   z.number().min(0).max(1000000),
-  deliveryTime:     z.number().int().min(5).max(120),
-  deliveryRadiusKm: z.number().min(1).max(30).optional(),
+  name:                 z.string().min(2, "가게 이름은 2자 이상 입력해주세요").max(50),
+  category:             z.enum(CATEGORIES, { message: "카테고리를 선택해주세요" }),
+  description:          z.string().max(200).optional(),
+  phone:                z.string().max(20).optional(),
+  address:              z.string().min(5, "주소를 입력해주세요").max(200),
+  deliveryFee:          z.number().min(0).max(100000),
+  minOrderAmount:       z.number().min(0).max(1000000),
+  deliveryTime:         z.number().int().min(5).max(120),
+  deliveryRadiusKm:     z.number().min(1).max(30).optional(),
+  businessRegImageUrl:  z.string().url("사업자등록증 사진을 업로드해주세요"),
 });
 
 // POST /api/stores/my — 가게 등록
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { name, category, description, phone, address, deliveryFee, minOrderAmount, deliveryTime, deliveryRadiusKm } = parsed.data;
+  const { name, category, description, phone, address, deliveryFee, minOrderAmount, deliveryTime, deliveryRadiusKm, businessRegImageUrl } = parsed.data;
 
   // 카카오 Geocoding으로 주소 → 좌표 변환
   const coords = await geocodeAddress(address);
@@ -80,21 +81,22 @@ export async function POST(request: NextRequest) {
   const { data: store, error: insertError } = await admin
     .from("stores")
     .insert({
-      owner_id:           profile.id,
+      owner_id:               profile.id,
       name,
       category,
-      description:        description ?? null,
-      phone:              phone ?? null,
+      description:            description ?? null,
+      phone:                  phone ?? null,
       address,
-      lat:                coords?.lat ?? 0,
-      lng:                coords?.lng ?? 0,
-      delivery_fee:       deliveryFee,
-      min_order_amount:   minOrderAmount,
-      delivery_time:      deliveryTime,
-      delivery_radius_km: deliveryRadiusKm ?? 5,
-      is_open:            true,
-      is_approved:        false,
-      pick_reward_rate:   1.0,
+      lat:                    coords?.lat ?? 0,
+      lng:                    coords?.lng ?? 0,
+      delivery_fee:           deliveryFee,
+      min_order_amount:       minOrderAmount,
+      delivery_time:          deliveryTime,
+      delivery_radius_km:     deliveryRadiusKm ?? 5,
+      is_open:                true,
+      is_approved:            false,
+      pick_reward_rate:       1.0,
+      business_reg_image_url: businessRegImageUrl,
     })
     .select("id, name, category")
     .single();

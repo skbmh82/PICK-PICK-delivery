@@ -24,6 +24,7 @@ export async function GET() {
       id, name, category, address, phone,
       is_open, is_approved, rating, review_count,
       delivery_fee, min_order_amount, delivery_time,
+      business_reg_image_url,
       created_at,
       owner:owner_id ( id, name, email )
     `)
@@ -35,19 +36,20 @@ export async function GET() {
   }
 
   const result = (stores ?? []).map((s: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
-    id:             s.id,
-    name:           s.name,
-    category:       s.category,
-    address:        s.address,
-    phone:          s.phone,
-    isOpen:         s.is_open,
-    isApproved:     s.is_approved,
-    rating:         Number(s.rating),
-    reviewCount:    s.review_count,
-    deliveryFee:    Number(s.delivery_fee),
-    minOrderAmount: Number(s.min_order_amount),
-    deliveryTime:   s.delivery_time,
-    createdAt:      s.created_at,
+    id:                   s.id,
+    name:                 s.name,
+    category:             s.category,
+    address:              s.address,
+    phone:                s.phone,
+    isOpen:               s.is_open,
+    isApproved:           s.is_approved,
+    rating:               Number(s.rating),
+    reviewCount:          s.review_count,
+    deliveryFee:          Number(s.delivery_fee),
+    minOrderAmount:       Number(s.min_order_amount),
+    deliveryTime:         s.delivery_time,
+    businessRegImageUrl:  s.business_reg_image_url ?? null,
+    createdAt:            s.created_at,
     owner: {
       id:    s.owner?.id,
       name:  s.owner?.name,

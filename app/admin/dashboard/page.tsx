@@ -34,21 +34,22 @@ interface UserRow {
 
 // ── 가게 타입 ──────────────────────────────────────────
 interface StoreRow {
-  id:             string;
-  name:           string;
-  category:       string;
-  address:        string;
-  phone:          string | null;
-  isOpen:         boolean;
-  isApproved:     boolean;
-  rating:         number;
-  reviewCount:    number;
-  deliveryFee:    number;
-  minOrderAmount: number;
-  deliveryTime:   number;
-  pickRewardRate: number;
-  createdAt:      string;
-  owner:          { id: string; name: string; email: string };
+  id:                  string;
+  name:                string;
+  category:            string;
+  address:             string;
+  phone:               string | null;
+  isOpen:              boolean;
+  isApproved:          boolean;
+  rating:              number;
+  reviewCount:         number;
+  deliveryFee:         number;
+  minOrderAmount:      number;
+  deliveryTime:        number;
+  pickRewardRate:      number;
+  businessRegImageUrl: string | null;
+  createdAt:           string;
+  owner:               { id: string; name: string; email: string };
 }
 
 const CATEGORY_EMOJI: Record<string, string> = {
@@ -119,6 +120,26 @@ function StoreApproveCard({
           <span className="text-xs font-bold text-pick-text">{store.owner.name}</span>
           <span className="text-xs text-pick-text-sub">{store.owner.email}</span>
         </div>
+
+        {/* 사업자등록증 사진 */}
+        {store.businessRegImageUrl ? (
+          <div className="mb-3">
+            <p className="text-[10px] font-bold text-pick-text-sub mb-1.5">📄 사업자등록증</p>
+            <a href={store.businessRegImageUrl} target="_blank" rel="noopener noreferrer">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={store.businessRegImageUrl}
+                alt="사업자등록증"
+                className="w-full max-h-48 object-contain rounded-2xl border border-pick-border bg-gray-50"
+              />
+              <p className="text-[10px] text-pick-purple text-center mt-1">클릭하여 원본 보기 →</p>
+            </a>
+          </div>
+        ) : (
+          <div className="mb-3 bg-red-50 border border-red-200 rounded-2xl px-3 py-2">
+            <p className="text-[11px] text-red-500 font-bold">⚠️ 사업자등록증 미첨부</p>
+          </div>
+        )}
 
         {/* 반려 사유 입력 */}
         {rejectOpen && (

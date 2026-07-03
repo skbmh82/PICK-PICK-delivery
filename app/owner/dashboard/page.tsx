@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { ClipboardList, TrendingUp, Bell, CheckCircle, XCircle, Clock, RefreshCw, Store, ChevronDown, X, Check, BarChart2, Utensils, Zap, ArrowUp, ArrowDown, Settings, MapPin, Navigation, Gift, Copy, Share2 } from "lucide-react";
+import { ClipboardList, TrendingUp, Bell, CheckCircle, XCircle, Clock, RefreshCw, Store, ChevronDown, X, Check, BarChart2, Utensils, Zap, ArrowUp, ArrowDown, Settings, MapPin, Navigation, Gift, Copy, Share2, Upload, FileImage } from "lucide-react";
 
 import { useStoreOrderRealtime, useStoreOrderStatusRealtime } from "@/hooks/useRealtime";
 import { useOrderSound } from "@/lib/useOrderSound";
@@ -460,10 +460,14 @@ function RegisterStoreModal({ onClose, onRegistered }: {
     address: "", deliveryFee: "3000", minOrderAmount: "15000",
     deliveryTime: "30", deliveryRadiusKm: "5",
   });
-  const [loading,    setLoading]    = useState(false);
-  const [error,      setError]      = useState("");
-  const [done,       setDone]       = useState(false);
-  const [addrSearch, setAddrSearch] = useState(false);
+  const [loading,             setLoading]             = useState(false);
+  const [error,               setError]               = useState("");
+  const [done,                setDone]                = useState(false);
+  const [addrSearch,          setAddrSearch]          = useState(false);
+  const [bizRegImageUrl,      setBizRegImageUrl]      = useState("");
+  const [bizRegUploading,     setBizRegUploading]     = useState(false);
+  const [bizRegUploadError,   setBizRegUploadError]   = useState("");
+  const bizRegInputRef = useRef<HTMLInputElement>(null);
   const searchLayerRef = useRef<HTMLDivElement>(null);
 
   const set = (key: string, value: string) =>
@@ -494,10 +498,39 @@ function RegisterStoreModal({ onClose, onRegistered }: {
     }
   }, [addrSearch]);
 
+  const handleBizRegUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setBizRegUploadError("파일 크기는 10MB 이하여야 합니다");
+      return;
+    }
+    setBizRegUploading(true);
+    setBizRegUploadError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("bucket", "store-images");
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const json = await res.json() as { url?: string; error?: string };
+      if (res.ok && json.url) {
+        setBizRegImageUrl(json.url);
+      } else {
+        setBizRegUploadError(json.error ?? "업로드에 실패했습니다");
+      }
+    } catch {
+      setBizRegUploadError("업로드 중 오류가 발생했습니다");
+    } finally {
+      setBizRegUploading(false);
+      if (bizRegInputRef.current) bizRegInputRef.current.value = "";
+    }
+  };
+
   const handleSubmit = async () => {
     if (!form.name.trim())    return setError("가게 이름을 입력해주세요");
     if (!form.category)       return setError("카테고리를 선택해주세요");
     if (!form.address.trim()) return setError("주소를 입력해주세요");
+    if (!bizRegImageUrl)      return setError("사업자등록증 사진을 업로드해주세요");
     const radius = parseFloat(form.deliveryRadiusKm);
     if (isNaN(radius) || radius < 1 || radius > 30) return setError("배달 반경은 1~30km 사이로 입력해주세요");
 
@@ -508,15 +541,16 @@ function RegisterStoreModal({ onClose, onRegistered }: {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name:             form.name.trim(),
-          category:         form.category,
-          description:      form.description.trim() || undefined,
-          phone:            form.phone.trim() || undefined,
-          address:          form.address.trim(),
-          deliveryFee:      Number(form.deliveryFee)      || 0,
-          minOrderAmount:   Number(form.minOrderAmount)   || 0,
-          deliveryTime:     Number(form.deliveryTime)     || 30,
-          deliveryRadiusKm: radius,
+          name:                form.name.trim(),
+          category:            form.category,
+          description:         form.description.trim() || undefined,
+          phone:               form.phone.trim() || undefined,
+          address:             form.address.trim(),
+          deliveryFee:         Number(form.deliveryFee)      || 0,
+          minOrderAmount:      Number(form.minOrderAmount)   || 0,
+          deliveryTime:        Number(form.deliveryTime)     || 30,
+          deliveryRadiusKm:    radius,
+          businessRegImageUrl: bizRegImageUrl,
         }),
       });
       const json = await res.json();
@@ -652,6 +686,60 @@ function RegisterStoreModal({ onClose, onRegistered }: {
                 maxLength={200}
                 className="w-full border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text focus:outline-none focus:border-pick-purple resize-none"
               />
+            </div>
+
+            {/* 사업자등록증 업로드 */}
+            <div>
+              <label className="text-xs font-bold text-pick-text-sub mb-1.5 block">
+                사업자등록증 사본 * <span className="text-[10px] font-normal">(JPG·PNG·PDF, 10MB 이하)</span>
+              </label>
+              <input
+                ref={bizRegInputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                className="hidden"
+                onChange={(e) => void handleBizRegUpload(e)}
+              />
+              {bizRegImageUrl ? (
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={bizRegImageUrl}
+                    alt="사업자등록증"
+                    className="w-full max-h-40 object-contain rounded-2xl border-2 border-green-300 bg-green-50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => bizRegInputRef.current?.click()}
+                    className="absolute top-2 right-2 bg-white/90 rounded-full px-2.5 py-1 text-[10px] font-bold text-pick-purple border border-pick-border shadow-sm"
+                  >
+                    다시 업로드
+                  </button>
+                  <p className="text-[11px] text-green-600 font-bold mt-1.5 flex items-center gap-1">
+                    <Check size={11} /> 업로드 완료
+                  </p>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => bizRegInputRef.current?.click()}
+                  disabled={bizRegUploading}
+                  className="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-pick-border rounded-2xl py-6 bg-pick-bg active:bg-pick-border/30 transition-all disabled:opacity-60"
+                >
+                  {bizRegUploading ? (
+                    <span className="w-6 h-6 border-2 border-pick-border border-t-pick-purple rounded-full animate-spin" />
+                  ) : (
+                    <FileImage size={28} className="text-pick-purple-light" />
+                  )}
+                  <span className="text-xs font-bold text-pick-text-sub">
+                    {bizRegUploading ? "업로드 중..." : "탭하여 사진 선택"}
+                  </span>
+                  <Upload size={14} className="text-pick-purple opacity-60" />
+                </button>
+              )}
+              {bizRegUploadError && (
+                <p className="text-xs text-red-500 font-bold mt-1">{bizRegUploadError}</p>
+              )}
             </div>
 
             {/* 배달비 / 최소주문금액 / 예상시간 */}
