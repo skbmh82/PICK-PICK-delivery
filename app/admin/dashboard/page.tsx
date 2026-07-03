@@ -122,7 +122,7 @@ function StoreApproveCard({
         </div>
 
         {/* 사업자등록증 사진 */}
-        {store.businessRegImageUrl ? (
+        {store.businessRegImageUrl && (
           <div className="mb-3">
             <p className="text-[10px] font-bold text-pick-text-sub mb-1.5">📄 사업자등록증</p>
             <a href={store.businessRegImageUrl} target="_blank" rel="noopener noreferrer">
@@ -134,10 +134,6 @@ function StoreApproveCard({
               />
               <p className="text-[10px] text-pick-purple text-center mt-1">클릭하여 원본 보기 →</p>
             </a>
-          </div>
-        ) : (
-          <div className="mb-3 bg-red-50 border border-red-200 rounded-2xl px-3 py-2">
-            <p className="text-[11px] text-red-500 font-bold">⚠️ 사업자등록증 미첨부</p>
           </div>
         )}
 
