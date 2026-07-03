@@ -57,6 +57,50 @@ const CATEGORY_EMOJI: Record<string, string> = {
   "피자":"🍕","분식":"🍜","카페·디저트":"☕","양식":"🥩",
 };
 
+// ── 서류 이미지 라이트박스 ──────────────────────────────
+function DocImage({ url, label }: { url: string; label: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className="block w-full text-left">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={url} alt={label} className="w-full max-h-36 object-contain rounded-2xl border border-pick-border bg-gray-50" />
+        <p className="text-[10px] text-pick-purple text-center mt-0.5 font-bold">{label} — 탭하여 크게 보기 🔍</p>
+      </button>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-[300] bg-black/95 flex flex-col items-center justify-center px-4"
+          onClick={() => setOpen(false)}
+        >
+          {/* 닫기 버튼 */}
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="absolute top-5 right-5 w-10 h-10 flex items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
+          >
+            <X size={20} />
+          </button>
+
+          {/* 문서 라벨 */}
+          <p className="text-white/80 text-sm font-bold mb-4">{label}</p>
+
+          {/* 확대 이미지 */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={url}
+            alt={label}
+            className="max-w-full max-h-[80dvh] object-contain rounded-2xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          <p className="text-white/50 text-xs mt-4">화면을 탭하면 닫힙니다</p>
+        </div>
+      )}
+    </>
+  );
+}
+
 const STORE_STATUS = {
   approved: { label: "✅ 승인됨",   border: "border-green-200", badge: "bg-green-50 text-green-600 border-green-200" },
   rejected: { label: "❌ 반려됨",   border: "border-red-200",   badge: "bg-red-50 text-red-600 border-red-200" },
@@ -135,15 +179,7 @@ function StoreApproveCard({
         {store.businessRegImageUrl && (
           <div className="mb-3">
             <p className="text-[10px] font-bold text-pick-text-sub mb-1.5">📄 사업자등록증</p>
-            <a href={store.businessRegImageUrl} target="_blank" rel="noopener noreferrer">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={store.businessRegImageUrl}
-                alt="사업자등록증"
-                className="w-full max-h-48 object-contain rounded-2xl border border-pick-border bg-gray-50"
-              />
-              <p className="text-[10px] text-pick-purple text-center mt-1">클릭하여 원본 보기 →</p>
-            </a>
+            <DocImage url={store.businessRegImageUrl} label="사업자등록증" />
           </div>
         )}
 
@@ -645,11 +681,7 @@ function RiderApproveCard({ rider, onAction }: { rider: RiderRow; onAction: (id:
           <div className="flex flex-col gap-2 mb-3">
             <p className="text-[10px] font-bold text-pick-text-sub flex items-center gap-1"><FileImage size={11} /> 제출 서류</p>
             {docs.map((doc) => (
-              <a key={doc.label} href={doc.url!} target="_blank" rel="noopener noreferrer" className="block">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={doc.url!} alt={doc.label} className="w-full max-h-36 object-contain rounded-2xl border border-pick-border bg-gray-50" />
-                <p className="text-[10px] text-pick-purple text-center mt-0.5">{doc.label} — 클릭하여 원본 보기 →</p>
-              </a>
+              <DocImage key={doc.label} url={doc.url!} label={doc.label} />
             ))}
           </div>
         )}
