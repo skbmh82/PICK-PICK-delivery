@@ -22,8 +22,8 @@ export async function PATCH(
     return NextResponse.json({ error: "관리자 권한이 필요합니다" }, { status: 403 });
   }
 
-  const body = await request.json().catch(() => ({})) as { approved?: boolean };
-  if (typeof body.approved !== "boolean") {
+  const body = await request.json().catch(() => ({})) as { approved?: boolean | null };
+  if (body.approved === undefined) {
     return NextResponse.json({ error: "approved 값이 필요합니다" }, { status: 400 });
   }
 

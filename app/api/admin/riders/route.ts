@@ -39,7 +39,7 @@ export async function GET() {
     idImageUrl:         r.id_image_url,
     vehicleRegImageUrl: r.vehicle_reg_image_url,
     insuranceImageUrl:  r.insurance_image_url,
-    isApproved:         r.rider_is_approved ?? false,
+    isApproved:         r.rider_is_approved,          // null=심사중, false=반려, true=승인
     createdAt:          r.created_at,
   }));
 

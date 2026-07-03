@@ -555,7 +555,7 @@ interface RiderRow {
   idImageUrl:         string | null;
   vehicleRegImageUrl: string | null;
   insuranceImageUrl:  string | null;
-  isApproved:         boolean;
+  isApproved:         boolean | null;  // null=심사중, false=반려, true=승인
   createdAt:          string;
 }
 
@@ -566,16 +566,31 @@ const VEHICLE_LABEL: Record<string, string> = {
   kickboard:  "🛴 킥보드",
 };
 
-function RiderApproveCard({ rider, onAction }: { rider: RiderRow; onAction: (id: string, approved: boolean) => Promise<void> }) {
+const RIDER_STATUS = {
+  approved: { label: "✅ 승인됨",  border: "border-green-200", badge: "bg-green-50 text-green-600 border-green-200" },
+  rejected: { label: "❌ 반려됨",  border: "border-red-200",   badge: "bg-red-50 text-red-600 border-red-200" },
+  pending:  { label: "⏳ 심사 중", border: "border-amber-200", badge: "bg-amber-50 text-amber-600 border-amber-200" },
+} as const;
+
+function getRiderStatus(isApproved: boolean | null): keyof typeof RIDER_STATUS {
+  if (isApproved === true)  return "approved";
+  if (isApproved === false) return "rejected";
+  return "pending";
+}
+
+function RiderApproveCard({ rider, onAction }: { rider: RiderRow; onAction: (id: string, approved: boolean | null) => Promise<void> }) {
   const [loading,    setLoading]    = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
 
-  const handle = async (approved: boolean) => {
+  const handle = async (approved: boolean | null) => {
     setLoading(true);
     await onAction(rider.id, approved);
     setLoading(false);
     setRejectOpen(false);
   };
+
+  const status = getRiderStatus(rider.isApproved);
+  const { label: statusLabel, border, badge } = RIDER_STATUS[status];
 
   const docs = [
     { label: "신분증/면허증",   url: rider.idImageUrl },
@@ -584,14 +599,14 @@ function RiderApproveCard({ rider, onAction }: { rider: RiderRow; onAction: (id:
   ].filter((d) => d.url);
 
   return (
-    <div className={`bg-white rounded-3xl border-2 shadow-sm overflow-hidden ${rider.isApproved ? "border-green-200" : "border-amber-200"}`}>
+    <div className={`bg-white rounded-3xl border-2 shadow-sm overflow-hidden ${border}`}>
       <div className="px-4 pt-4 pb-3">
         {/* 상태 + 차량 */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span className="text-sm font-bold text-pick-text-sub">{VEHICLE_LABEL[rider.vehicleType] ?? rider.vehicleType}</span>
-            <span className={`text-xs font-black px-2.5 py-1 rounded-full ${rider.isApproved ? "bg-green-50 text-green-600 border border-green-200" : "bg-amber-50 text-amber-600 border border-amber-200"}`}>
-              {rider.isApproved ? "✅ 승인됨" : "⏳ 심사 중"}
+            <span className={`text-xs font-black px-2.5 py-1 rounded-full border ${badge}`}>
+              {statusLabel}
             </span>
           </div>
           <p className="text-[10px] text-pick-text-sub">
@@ -620,13 +635,32 @@ function RiderApproveCard({ rider, onAction }: { rider: RiderRow; onAction: (id:
           </div>
         )}
 
-        {/* 반려 사유 */}
+        {/* 반려 사유 입력 */}
         {rejectOpen && (
           <input type="text" placeholder="반려 사유 (선택)" className="w-full border-2 border-red-200 rounded-2xl px-3 py-2 text-sm mb-3 focus:outline-none focus:border-red-400" />
         )}
 
         {/* 액션 버튼 */}
-        {!rider.isApproved ? (
+        {status === "approved" ? (
+          <button disabled={loading} onClick={() => handle(null)}
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl border-2 border-gray-200 bg-gray-50 text-gray-500 font-bold text-sm active:scale-95 transition-all disabled:opacity-50">
+            {loading ? <span className="w-4 h-4 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" /> : <XCircle size={15} />}
+            승인 취소
+          </button>
+        ) : status === "rejected" ? (
+          <div className="grid grid-cols-2 gap-2">
+            <button disabled={loading} onClick={() => handle(null)}
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-2xl border-2 border-amber-200 bg-amber-50 text-amber-700 font-bold text-sm active:scale-95 transition-all disabled:opacity-50">
+              {loading ? <span className="w-4 h-4 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin" /> : <RefreshCw size={15} />}
+              재심사
+            </button>
+            <button disabled={loading} onClick={() => handle(true)}
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-2xl bg-green-500 text-white font-bold text-sm active:scale-95 transition-all shadow-md disabled:opacity-50">
+              {loading ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <ShieldCheck size={15} />}
+              승인
+            </button>
+          </div>
+        ) : (
           <div className="grid grid-cols-2 gap-2">
             <button disabled={loading} onClick={() => rejectOpen ? handle(false) : setRejectOpen(true)}
               className="flex items-center justify-center gap-1.5 py-2.5 rounded-2xl border-2 border-red-200 bg-red-50 text-red-600 font-bold text-sm active:scale-95 transition-all disabled:opacity-50">
@@ -639,12 +673,6 @@ function RiderApproveCard({ rider, onAction }: { rider: RiderRow; onAction: (id:
               승인
             </button>
           </div>
-        ) : (
-          <button disabled={loading} onClick={() => handle(false)}
-            className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl border-2 border-gray-200 bg-gray-50 text-gray-500 font-bold text-sm active:scale-95 transition-all disabled:opacity-50">
-            {loading ? <span className="w-4 h-4 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" /> : <XCircle size={15} />}
-            승인 취소
-          </button>
         )}
       </div>
     </div>
@@ -654,7 +682,7 @@ function RiderApproveCard({ rider, onAction }: { rider: RiderRow; onAction: (id:
 function RidersTab() {
   const [riders,      setRiders]      = useState<RiderRow[]>([]);
   const [loading,     setLoading]     = useState(true);
-  const [riderFilter, setRiderFilter] = useState<"all" | "pending" | "approved">("pending");
+  const [riderFilter, setRiderFilter] = useState<"all" | "pending" | "rejected" | "approved">("pending");
 
   const fetchRiders = useCallback(async () => {
     setLoading(true);
@@ -666,7 +694,7 @@ function RidersTab() {
 
   useEffect(() => { fetchRiders(); }, [fetchRiders]);
 
-  const handleAction = async (riderId: string, approved: boolean) => {
+  const handleAction = async (riderId: string, approved: boolean | null) => {
     const res = await authFetch(`/api/admin/riders/${riderId}/approve`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -675,19 +703,29 @@ function RidersTab() {
     if (res.ok) setRiders((prev) => prev.map((r) => r.id === riderId ? { ...r, isApproved: approved } : r));
   };
 
-  const filtered = riders.filter((r) =>
-    riderFilter === "all" ? true : riderFilter === "pending" ? !r.isApproved : r.isApproved
-  );
-  const pendingCount = riders.filter((r) => !r.isApproved).length;
+  const pendingCount  = riders.filter((r) => r.isApproved === null).length;
+  const rejectedCount = riders.filter((r) => r.isApproved === false).length;
+
+  const filtered = riders.filter((r) => {
+    if (riderFilter === "all")      return true;
+    if (riderFilter === "pending")  return r.isApproved === null;
+    if (riderFilter === "rejected") return r.isApproved === false;
+    return r.isApproved === true;
+  });
 
   return (
     <div className="px-4 pt-4 pb-24">
       {/* 필터 */}
-      <div className="flex gap-2 mb-4">
-        {([["pending","심사 중"],["approved","승인됨"],["all","전체"]] as const).map(([v, label]) => (
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {([
+          ["pending",  `심사 중${pendingCount  > 0 ? ` (${pendingCount})`  : ""}`],
+          ["rejected", `반려됨${rejectedCount  > 0 ? ` (${rejectedCount})` : ""}`],
+          ["approved", "승인됨"],
+          ["all",      "전체"],
+        ] as const).map(([v, label]) => (
           <button key={v} onClick={() => setRiderFilter(v)}
             className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${riderFilter === v ? "bg-pick-purple text-white" : "bg-pick-bg text-pick-text-sub border border-pick-border"}`}>
-            {label}{v === "pending" && pendingCount > 0 ? ` (${pendingCount})` : ""}
+            {label}
           </button>
         ))}
       </div>
