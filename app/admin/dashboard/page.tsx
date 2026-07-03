@@ -40,7 +40,7 @@ interface StoreRow {
   address:             string;
   phone:               string | null;
   isOpen:              boolean;
-  isApproved:          boolean;
+  isApproved:          boolean | null;  // null=심사중, false=반려, true=승인
   rating:              number;
   reviewCount:         number;
   deliveryFee:         number;
@@ -57,40 +57,50 @@ const CATEGORY_EMOJI: Record<string, string> = {
   "피자":"🍕","분식":"🍜","카페·디저트":"☕","양식":"🥩",
 };
 
+const STORE_STATUS = {
+  approved: { label: "✅ 승인됨",   border: "border-green-200", badge: "bg-green-50 text-green-600 border-green-200" },
+  rejected: { label: "❌ 반려됨",   border: "border-red-200",   badge: "bg-red-50 text-red-600 border-red-200" },
+  pending:  { label: "⏳ 승인 대기", border: "border-amber-200", badge: "bg-amber-50 text-amber-600 border-amber-200" },
+} as const;
+
+function getStoreStatus(isApproved: boolean | null): keyof typeof STORE_STATUS {
+  if (isApproved === true)  return "approved";
+  if (isApproved === false) return "rejected";
+  return "pending";
+}
+
 // ── 가게 승인 카드 ─────────────────────────────────────
 function StoreApproveCard({
   store,
   onAction,
 }: {
   store: StoreRow;
-  onAction: (storeId: string, approved: boolean) => Promise<void>;
+  onAction: (storeId: string, approved: boolean | null) => Promise<void>;
 }) {
   const [loading,    setLoading]    = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [reason,     setReason]     = useState("");
 
-  const handle = async (approved: boolean) => {
+  const handle = async (approved: boolean | null) => {
     setLoading(true);
     await onAction(store.id, approved);
     setLoading(false);
     setRejectOpen(false);
+    setReason("");
   };
 
+  const status = getStoreStatus(store.isApproved);
+  const { label: statusLabel, border, badge } = STORE_STATUS[status];
+
   return (
-    <div className={`bg-white rounded-3xl border-2 shadow-sm overflow-hidden ${
-      store.isApproved ? "border-green-200" : "border-amber-200"
-    }`}>
+    <div className={`bg-white rounded-3xl border-2 shadow-sm overflow-hidden ${border}`}>
       <div className="px-4 pt-4 pb-3">
         {/* 상태 뱃지 + 카테고리 */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span className="text-2xl">{CATEGORY_EMOJI[store.category] ?? "🏪"}</span>
-            <span className={`text-xs font-black px-2.5 py-1 rounded-full ${
-              store.isApproved
-                ? "bg-green-50 text-green-600 border border-green-200"
-                : "bg-amber-50 text-amber-600 border border-amber-200"
-            }`}>
-              {store.isApproved ? "✅ 승인됨" : "⏳ 승인 대기"}
+            <span className={`text-xs font-black px-2.5 py-1 rounded-full border ${badge}`}>
+              {statusLabel}
             </span>
           </div>
           <p className="text-[10px] text-pick-text-sub">
@@ -151,7 +161,35 @@ function StoreApproveCard({
         )}
 
         {/* 액션 버튼 */}
-        {!store.isApproved ? (
+        {status === "approved" ? (
+          <button
+            disabled={loading}
+            onClick={() => handle(null)}
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl border-2 border-gray-200 bg-gray-50 text-gray-500 font-bold text-sm active:scale-95 transition-all disabled:opacity-50"
+          >
+            {loading ? <span className="w-4 h-4 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" /> : <XCircle size={15} />}
+            승인 취소
+          </button>
+        ) : status === "rejected" ? (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              disabled={loading}
+              onClick={() => handle(null)}
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-2xl border-2 border-amber-200 bg-amber-50 text-amber-700 font-bold text-sm active:scale-95 transition-all disabled:opacity-50"
+            >
+              {loading ? <span className="w-4 h-4 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin" /> : <RefreshCw size={15} />}
+              재심사
+            </button>
+            <button
+              disabled={loading}
+              onClick={() => handle(true)}
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-2xl bg-green-500 text-white font-bold text-sm active:scale-95 transition-all shadow-md disabled:opacity-50"
+            >
+              {loading ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <CheckCircle size={15} />}
+              승인
+            </button>
+          </div>
+        ) : (
           <div className="grid grid-cols-2 gap-2">
             <button
               disabled={loading}
@@ -170,15 +208,6 @@ function StoreApproveCard({
               승인
             </button>
           </div>
-        ) : (
-          <button
-            disabled={loading}
-            onClick={() => handle(false)}
-            className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl border-2 border-gray-200 bg-gray-50 text-gray-500 font-bold text-sm active:scale-95 transition-all disabled:opacity-50"
-          >
-            {loading ? <span className="w-4 h-4 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" /> : <XCircle size={15} />}
-            승인 취소
-          </button>
         )}
       </div>
     </div>
@@ -189,7 +218,7 @@ function StoreApproveCard({
 function StoresTab() {
   const [stores,      setStores]      = useState<StoreRow[]>([]);
   const [loading,     setLoading]     = useState(true);
-  const [storeFilter, setStoreFilter] = useState<"all" | "pending" | "approved">("pending");
+  const [storeFilter, setStoreFilter] = useState<"pending" | "approved" | "rejected">("pending");
 
   const fetchStores = useCallback(async () => {
     setLoading(true);
@@ -206,8 +235,8 @@ function StoresTab() {
 
   useEffect(() => { fetchStores(); }, [fetchStores]);
 
-  const handleAction = async (storeId: string, approved: boolean) => {
-    const res = await fetch(`/api/admin/stores/${storeId}/approve`, {
+  const handleAction = async (storeId: string, approved: boolean | null) => {
+    const res = await authFetch(`/api/admin/stores/${storeId}/approve`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ approved }),
@@ -219,56 +248,44 @@ function StoresTab() {
     }
   };
 
+  const pendingCount  = stores.filter((s) => s.isApproved === null).length;
+  const approvedCount = stores.filter((s) => s.isApproved === true).length;
+  const rejectedCount = stores.filter((s) => s.isApproved === false).length;
+
   const filtered = stores.filter((s) =>
-    storeFilter === "all"      ? true :
-    storeFilter === "pending"  ? !s.isApproved :
-    s.isApproved
+    storeFilter === "pending"  ? s.isApproved === null  :
+    storeFilter === "approved" ? s.isApproved === true  :
+    s.isApproved === false
   );
 
-  const pendingCount  = stores.filter((s) => !s.isApproved).length;
-  const approvedCount = stores.filter((s) =>  s.isApproved).length;
+  const STORE_FILTER_TABS = [
+    { key: "pending"  as const, label: "심사 중",  count: pendingCount,  activeColor: "bg-amber-500" },
+    { key: "approved" as const, label: "승인됨",   count: approvedCount, activeColor: "bg-green-500" },
+    { key: "rejected" as const, label: "반려됨",   count: rejectedCount, activeColor: "bg-red-500"   },
+  ];
 
   return (
     <div>
-      {/* 요약 */}
-      <div className="px-4 py-3 grid grid-cols-3 gap-2 mb-3">
-        <div className="bg-white rounded-2xl border-2 border-pick-border p-3 text-center">
-          <p className="text-xl font-black text-pick-text">{stores.length}</p>
-          <p className="text-[10px] text-pick-text-sub">전체</p>
-        </div>
-        <div className="bg-amber-50 rounded-2xl border-2 border-amber-200 p-3 text-center">
-          <p className="text-xl font-black text-amber-600">{pendingCount}</p>
-          <p className="text-[10px] text-amber-600">승인 대기</p>
-        </div>
-        <div className="bg-green-50 rounded-2xl border-2 border-green-200 p-3 text-center">
-          <p className="text-xl font-black text-green-600">{approvedCount}</p>
-          <p className="text-[10px] text-green-600">승인됨</p>
-        </div>
-      </div>
-
-      {/* 필터 탭 */}
-      <div className="px-4 mb-4 flex gap-2">
-        {([
-          { key: "pending",  label: `대기 (${pendingCount})` },
-          { key: "approved", label: `승인 (${approvedCount})` },
-          { key: "all",      label: "전체" },
-        ] as const).map(({ key, label }) => (
+      {/* 3탭 카드 */}
+      <div className="px-4 py-3 grid grid-cols-3 gap-2 mb-1">
+        {STORE_FILTER_TABS.map(({ key, label, count, activeColor }) => (
           <button
             key={key}
             onClick={() => setStoreFilter(key)}
-            className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${
+            className={`rounded-2xl p-3 text-center border-2 transition-all ${
               storeFilter === key
-                ? "bg-pick-purple text-white shadow-sm"
-                : "bg-white text-pick-text-sub border-2 border-pick-border"
+                ? `${activeColor} text-white border-transparent shadow-md`
+                : "bg-white text-pick-text border-pick-border"
             }`}
           >
-            {label}
+            <p className="text-xl font-black">{count}</p>
+            <p className="text-[10px] font-bold mt-0.5">{label}</p>
           </button>
         ))}
       </div>
 
       {/* 목록 */}
-      <div className="px-4 flex flex-col gap-3">
+      <div className="px-4 py-3 flex flex-col gap-3">
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="w-8 h-8 border-2 border-pick-purple border-t-transparent rounded-full animate-spin" />
@@ -277,7 +294,9 @@ function StoresTab() {
           <div className="bg-white rounded-3xl border-2 border-pick-border p-10 flex flex-col items-center text-pick-text-sub">
             <Store size={36} className="mb-3 opacity-20" />
             <p className="text-sm font-medium">
-              {storeFilter === "pending" ? "승인 대기 중인 가게가 없어요" : "가게가 없어요"}
+              {storeFilter === "pending"  ? "심사 대기 중인 가게가 없어요" :
+               storeFilter === "rejected" ? "반려된 가게가 없어요" :
+               "승인된 가게가 없어요"}
             </p>
           </div>
         ) : (

@@ -5,7 +5,7 @@ import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createNotification } from "@/lib/notifications";
 
 const ApproveSchema = z.object({
-  approved: z.boolean(),
+  approved: z.boolean().nullable(),          // null=재심사, false=반려, true=승인
   reason:   z.string().max(200).optional(),  // 반려 시 사유
 });
 
@@ -59,7 +59,7 @@ export async function PATCH(
   }
 
   // 사장님에게 알림
-  if (store.owner_id) {
+  if (store.owner_id && approved !== null) {
     await createNotification({
       userId: store.owner_id,
       type:   "system",

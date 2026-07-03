@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       delivery_time:          deliveryTime,
       delivery_radius_km:     deliveryRadiusKm ?? 5,
       is_open:                true,
-      is_approved:            false,
+      is_approved:            null,
       pick_reward_rate:       1.0,
       business_reg_image_url: businessRegImageUrl,
     })
