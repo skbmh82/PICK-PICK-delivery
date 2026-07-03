@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { Users, Coins, RefreshCw, Search, X, Check, ChevronDown, Store, MapPin, Phone, Clock, XCircle, CheckCircle, BarChart2, ShoppingBag, Ticket, Plus, Tag, ToggleLeft, ToggleRight, Trash2, Bell, Send, ArrowLeft, Megaphone, CalendarDays, Bike, ShieldCheck, FileImage } from "lucide-react";
@@ -57,14 +57,76 @@ const CATEGORY_EMOJI: Record<string, string> = {
   "피자":"🍕","분식":"🍜","카페·디저트":"☕","양식":"🥩",
 };
 
-// ── 서류 이미지 — 탭하면 새 탭에서 전체 크기로 보기 ────
+// ── 서류 이미지 뷰어 — <dialog> top-layer 모달 (페이지 이탈 없음) ──
 function DocImage({ url, label }: { url: string; label: string }) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
   return (
-    <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+    <>
+      <button
+        type="button"
+        className="block w-full text-left"
+        onClick={() => dialogRef.current?.showModal()}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={url} alt={label} className="w-full max-h-64 object-contain rounded-2xl border-2 border-pick-border bg-gray-50" />
+        <p className="text-[11px] text-pick-purple text-center mt-1 font-black">{label} 🔍 탭하면 크게 보기</p>
+      </button>
+
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt={label} className="w-full max-h-64 object-contain rounded-2xl border-2 border-pick-border bg-gray-50" />
-      <p className="text-[11px] text-pick-purple text-center mt-1 font-black">{label} 🔍 탭하면 전체 크기로 열림</p>
-    </a>
+      <dialog
+        ref={dialogRef}
+        onClick={() => dialogRef.current?.close()}
+        style={{
+          position: "fixed",
+          inset: 0,
+          margin: 0,
+          padding: "16px",
+          width: "100vw",
+          height: "100dvh",
+          maxWidth: "100vw",
+          maxHeight: "100dvh",
+          border: "none",
+          background: "rgba(0,0,0,0.93)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => dialogRef.current?.close()}
+          style={{
+            position: "absolute",
+            top: 20,
+            right: 20,
+            width: 44,
+            height: 44,
+            borderRadius: "50%",
+            background: "rgba(255,255,255,0.2)",
+            border: "none",
+            color: "white",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            fontSize: 20,
+          }}
+        >
+          ✕
+        </button>
+        <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{label}</p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={url}
+          alt={label}
+          onClick={(e) => e.stopPropagation()}
+          style={{ maxWidth: "100%", maxHeight: "80dvh", objectFit: "contain", borderRadius: 12 }}
+        />
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, marginTop: 12 }}>화면을 탭하면 닫힙니다</p>
+      </dialog>
+    </>
   );
 }
 
