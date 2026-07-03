@@ -396,9 +396,8 @@ export default function RiderProfilePage() {
         </div>
 
         {!profile.riderIsApproved && (
-          <p className="text-[11px] text-pick-text-sub text-center mt-3 leading-relaxed">
-            서류 제출 후 관리자 검토를 거쳐 승인됩니다.<br/>
-            승인 전에도 배달은 가능하지만 일부 기능이 제한될 수 있어요.
+          <p className="text-[11px] text-pick-text-sub text-center mt-3">
+            서류 제출 후 관리자 검토를 거쳐 승인됩니다.
           </p>
         )}
       </div>
