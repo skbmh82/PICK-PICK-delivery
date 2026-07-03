@@ -67,10 +67,11 @@ export default function RiderProfilePage() {
   const [docError,     setDocError]     = useState<Record<string, string>>({});
 
   // 편집 상태
-  const [editName,    setEditName]    = useState(false);
-  const [editPhone,   setEditPhone]   = useState(false);
-  const [nameVal,     setNameVal]     = useState("");
-  const [phoneVal,    setPhoneVal]    = useState("");
+  const [editName,           setEditName]           = useState(false);
+  const [editPhone,          setEditPhone]          = useState(false);
+  const [nameVal,            setNameVal]            = useState("");
+  const [phoneVal,           setPhoneVal]           = useState("");
+  const [selectedVehicleType, setSelectedVehicleType] = useState<RiderProfile["vehicleType"]>("motorcycle");
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -86,6 +87,7 @@ export default function RiderProfilePage() {
         setData(d);
         setNameVal(d.profile.name);
         setPhoneVal(d.profile.phone ?? "");
+        setSelectedVehicleType(d.profile.vehicleType);
       }
     } finally {
       setLoading(false);
@@ -94,7 +96,7 @@ export default function RiderProfilePage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const savePatch = async (body: Record<string, string | null>) => {
+  const savePatch = async (body: Record<string, string | null>, showSuccessToast = true) => {
     setSaving(true);
     try {
       const res = await fetch("/api/rider/profile", {
@@ -102,7 +104,7 @@ export default function RiderProfilePage() {
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify(body),
       });
-      if (res.ok) { await fetchData(); showToast("저장됐어요 ✅"); }
+      if (res.ok) { await fetchData(); if (showSuccessToast) showToast("저장됐어요 ✅"); }
       else        { showToast("저장에 실패했어요"); }
     } finally { setSaving(false); }
   };
@@ -140,7 +142,8 @@ export default function RiderProfilePage() {
       const res  = await fetch("/api/upload", { method: "POST", body: fd });
       const json = await res.json() as { url?: string; error?: string };
       if (res.ok && json.url) {
-        await savePatch({ [docKey]: json.url });
+        // 파일은 즉시 업로드하되, 저장은 하단 저장 버튼으로 처리
+        await savePatch({ [docKey]: json.url }, false);
       } else {
         setDocError((prev) => ({ ...prev, [docKey]: json.error ?? "업로드 실패" }));
       }
@@ -304,16 +307,15 @@ export default function RiderProfilePage() {
           {VEHICLE_OPTIONS.map((v) => (
             <button
               key={v.value}
-              disabled={saving}
-              onClick={() => savePatch({ vehicleType: v.value })}
-              className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border-2 transition-all ${
-                profile.vehicleType === v.value
+              onClick={() => setSelectedVehicleType(v.value)}
+              className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border-2 transition-all active:scale-95 ${
+                selectedVehicleType === v.value
                   ? "border-sky-400 bg-sky-50"
                   : "border-pick-border bg-white"
               }`}
             >
               <span className="text-2xl">{v.emoji}</span>
-              <span className={`text-[11px] font-bold ${profile.vehicleType === v.value ? "text-sky-600" : "text-pick-text-sub"}`}>
+              <span className={`text-[11px] font-bold ${selectedVehicleType === v.value ? "text-sky-600" : "text-pick-text-sub"}`}>
                 {v.label}
               </span>
             </button>
@@ -332,15 +334,15 @@ export default function RiderProfilePage() {
             <span className="flex items-center gap-1 text-[11px] font-black text-green-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
               <ShieldCheck size={12} /> 승인 완료
             </span>
-          ) : (
+          ) : profile.idImageUrl ? (
             <span className="flex items-center gap-1 text-[11px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
               <AlertCircle size={12} /> 심사 중
             </span>
-          )}
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-3">
-          {DOC_REQUIREMENTS[profile.vehicleType].map((doc) => {
+          {DOC_REQUIREMENTS[selectedVehicleType].map((doc) => {
             const url       = profile[doc.key as keyof RiderProfile] as string | null;
             const isLoading = docUploading[doc.key] ?? false;
             const err       = docError[doc.key] ?? "";
@@ -400,6 +402,19 @@ export default function RiderProfilePage() {
             서류 제출 후 관리자 검토를 거쳐 승인됩니다.
           </p>
         )}
+
+        {/* 저장 버튼 */}
+        <button
+          onClick={() => void savePatch({ vehicleType: selectedVehicleType })}
+          disabled={saving}
+          className="w-full mt-4 py-3.5 rounded-full bg-gradient-to-r from-sky-500 to-blue-500 text-white font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 shadow-md"
+        >
+          {saving
+            ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            : <Check size={16} />
+          }
+          {saving ? "저장 중..." : "저장하기"}
+        </button>
       </div>
 
       {/* ── PICK 지갑 ── */}
