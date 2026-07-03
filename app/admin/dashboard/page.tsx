@@ -57,18 +57,14 @@ const CATEGORY_EMOJI: Record<string, string> = {
   "피자":"🍕","분식":"🍜","카페·디저트":"☕","양식":"🥩",
 };
 
-// ── 서류 이미지 라이트박스 ──────────────────────────────
+// ── 서류 이미지 — 탭하면 새 탭에서 전체 크기로 보기 ────
 function DocImage({ url, label }: { url: string; label: string }) {
   return (
-    <button
-      type="button"
-      className="block w-full text-left"
-      onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
-    >
+    <a href={url} target="_blank" rel="noopener noreferrer" className="block">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt={label} className="w-full max-h-48 object-contain rounded-2xl border border-pick-border bg-gray-50" />
-      <p className="text-[10px] text-pick-purple text-center mt-0.5 font-bold">{label} — 탭하여 크게 보기 🔍</p>
-    </button>
+      <img src={url} alt={label} className="w-full max-h-64 object-contain rounded-2xl border-2 border-pick-border bg-gray-50" />
+      <p className="text-[11px] text-pick-purple text-center mt-1 font-black">{label} 🔍 탭하면 전체 크기로 열림</p>
+    </a>
   );
 }
 
