@@ -25,7 +25,7 @@ export async function GET() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: profile } = await (admin as any)
     .from("users")
-    .select("id, name, email, phone, role, profile_image, vehicle_type")
+    .select("id, name, email, phone, role, profile_image, vehicle_type, id_image_url, vehicle_reg_image_url, insurance_image_url, rider_is_approved")
     .eq("auth_id", user.id)
     .single();
 
@@ -78,13 +78,17 @@ export async function GET() {
 
   return NextResponse.json({
     profile: {
-      id:           profile.id,
-      name:         profile.name,
-      email:        profile.email,
-      phone:        profile.phone,
-      profileImage: profile.profile_image ?? null,
-      vehicleType:  profile.vehicle_type ?? "motorcycle",
-      isOnline:     location?.is_active ?? false,
+      id:                  profile.id,
+      name:                profile.name,
+      email:               profile.email,
+      phone:               profile.phone,
+      profileImage:        profile.profile_image ?? null,
+      vehicleType:         profile.vehicle_type ?? "motorcycle",
+      isOnline:            location?.is_active ?? false,
+      idImageUrl:          profile.id_image_url ?? null,
+      vehicleRegImageUrl:  profile.vehicle_reg_image_url ?? null,
+      insuranceImageUrl:   profile.insurance_image_url ?? null,
+      riderIsApproved:     profile.rider_is_approved ?? false,
     },
     wallet: { pickBalance, totalEarned },
     rider: {
@@ -103,10 +107,13 @@ export async function GET() {
 }
 
 const UpdateRiderSchema = z.object({
-  name:        z.string().min(2).max(50).optional(),
-  phone:       z.string().max(20).optional(),
-  vehicleType: z.enum(["motorcycle", "bicycle", "kickboard", "walk"]).optional(),
-  profileImage: z.string().url().nullable().optional(),
+  name:               z.string().min(2).max(50).optional(),
+  phone:              z.string().max(20).optional(),
+  vehicleType:        z.enum(["motorcycle", "bicycle", "kickboard"]).optional(),
+  profileImage:       z.string().url().nullable().optional(),
+  idImageUrl:         z.string().min(1).nullable().optional(),
+  vehicleRegImageUrl: z.string().min(1).nullable().optional(),
+  insuranceImageUrl:  z.string().min(1).nullable().optional(),
 });
 
 // PATCH /api/rider/profile — 라이더 프로필 수정
@@ -132,11 +139,17 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "라이더 권한이 필요합니다" }, { status: 403 });
   }
 
-  const updates: Record<string, string | null> = {};
-  if (parsed.data.name         !== undefined) updates.name          = parsed.data.name;
-  if (parsed.data.phone        !== undefined) updates.phone         = parsed.data.phone;
-  if (parsed.data.vehicleType  !== undefined) updates.vehicle_type  = parsed.data.vehicleType;
-  if (parsed.data.profileImage !== undefined) updates.profile_image = parsed.data.profileImage ?? null;
+  const updates: Record<string, string | null | boolean> = {};
+  if (parsed.data.name               !== undefined) updates.name                  = parsed.data.name;
+  if (parsed.data.phone              !== undefined) updates.phone                 = parsed.data.phone;
+  if (parsed.data.vehicleType        !== undefined) updates.vehicle_type          = parsed.data.vehicleType;
+  if (parsed.data.profileImage       !== undefined) updates.profile_image         = parsed.data.profileImage ?? null;
+  if (parsed.data.idImageUrl         !== undefined) updates.id_image_url          = parsed.data.idImageUrl ?? null;
+  if (parsed.data.vehicleRegImageUrl !== undefined) updates.vehicle_reg_image_url = parsed.data.vehicleRegImageUrl ?? null;
+  if (parsed.data.insuranceImageUrl  !== undefined) updates.insurance_image_url   = parsed.data.insuranceImageUrl ?? null;
+  // 서류 변경 시 재심사 필요
+  const docChanged = ["idImageUrl","vehicleRegImageUrl","insuranceImageUrl"].some(k => k in (parsed.data as Record<string,unknown>));
+  if (docChanged) updates.rider_is_approved = false;
 
   if (Object.keys(updates).length === 0) return NextResponse.json({ ok: true });
 

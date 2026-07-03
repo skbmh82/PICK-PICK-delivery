@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-import { Users, Coins, RefreshCw, Search, X, Check, ChevronDown, Store, MapPin, Phone, Clock, XCircle, CheckCircle, BarChart2, ShoppingBag, Ticket, Plus, Tag, ToggleLeft, ToggleRight, Trash2, Bell, Send, ArrowLeft, Megaphone, CalendarDays } from "lucide-react";
+import { Users, Coins, RefreshCw, Search, X, Check, ChevronDown, Store, MapPin, Phone, Clock, XCircle, CheckCircle, BarChart2, ShoppingBag, Ticket, Plus, Tag, ToggleLeft, ToggleRight, Trash2, Bell, Send, ArrowLeft, Megaphone, CalendarDays, Bike, ShieldCheck, FileImage } from "lucide-react";
 
 // getSession() → sessionStorage → localStorage 순으로 폴백하는 fetch
 async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
@@ -541,6 +541,168 @@ function Skeleton() {
       {[0,1,2,3,4].map((i) => (
         <div key={i} className="h-20 bg-gray-100 rounded-3xl" />
       ))}
+    </div>
+  );
+}
+
+// ── 라이더 승인 탭 ────────────────────────────────────────
+interface RiderRow {
+  id:                 string;
+  name:               string;
+  email:              string;
+  phone:              string | null;
+  vehicleType:        string;
+  idImageUrl:         string | null;
+  vehicleRegImageUrl: string | null;
+  insuranceImageUrl:  string | null;
+  isApproved:         boolean;
+  createdAt:          string;
+}
+
+const VEHICLE_LABEL: Record<string, string> = {
+  motorcycle: "🛵 오토바이",
+  bicycle:    "🚴 자전거",
+  kickboard:  "🛴 킥보드",
+};
+
+function RiderApproveCard({ rider, onAction }: { rider: RiderRow; onAction: (id: string, approved: boolean) => Promise<void> }) {
+  const [loading,    setLoading]    = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+
+  const handle = async (approved: boolean) => {
+    setLoading(true);
+    await onAction(rider.id, approved);
+    setLoading(false);
+    setRejectOpen(false);
+  };
+
+  const docs = [
+    { label: "신분증/면허증",   url: rider.idImageUrl },
+    { label: "차량등록증",       url: rider.vehicleRegImageUrl },
+    { label: "보험가입증명서",   url: rider.insuranceImageUrl },
+  ].filter((d) => d.url);
+
+  return (
+    <div className={`bg-white rounded-3xl border-2 shadow-sm overflow-hidden ${rider.isApproved ? "border-green-200" : "border-amber-200"}`}>
+      <div className="px-4 pt-4 pb-3">
+        {/* 상태 + 차량 */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-pick-text-sub">{VEHICLE_LABEL[rider.vehicleType] ?? rider.vehicleType}</span>
+            <span className={`text-xs font-black px-2.5 py-1 rounded-full ${rider.isApproved ? "bg-green-50 text-green-600 border border-green-200" : "bg-amber-50 text-amber-600 border border-amber-200"}`}>
+              {rider.isApproved ? "✅ 승인됨" : "⏳ 심사 중"}
+            </span>
+          </div>
+          <p className="text-[10px] text-pick-text-sub">
+            {new Date(rider.createdAt).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })} 등록
+          </p>
+        </div>
+
+        {/* 라이더 정보 */}
+        <p className="font-black text-pick-text text-base mb-1">{rider.name}</p>
+        <div className="flex flex-col gap-1 mb-3">
+          <p className="flex items-center gap-1.5 text-xs text-pick-text-sub"><Phone size={11} /> {rider.phone ?? "번호 미등록"}</p>
+          <p className="flex items-center gap-1.5 text-xs text-pick-text-sub"><Users size={11} /> {rider.email}</p>
+        </div>
+
+        {/* 제출 서류 */}
+        {docs.length > 0 && (
+          <div className="flex flex-col gap-2 mb-3">
+            <p className="text-[10px] font-bold text-pick-text-sub flex items-center gap-1"><FileImage size={11} /> 제출 서류</p>
+            {docs.map((doc) => (
+              <a key={doc.label} href={doc.url!} target="_blank" rel="noopener noreferrer" className="block">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={doc.url!} alt={doc.label} className="w-full max-h-36 object-contain rounded-2xl border border-pick-border bg-gray-50" />
+                <p className="text-[10px] text-pick-purple text-center mt-0.5">{doc.label} — 클릭하여 원본 보기 →</p>
+              </a>
+            ))}
+          </div>
+        )}
+
+        {/* 반려 사유 */}
+        {rejectOpen && (
+          <input type="text" placeholder="반려 사유 (선택)" className="w-full border-2 border-red-200 rounded-2xl px-3 py-2 text-sm mb-3 focus:outline-none focus:border-red-400" />
+        )}
+
+        {/* 액션 버튼 */}
+        {!rider.isApproved ? (
+          <div className="grid grid-cols-2 gap-2">
+            <button disabled={loading} onClick={() => rejectOpen ? handle(false) : setRejectOpen(true)}
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-2xl border-2 border-red-200 bg-red-50 text-red-600 font-bold text-sm active:scale-95 transition-all disabled:opacity-50">
+              {loading ? <span className="w-4 h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" /> : <XCircle size={15} />}
+              {rejectOpen ? "반려 확정" : "반려"}
+            </button>
+            <button disabled={loading} onClick={() => handle(true)}
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-2xl bg-green-500 text-white font-bold text-sm active:scale-95 transition-all shadow-md disabled:opacity-50">
+              {loading ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <ShieldCheck size={15} />}
+              승인
+            </button>
+          </div>
+        ) : (
+          <button disabled={loading} onClick={() => handle(false)}
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl border-2 border-gray-200 bg-gray-50 text-gray-500 font-bold text-sm active:scale-95 transition-all disabled:opacity-50">
+            {loading ? <span className="w-4 h-4 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" /> : <XCircle size={15} />}
+            승인 취소
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RidersTab() {
+  const [riders,      setRiders]      = useState<RiderRow[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [riderFilter, setRiderFilter] = useState<"all" | "pending" | "approved">("pending");
+
+  const fetchRiders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await authFetch("/api/admin/riders");
+      if (res.ok) { const { riders: rows } = await res.json(); setRiders(rows ?? []); }
+    } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { fetchRiders(); }, [fetchRiders]);
+
+  const handleAction = async (riderId: string, approved: boolean) => {
+    const res = await authFetch(`/api/admin/riders/${riderId}/approve`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ approved }),
+    });
+    if (res.ok) setRiders((prev) => prev.map((r) => r.id === riderId ? { ...r, isApproved: approved } : r));
+  };
+
+  const filtered = riders.filter((r) =>
+    riderFilter === "all" ? true : riderFilter === "pending" ? !r.isApproved : r.isApproved
+  );
+  const pendingCount = riders.filter((r) => !r.isApproved).length;
+
+  return (
+    <div className="px-4 pt-4 pb-24">
+      {/* 필터 */}
+      <div className="flex gap-2 mb-4">
+        {([["pending","심사 중"],["approved","승인됨"],["all","전체"]] as const).map(([v, label]) => (
+          <button key={v} onClick={() => setRiderFilter(v)}
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${riderFilter === v ? "bg-pick-purple text-white" : "bg-pick-bg text-pick-text-sub border border-pick-border"}`}>
+            {label}{v === "pending" && pendingCount > 0 ? ` (${pendingCount})` : ""}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-12"><span className="w-8 h-8 border-2 border-pick-purple border-t-transparent rounded-full animate-spin" /></div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12 text-pick-text-sub">
+          <Bike size={40} className="mx-auto mb-3 opacity-30" />
+          <p className="font-bold">{riderFilter === "pending" ? "심사 대기 중인 라이더가 없어요" : "해당하는 라이더가 없어요"}</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {filtered.map((r) => <RiderApproveCard key={r.id} rider={r} onAction={handleAction} />)}
+        </div>
+      )}
     </div>
   );
 }
@@ -1850,7 +2012,7 @@ function AdsTab() {
 // ── 메인 페이지 ───────────────────────────────────────
 export default function AdminDashboardPage() {
   const router = useRouter();
-  const [activeTab,    setActiveTab]    = useState<"stats" | "users" | "stores" | "coupons" | "push" | "ads" | "promo">("stats");
+  const [activeTab,    setActiveTab]    = useState<"stats" | "users" | "stores" | "riders" | "coupons" | "push" | "ads" | "promo">("stats");
   const [users,        setUsers]        = useState<UserRow[]>([]);
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
   const [loading,      setLoading]      = useState(true);
@@ -1944,6 +2106,7 @@ export default function AdminDashboardPage() {
                 {activeTab === "stats"   ? "플랫폼 통계" :
                  activeTab === "users"   ? `전체 ${users.length}명` :
                  activeTab === "stores"  ? "가게 승인 관리" :
+                 activeTab === "riders"  ? "라이더 서류 심사" :
                  activeTab === "coupons" ? "쿠폰 생성 및 관리" :
                  activeTab === "ads"     ? "광고 등록 및 관리" :
                  activeTab === "promo"   ? "프로모션 배너 관리" : "일괄 푸시 알림 발송"}
@@ -1963,6 +2126,7 @@ export default function AdminDashboardPage() {
             { key: "stats"   as const, label: "통계",      icon: <BarChart2 size={13} />, badge: undefined as number | undefined },
             { key: "users"   as const, label: "회원 관리", icon: <Users    size={13} />, badge: undefined as number | undefined },
             { key: "stores"  as const, label: "가게 승인", icon: <Store    size={13} />, badge: pendingCount as number | undefined },
+            { key: "riders"  as const, label: "라이더 심사", icon: <Bike     size={13} />, badge: undefined as number | undefined },
             { key: "coupons" as const, label: "쿠폰 관리", icon: <Ticket     size={13} />, badge: undefined as number | undefined },
             { key: "ads"     as const, label: "광고 관리",  icon: <Megaphone   size={13} />, badge: undefined as number | undefined },
             { key: "promo"   as const, label: "프로모션",   icon: <CalendarDays size={13} />, badge: undefined as number | undefined },
@@ -2091,6 +2255,7 @@ export default function AdminDashboardPage() {
       )}
 
       {activeTab === "stores"  && <StoresTab />}
+      {activeTab === "riders"  && <RidersTab />}
       {activeTab === "coupons" && <CouponsTab />}
       {activeTab === "ads"     && <AdsTab />}
       {activeTab === "promo"   && <PromoBannersTab />}

@@ -1,20 +1,24 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { User, Phone, Bike, Edit2, Check, X, Camera, LogOut } from "lucide-react";
+import { User, Phone, Bike, Edit2, Check, X, Camera, LogOut, FileImage, Upload, ShieldCheck, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
 import { supabase } from "@/lib/supabase/client";
 
 // ── 타입 ──────────────────────────────────────────────
 interface RiderProfile {
-  id: string;
-  name: string;
-  email: string;
-  phone: string | null;
-  profileImage: string | null;
-  vehicleType: "motorcycle" | "bicycle" | "kickboard" | "walk";
-  isOnline: boolean;
+  id:                 string;
+  name:               string;
+  email:              string;
+  phone:              string | null;
+  profileImage:       string | null;
+  vehicleType:        "motorcycle" | "bicycle" | "kickboard";
+  isOnline:           boolean;
+  idImageUrl:         string | null;
+  vehicleRegImageUrl: string | null;
+  insuranceImageUrl:  string | null;
+  riderIsApproved:    boolean;
 }
 
 interface RiderData {
@@ -28,8 +32,18 @@ const VEHICLE_OPTIONS = [
   { value: "motorcycle", label: "오토바이", emoji: "🛵" },
   { value: "bicycle",    label: "자전거",   emoji: "🚴" },
   { value: "kickboard",  label: "킥보드",   emoji: "🛴" },
-  { value: "walk",       label: "도보",     emoji: "🚶" },
 ] as const;
+
+// 오토바이는 면허증+차량등록증+보험 3종 / 자전거·킥보드는 신분증 1종
+const DOC_REQUIREMENTS = {
+  motorcycle: [
+    { key: "idImageUrl",         label: "면허증 사본",      required: true },
+    { key: "vehicleRegImageUrl", label: "차량등록증",        required: true },
+    { key: "insuranceImageUrl",  label: "보험가입증명서",    required: true },
+  ],
+  bicycle:   [{ key: "idImageUrl", label: "신분증 또는 면허증", required: true }],
+  kickboard: [{ key: "idImageUrl", label: "신분증 또는 면허증", required: true }],
+} as const;
 
 
 // ── 메인 페이지 ───────────────────────────────────────
@@ -38,11 +52,13 @@ export default function RiderProfilePage() {
   const clearUser = useAuthStore((s) => s.clearUser);
   const imgInputRef = useRef<HTMLInputElement>(null);
 
-  const [data,      setData]      = useState<RiderData | null>(null);
-  const [loading,   setLoading]   = useState(true);
-  const [saving,    setSaving]    = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [toast,     setToast]     = useState("");
+  const [data,         setData]         = useState<RiderData | null>(null);
+  const [loading,      setLoading]      = useState(true);
+  const [saving,       setSaving]       = useState(false);
+  const [uploading,    setUploading]    = useState(false);
+  const [toast,        setToast]        = useState("");
+  const [docUploading, setDocUploading] = useState<Record<string, boolean>>({});
+  const [docError,     setDocError]     = useState<Record<string, string>>({});
 
   // 편집 상태
   const [editName,    setEditName]    = useState(false);
@@ -99,6 +115,34 @@ export default function RiderProfilePage() {
     } finally {
       setUploading(false);
       if (imgInputRef.current) imgInputRef.current.value = "";
+    }
+  };
+
+  const handleDocUpload = async (docKey: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setDocError((prev) => ({ ...prev, [docKey]: "파일 크기는 10MB 이하여야 합니다" }));
+      return;
+    }
+    setDocUploading((prev) => ({ ...prev, [docKey]: true }));
+    setDocError((prev) => ({ ...prev, [docKey]: "" }));
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("bucket", "store-images");
+      const res  = await fetch("/api/upload", { method: "POST", body: fd });
+      const json = await res.json() as { url?: string; error?: string };
+      if (res.ok && json.url) {
+        await savePatch({ [docKey]: json.url });
+      } else {
+        setDocError((prev) => ({ ...prev, [docKey]: json.error ?? "업로드 실패" }));
+      }
+    } catch {
+      setDocError((prev) => ({ ...prev, [docKey]: "업로드 중 오류가 발생했습니다" }));
+    } finally {
+      setDocUploading((prev) => ({ ...prev, [docKey]: false }));
+      e.target.value = "";
     }
   };
 
@@ -269,6 +313,88 @@ export default function RiderProfilePage() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* ── 서류 제출 ── */}
+      <div className="mx-4 mb-4 bg-white rounded-3xl border-2 border-sky-100 shadow-sm p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <FileImage size={16} className="text-sky-500" />
+            <p className="font-bold text-pick-text text-sm">서류 제출</p>
+          </div>
+          {profile.riderIsApproved ? (
+            <span className="flex items-center gap-1 text-[11px] font-black text-green-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
+              <ShieldCheck size={12} /> 승인 완료
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-[11px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
+              <AlertCircle size={12} /> 심사 중
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-3">
+          {DOC_REQUIREMENTS[profile.vehicleType].map((doc) => {
+            const url       = profile[doc.key as keyof RiderProfile] as string | null;
+            const isLoading = docUploading[doc.key] ?? false;
+            const err       = docError[doc.key] ?? "";
+            return (
+              <div key={doc.key}>
+                <p className="text-xs text-pick-text-sub font-bold mb-1.5">
+                  {doc.label} {doc.required && <span className="text-red-400">*</span>}
+                </p>
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  id={`doc-${doc.key}`}
+                  onChange={(e) => void handleDocUpload(doc.key, e)}
+                />
+                {url ? (
+                  <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={url}
+                      alt={doc.label}
+                      className="w-full max-h-36 object-contain rounded-2xl border-2 border-green-200 bg-green-50"
+                    />
+                    <label
+                      htmlFor={`doc-${doc.key}`}
+                      className="absolute top-2 right-2 bg-white/90 rounded-full px-2.5 py-1 text-[10px] font-bold text-sky-600 border border-sky-200 shadow-sm cursor-pointer"
+                    >
+                      다시 업로드
+                    </label>
+                    <p className="text-[11px] text-green-600 font-bold mt-1 flex items-center gap-1">
+                      <Check size={10} /> 제출 완료
+                    </p>
+                  </div>
+                ) : (
+                  <label
+                    htmlFor={`doc-${doc.key}`}
+                    className={`w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-2xl py-5 cursor-pointer transition-all ${
+                      isLoading ? "border-sky-200 bg-sky-50 opacity-70" : "border-pick-border bg-pick-bg active:bg-sky-50"
+                    }`}
+                  >
+                    {isLoading
+                      ? <span className="w-6 h-6 border-2 border-sky-200 border-t-sky-500 rounded-full animate-spin" />
+                      : <Upload size={22} className="text-sky-400" />}
+                    <span className="text-xs font-bold text-pick-text-sub">
+                      {isLoading ? "업로드 중..." : "탭하여 사진 선택"}
+                    </span>
+                  </label>
+                )}
+                {err && <p className="text-xs text-red-500 font-bold mt-1">{err}</p>}
+              </div>
+            );
+          })}
+        </div>
+
+        {!profile.riderIsApproved && (
+          <p className="text-[11px] text-pick-text-sub text-center mt-3 leading-relaxed">
+            서류 제출 후 관리자 검토를 거쳐 승인됩니다.<br/>
+            승인 전에도 배달은 가능하지만 일부 기능이 제한될 수 있어요.
+          </p>
+        )}
       </div>
 
       {/* ── PICK 지갑 ── */}
