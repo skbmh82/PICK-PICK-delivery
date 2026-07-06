@@ -163,11 +163,10 @@ export default function CartBottomSheet({ onClose }: Props) {
   // 배달 메모
   const [note, setNote] = useState("");
 
-  // 배달비 미리보기 (서버 구역 계산과 동일 — 청구액 불일치 방지)
+  // 배달비 미리보기 (서버 거리 할증 계산과 동일 — 청구액 불일치 방지)
   const [previewFee,    setPreviewFee]    = useState<number | null>(null);
   const [feeLoading,    setFeeLoading]    = useState(false);
   const [feeOutOfRange, setFeeOutOfRange] = useState(false);
-  const [zoneMinOrder,  setZoneMinOrder]  = useState(0);
 
   // 쿠폰
   const [availableCoupons, setAvailableCoupons] = useState<AvailableCoupon[]>([]);
@@ -308,11 +307,11 @@ export default function CartBottomSheet({ onClose }: Props) {
   const selLng = selectedAddr?.lng ?? null;
   useEffect(() => {
     if (orderType !== "delivery" || !cart.storeId) {
-      setPreviewFee(null); setFeeOutOfRange(false); setZoneMinOrder(0);
+      setPreviewFee(null); setFeeOutOfRange(false);
       return;
     }
     if (!deliveryAddressText && (selLat == null || selLng == null)) {
-      setPreviewFee(null); setFeeOutOfRange(false); setZoneMinOrder(0);
+      setPreviewFee(null); setFeeOutOfRange(false);
       return;
     }
     let cancelled = false;
@@ -324,19 +323,17 @@ export default function CartBottomSheet({ onClose }: Props) {
       try {
         const res = await fetch(`/api/stores/${cart.storeId}/delivery-fee?${qs.toString()}`);
         if (!res.ok || cancelled) return;
-        const d = await res.json() as { fee: number; minOrder: number; outOfRange: boolean };
+        const d = await res.json() as { fee: number; outOfRange: boolean };
         if (cancelled) return;
         setPreviewFee(d.fee);
         setFeeOutOfRange(!!d.outOfRange);
-        setZoneMinOrder(d.minOrder ?? 0);
       } catch { /* 실패 시 가게 기본 배달비 유지 */ }
       finally { if (!cancelled) setFeeLoading(false); }
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [orderType, cart.storeId, selLat, selLng, deliveryAddressText]);
 
-  const belowZoneMin = zoneMinOrder > 0 && itemsAmount < zoneMinOrder;
-  const blockOrder   = feeOutOfRange || belowZoneMin;
+  const blockOrder = feeOutOfRange;
 
   const handleOrder = async () => {
     if (isBelowMin || isOrdering || blockOrder) return;
@@ -971,13 +968,7 @@ export default function CartBottomSheet({ onClose }: Props) {
           )}
           {orderType === "delivery" && feeOutOfRange && (
             <p className="text-xs text-red-500 font-bold text-center mb-2">
-              🚫 배달 불가 지역이에요 — 가게 배달 범위를 벗어났습니다
-            </p>
-          )}
-          {orderType === "delivery" && !feeOutOfRange && belowZoneMin && (
-            <p className="text-xs text-amber-600 font-bold text-center mb-2">
-              ⚠️ 이 지역 최소 주문금액은 {zoneMinOrder.toLocaleString()}원이에요
-              {" "}({(zoneMinOrder - itemsAmount).toLocaleString()}원 더 담아주세요)
+              🚫 배달 불가 지역이에요 — 최대 배달 거리(20km)를 벗어났습니다
             </p>
           )}
 

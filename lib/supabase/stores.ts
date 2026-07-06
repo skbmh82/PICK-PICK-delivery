@@ -19,6 +19,9 @@ export interface StoreRow {
   delivery_fee: number;
   min_order_amount: number;
   is_open: boolean;
+  delivery_base_km?: number;
+  delivery_surcharge_unit_km?: number;
+  delivery_surcharge_fee?: number;
 }
 
 export interface MenuRow {
@@ -130,7 +133,7 @@ export async function fetchStoreById(id: string): Promise<StoreRow | null> {
   const supabase = createServerClient();
   const { data, error } = await supabase
     .from("stores")
-    .select("id, name, category, description, notice, address, phone, lat, lng, image_url, banner_url, rating, review_count, delivery_time, delivery_fee, min_order_amount, is_open")
+    .select("id, name, category, description, notice, address, phone, lat, lng, image_url, banner_url, rating, review_count, delivery_time, delivery_fee, min_order_amount, is_open, delivery_base_km, delivery_surcharge_unit_km, delivery_surcharge_fee")
     .eq("id", id)
     .eq("is_approved", true)
     .single();
