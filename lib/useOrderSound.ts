@@ -3,106 +3,67 @@
 import { useCallback, useEffect } from "react";
 
 /**
- * 신규 주문 알람 훅
+ * 신규 주문 알람 훅 (Web Audio API — 맑은 벨소리)
  *
- * ⚠️ 왜 AudioContext가 아니라 <audio> 엘리먼트인가?
- *   - AudioContext는 탭 백그라운드/시간 경과 시 브라우저가 "suspended"로 정지시킴.
- *     주문 알림은 실시간 콜백(사용자 제스처 아님)에서 오므로 resume()이 실패 →
- *     "됐다가 안됐다가" 불안정 발생.
- *   - HTMLAudioElement는 사용자 제스처로 한 번 "unlock"되면 이후 어떤 컨텍스트
- *     (실시간 콜백·백그라운드 포함)에서도 .play()가 안정적으로 동작함.
+ * 안정성 전략:
+ *   1. 모든 클릭/터치/키 입력에서 컨텍스트 resume (persistent 리스너, self-remove 안 함)
+ *   2. 탭 포커스 복귀(visibilitychange) 시 resume + 대기 중 알람 재생
+ *   3. 컨텍스트 정지 중 play() 호출 시 _pendingPlay=true → 다음 제스처/복귀 때 재생
  *
- * unlock은 muted play→pause 트릭 1회로만 수행(가드) → 리스너/버튼 동시 클릭
- * 충돌(play interrupted by pause) 방지.
- *
- * 알람음은 런타임에 WAV(3초 루프)를 합성해 Blob URL로 재생 → 외부 파일 불필요.
+ * ⚠️ 브라우저 정책상 "페이지에 최소 1회 상호작용"이 있어야 소리가 납니다.
+ *    (🔔 버튼 또는 화면 아무 곳이나 한 번 클릭)
  */
 
 // ── 모듈 레벨 싱글톤 ─────────────────────────────────
-let _audio:     HTMLAudioElement | null = null;
-let _unlocked    = false;   // 사용자 제스처로 재생 허용됐는가
-let _blessing    = false;   // unlock 진행 중 (중복 방지)
+let _ctx:        AudioContext | null = null;
+let _masterGain: GainNode | null     = null;
 let _isPlaying   = false;
-let _pendingPlay = false;   // unlock 전에 play() 호출 시 → 다음 제스처 대기
-let _wantConfirm = false;   // 소리 버튼으로 unlock → 확인음 1회 요청
+let _pendingPlay = false;   // 컨텍스트 정지 중 play() 호출 시 → 다음 제스처 대기
+let _beepTimer:   ReturnType<typeof setInterval> | null = null;
 let _ttsInterval: ReturnType<typeof setInterval> | null = null;
 let _ttsMessage   = "픽픽 주문이 들어왔습니다";
 
-// ── WAV 알람음 합성 (3초 루프, 4음 멜로디 + 여백) ────
-function buildAlarmBlobUrl(): string {
-  const sampleRate = 44100;
-  const loopSec    = 3.0;
-  const n          = Math.floor(sampleRate * loopSec);
-  const samples    = new Float32Array(n);
+const BEEP_INTERVAL_MS = 3000;
 
-  // [주파수, 시작(초), 길이(초)] — 맑고 또렷한 4음
-  const notes: [number, number, number][] = [
-    [880,  0.00, 0.13],
-    [880,  0.19, 0.13],
-    [1047, 0.40, 0.15],
-    [1319, 0.60, 0.34],
-  ];
+type WindowWithWebkit = Window & { webkitAudioContext?: typeof AudioContext };
 
-  for (const [freq, offset, dur] of notes) {
-    const start = Math.floor(offset * sampleRate);
-    const len   = Math.floor(dur * sampleRate);
-    for (let i = 0; i < len; i++) {
-      const t = i / sampleRate;
-      // 크리스프한 어택(3ms) + 빠른 감쇠 → 맑은 "삑"
-      const env  = Math.min(1, t / 0.003) * Math.exp(-t * 9);
-      // 기본음 + 2배음(밝기) 살짝 섞기
-      const wave =
-        Math.sin(2 * Math.PI * freq * t) * 0.85 +
-        Math.sin(2 * Math.PI * freq * 2 * t) * 0.15;
-      const idx = start + i;
-      if (idx < n) samples[idx] += wave * env * 0.7;
-    }
-  }
-
-  // 16-bit PCM mono WAV 인코딩
-  const bytesPerSample = 2;
-  const dataSize = n * bytesPerSample;
-  const buffer   = new ArrayBuffer(44 + dataSize);
-  const view     = new DataView(buffer);
-
-  const writeStr = (offset: number, s: string) => {
-    for (let i = 0; i < s.length; i++) view.setUint8(offset + i, s.charCodeAt(i));
-  };
-
-  writeStr(0, "RIFF");
-  view.setUint32(4, 36 + dataSize, true);
-  writeStr(8, "WAVE");
-  writeStr(12, "fmt ");
-  view.setUint32(16, 16, true);              // Subchunk1Size
-  view.setUint16(20, 1, true);               // PCM
-  view.setUint16(22, 1, true);               // mono
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * bytesPerSample, true); // ByteRate
-  view.setUint16(32, bytesPerSample, true);  // BlockAlign
-  view.setUint16(34, 16, true);              // BitsPerSample
-  writeStr(36, "data");
-  view.setUint32(40, dataSize, true);
-
-  let off = 44;
-  for (let i = 0; i < n; i++) {
-    const s = Math.max(-1, Math.min(1, samples[i]));
-    view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-    off += bytesPerSample;
-  }
-
-  const blob = new Blob([buffer], { type: "audio/wav" });
-  return URL.createObjectURL(blob);
+function getOrCreateCtx(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  if (_ctx && _ctx.state !== "closed") return _ctx;
+  const W  = window as WindowWithWebkit;
+  const AC = window.AudioContext ?? W.webkitAudioContext;
+  if (!AC) return null;
+  _ctx        = new AC();
+  _masterGain = _ctx.createGain();
+  _masterGain.gain.value = 1;
+  _masterGain.connect(_ctx.destination);
+  return _ctx;
 }
 
-function getAudio(): HTMLAudioElement | null {
-  if (typeof window === "undefined") return null;
-  if (_audio) return _audio;
-  const a   = new Audio(buildAlarmBlobUrl());
-  a.loop    = true;
-  a.volume  = 1;
-  a.preload = "auto";
-  _audio = a;
-  return _audio;
+/** 맑은 4음 벨소리 1회 ("딩딩 도-솔") */
+function playOneBeep(ctx: AudioContext) {
+  if (!_masterGain) return;
+  const notes: [number, number, number][] = [
+    [880, 0.00, 0.10],
+    [880, 0.18, 0.10],
+    [523, 0.38, 0.20],
+    [784, 0.55, 0.28],
+  ];
+  const now = ctx.currentTime + 0.05;
+  notes.forEach(([freq, offset, dur]) => {
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type            = "sine";
+    osc.frequency.value = freq;
+    const t = now + offset;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.8, t + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.connect(gain);
+    gain.connect(_masterGain!);
+    osc.start(t);
+    osc.stop(t + dur + 0.05);
+  });
 }
 
 function speakTts() {
@@ -116,69 +77,50 @@ function speakTts() {
   window.speechSynthesis.speak(u);
 }
 
-/** 반복 알람 시작 */
-function startAlarm() {
+function startBeeping() {
   if (_isPlaying) return;
-  const a = getAudio();
-  if (!a) return;
+  if (!_ctx || _ctx.state !== "running") return;
   _isPlaying   = true;
   _pendingPlay = false;
-  a.loop        = true;
-  a.currentTime = 0;
-  void a.play().catch(() => {
-    _isPlaying   = false;
-    _pendingPlay = true;   // 아직 허용 안 됨 → 다음 제스처 대기
-  });
+  playOneBeep(_ctx);
+  if (_beepTimer) clearInterval(_beepTimer);
+  _beepTimer = setInterval(() => {
+    if (!_isPlaying || !_ctx || _ctx.state !== "running") return;
+    playOneBeep(_ctx);
+  }, BEEP_INTERVAL_MS);
   if (_ttsInterval) clearInterval(_ttsInterval);
   speakTts();
   _ttsInterval = setInterval(speakTts, 30_000);
 }
 
-/** 확인음 1회 (loop 없이 한 번만) */
-function playConfirmOnce() {
-  const a = getAudio();
-  if (!a || _isPlaying) return;
-  a.loop = false;
-  a.currentTime = 0;
-  void a.play().catch(() => {});
-  const onEnded = () => { a.loop = true; a.removeEventListener("ended", onEnded); };
-  a.addEventListener("ended", onEnded);
-}
-
 /**
- * 오디오 unlock (muted play→pause 트릭, 1회만).
- * 완료 후: 대기 알람이 있으면 시작, 아니면 확인음 요청 시 1회 재생.
+ * 모듈 레벨 제스처 핸들러 — self-remove 없이 유지.
+ * 클릭·터치마다: 컨텍스트 재개 + 대기 중 알람 재생.
  */
-function blessAudio() {
-  const a = getAudio();
-  if (!a || _unlocked || _blessing) return;
-  _blessing = true;
-  const prevMuted = a.muted;
-  a.muted = true;
-  a.play()
-    .then(() => {
-      a.pause();
-      a.currentTime = 0;
-      a.muted   = prevMuted;
-      _unlocked = true;
-      _blessing = false;
-      if (_pendingPlay && !_isPlaying) {
-        startAlarm();
-      } else if (_wantConfirm) {
-        _wantConfirm = false;
-        playConfirmOnce();
-      }
-    })
-    .catch(() => {
-      a.muted   = prevMuted;
-      _blessing = false;   // 다음 제스처에서 재시도
-    });
+function _onGesture() {
+  const ctx = getOrCreateCtx();
+  if (!ctx) return;
+  if (ctx.state === "running") {
+    if (_pendingPlay && !_isPlaying) startBeeping();
+  } else {
+    void ctx.resume().then(() => {
+      if (_pendingPlay && !_isPlaying) startBeeping();
+    }).catch(() => {});
+  }
 }
 
-/** 모듈 레벨 제스처 핸들러 — 첫 상호작용에서 unlock */
-function _onGesture() {
-  if (!_unlocked) { blessAudio(); return; }
-  if (_pendingPlay && !_isPlaying) startAlarm();
+/** 탭 복귀 시 재개 + 대기 알람 재생 */
+function _onVisible() {
+  if (typeof document === "undefined" || document.visibilityState !== "visible") return;
+  const ctx = _ctx;
+  if (!ctx || ctx.state === "closed") return;
+  if (ctx.state === "running") {
+    if (_pendingPlay && !_isPlaying) startBeeping();
+  } else {
+    void ctx.resume().then(() => {
+      if (_pendingPlay && !_isPlaying) startBeeping();
+    }).catch(() => {});
+  }
 }
 
 // ─────────────────────────────────────────────────────
@@ -190,37 +132,61 @@ export function useOrderSound(ttsMessage?: string) {
     document.addEventListener("click",      _onGesture, { capture: true });
     document.addEventListener("touchstart", _onGesture, { capture: true });
     document.addEventListener("keydown",    _onGesture, { capture: true });
+    document.addEventListener("visibilitychange", _onVisible);
     return () => {
-      document.removeEventListener("click",      _onGesture, { capture: true });
-      document.removeEventListener("touchstart", _onGesture, { capture: true });
-      document.removeEventListener("keydown",    _onGesture, { capture: true });
+      document.removeEventListener("click",            _onGesture, { capture: true });
+      document.removeEventListener("touchstart",       _onGesture, { capture: true });
+      document.removeEventListener("keydown",          _onGesture, { capture: true });
+      document.removeEventListener("visibilitychange", _onVisible);
     };
   }, []);
 
-  /** 신규 주문 알람 시작 (unlock 전이면 다음 제스처까지 대기) */
+  /**
+   * 신규 주문 알람 시작
+   * - running이면 즉시 재생
+   * - 정지 상태면 resume 시도 + _pendingPlay=true (다음 제스처/복귀 때 재생)
+   */
   const play = useCallback(() => {
-    if (typeof window === "undefined") return;
     if (_isPlaying) return;
-    if (!_unlocked) { _pendingPlay = true; blessAudio(); return; }
-    startAlarm();
+    if (typeof window === "undefined") return;
+    const ctx = getOrCreateCtx();
+    if (!ctx) return;
+
+    if (ctx.state === "running") {
+      startBeeping();
+      return;
+    }
+    // 정지 상태 → 대기 표시 후 재개 시도 (성공 시 재생)
+    _pendingPlay = true;
+    void ctx.resume().then(() => {
+      if (_pendingPlay && !_isPlaying) startBeeping();
+    }).catch(() => {});
   }, []);
 
   /** 알람 중단 */
   const stop = useCallback(() => {
     _isPlaying   = false;
     _pendingPlay = false;
-    if (_audio) { _audio.pause(); _audio.currentTime = 0; }
+    if (_beepTimer)   { clearInterval(_beepTimer);   _beepTimer   = null; }
     if (_ttsInterval) { clearInterval(_ttsInterval); _ttsInterval = null; }
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
   }, []);
 
-  /** 소리 버튼 클릭(user gesture) → unlock + 확인음 1회 */
+  /** 🔔 버튼 클릭(user gesture) → 컨텍스트 활성화 + 확인음 1회 */
   const unlock = useCallback(() => {
-    if (_unlocked) { playConfirmOnce(); return; }
-    _wantConfirm = true;
-    blessAudio();
+    const ctx = getOrCreateCtx();
+    if (!ctx) return;
+    if (ctx.state === "running") {
+      playOneBeep(ctx);
+      if (_pendingPlay && !_isPlaying) startBeeping();
+    } else {
+      void ctx.resume().then(() => {
+        if (_ctx && _ctx.state === "running") playOneBeep(_ctx);
+        if (_pendingPlay && !_isPlaying) startBeeping();
+      }).catch(() => {});
+    }
   }, []);
 
   return { play, stop, unlock };

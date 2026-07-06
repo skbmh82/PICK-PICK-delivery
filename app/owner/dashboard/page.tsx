@@ -971,12 +971,15 @@ export default function OwnerDashboardPage() {
     return () => clearInterval(interval);
   }, [storeId, fetchDashboard, stopOrderSound]);
 
-  // 신규 주문이 모두 처리되면 알림음 중단
+  // 알림음을 "신규 주문 개수" 상태에 연동 (Realtime 누락돼도 확실히 울림)
+  //  - 대기 주문 ≥ 1건 → 재생 (play 내부 가드로 중복 호출 안전)
+  //  - 0건          → 중단
   const pendingCount = data?.pendingOrders?.length ?? 0;
   useEffect(() => {
     prevPendingRef.current = pendingCount;
-    if (pendingCount === 0) stopOrderSound();
-  }, [pendingCount, stopOrderSound]);
+    if (pendingCount > 0) playOrderSound();
+    else stopOrderSound();
+  }, [pendingCount, playOrderSound, stopOrderSound]);
 
   if (loading) return <DashboardSkeleton />;
 
