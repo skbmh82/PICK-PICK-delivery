@@ -3,12 +3,14 @@
 import { useCallback, useEffect } from "react";
 
 // ── 모듈 레벨 싱글톤 ─────────────────────────────────
-let _ctx:          AudioContext | null = null;
-let _masterGain:   GainNode | null = null;   // 즉시 무음용 마스터 게인
-let _isPlaying   = false;
-let _scheduleTimer: ReturnType<typeof setTimeout> | null = null;
-let _ttsInterval:   ReturnType<typeof setInterval> | null = null;
-let _ttsMessage    = "픽픽 주문이 들어왔습니다";
+let _ctx:         AudioContext | null = null;
+let _masterGain:  GainNode | null = null;
+let _isPlaying  = false;
+let _beepTimer:   ReturnType<typeof setInterval> | null = null;
+let _ttsInterval: ReturnType<typeof setInterval> | null = null;
+let _ttsMessage   = "픽픽 주문이 들어왔습니다";
+
+const BEEP_INTERVAL_MS = 3000;   // 비프 반복 간격
 
 type WindowWithWebkit = Window & { webkitAudioContext?: typeof AudioContext };
 
@@ -20,15 +22,13 @@ function getOrCreateCtx(): AudioContext | null {
   if (!AC) return null;
   _ctx = new AC();
   _masterGain = _ctx.createGain();
+  _masterGain.gain.setValueAtTime(1, 0);
   _masterGain.connect(_ctx.destination);
   return _ctx;
 }
 
-/**
- * Web Audio API로 픽픽딩동 비프를 특정 시각(absTime)에 예약.
- * 각 oscillator 는 ctx.destination 이 아닌 _masterGain 에 연결 → 즉시 무음 가능
- */
-function scheduleBeep(ctx: AudioContext, absTime: number) {
+/** 비프 1회 — oscillator → noteGain → masterGain → destination */
+function playOneBeep(ctx: AudioContext) {
   if (!_masterGain) return;
   const notes: [number, number, number][] = [
     [880, 0.00, 0.10],
@@ -36,42 +36,21 @@ function scheduleBeep(ctx: AudioContext, absTime: number) {
     [523, 0.38, 0.20],
     [784, 0.55, 0.28],
   ];
+  const now = ctx.currentTime + 0.05;
   notes.forEach(([freq, offset, dur]) => {
     const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = "sine";
     osc.frequency.value = freq;
-    const t = absTime + offset;
+    const t = now + offset;
     gain.gain.setValueAtTime(0, t);
     gain.gain.linearRampToValueAtTime(0.8, t + 0.015);
     gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
     osc.connect(gain);
-    gain.connect(_masterGain!);   // destination 대신 마스터 게인에 연결
+    gain.connect(_masterGain!);
     osc.start(t);
     osc.stop(t + dur + 0.05);
   });
-}
-
-const INTERVAL = 3.0;   // 비프 간격 (초)
-const BATCH    = 10;    // 한 번에 예약할 비프 수 (30초 분량)
-
-function scheduleBatch(ctx: AudioContext, startTime: number) {
-  if (!_isPlaying) return;
-
-  for (let i = 0; i < BATCH; i++) {
-    scheduleBeep(ctx, startTime + i * INTERVAL);
-  }
-
-  // 다음 배치: 마지막 비프 2초 전에 예약 → 끊김 없이 연속
-  const nextBatchDelay = (BATCH * INTERVAL - 2) * 1000;
-  _scheduleTimer = setTimeout(() => {
-    if (!_isPlaying || !_ctx) return;
-    if (_ctx.state === "suspended") {
-      void _ctx.resume().then(() => scheduleBatch(_ctx!, _ctx!.currentTime));
-    } else {
-      scheduleBatch(_ctx, _ctx.currentTime);
-    }
-  }, nextBatchDelay);
 }
 
 function speakTts() {
@@ -88,8 +67,7 @@ function speakTts() {
 export function useOrderSound(ttsMessage?: string) {
   if (ttsMessage) _ttsMessage = ttsMessage;
 
-  // 첫 번째 사용자 제스처에서 AudioContext 사전 unlock
-  // iOS 포함 모든 브라우저에서 이후 play() 가 resume() 없이 즉시 작동
+  // 첫 번째 사용자 제스처 시 AudioContext 사전 unlock (iOS 포함)
   useEffect(() => {
     const onGesture = () => {
       const ctx = getOrCreateCtx();
@@ -108,7 +86,7 @@ export function useOrderSound(ttsMessage?: string) {
     };
   }, []);
 
-  // 페이지가 foreground로 돌아올 때 suspended AudioContext 복구
+  // 앱이 foreground로 복귀할 때 suspended 복구
   useEffect(() => {
     const onVisible = () => {
       if (_ctx?.state === "suspended") void _ctx.resume();
@@ -117,60 +95,64 @@ export function useOrderSound(ttsMessage?: string) {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
 
-  /**
-   * 🔔 소리 버튼 클릭 (user gesture) → AudioContext 활성화 + 확인음 1회
-   */
+  /** 소리 버튼 클릭 (user gesture) → AudioContext 활성화 + 확인음 1회 */
   const unlock = useCallback(async () => {
     const ctx = getOrCreateCtx();
     if (!ctx) return;
     if (ctx.state === "suspended") await ctx.resume();
-    // 마스터 게인 정상화 (이전 stop 이 낮췄을 수 있음)
-    if (_masterGain) _masterGain.gain.setValueAtTime(1, ctx.currentTime);
-    scheduleBeep(ctx, ctx.currentTime + 0.05);
+    if (_masterGain) {
+      _masterGain.gain.cancelScheduledValues(0);
+      _masterGain.gain.setValueAtTime(1, ctx.currentTime);
+    }
+    playOneBeep(ctx);
   }, []);
 
   /**
-   * 신규 주문 → 비프를 Web Audio 스케줄러로 미리 예약
+   * 신규 주문 알람 시작 — setInterval로 BEEP_INTERVAL_MS마다 비프 1회
+   * (배치 선예약 제거 → stop() 시 setInterval.clear만으로 즉시 중단 가능)
    */
   const play = useCallback(async () => {
-    if (typeof window === "undefined") return;
     if (_isPlaying) return;
+    if (typeof window === "undefined") return;
 
     const ctx = getOrCreateCtx();
     if (!ctx) return;
 
     if (ctx.state === "suspended") {
-      try {
-        await ctx.resume();
-      } catch {
-        // iOS/Chrome 정책상 resume() 거절 — user gesture 후 자동 복구됨
-        return;
-      }
+      try { await ctx.resume(); }
+      catch { return; }   // iOS 정책상 resume() 거절 시
     }
     if (ctx.state !== "running") return;
 
-    // 마스터 게인이 0으로 내려가 있을 수 있으므로 복원
-    if (_masterGain) _masterGain.gain.setValueAtTime(1, ctx.currentTime);
+    // master gain 복원 (이전 stop이 0으로 내렸을 수 있음)
+    if (_masterGain) {
+      _masterGain.gain.cancelScheduledValues(0);
+      _masterGain.gain.setValueAtTime(1, ctx.currentTime);
+    }
 
     _isPlaying = true;
-    scheduleBatch(ctx, ctx.currentTime + 0.05);
+    playOneBeep(ctx);   // 즉시 1회
+    _beepTimer = setInterval(() => {
+      if (!_isPlaying || !_ctx || _ctx.state !== "running") return;
+      playOneBeep(_ctx);
+    }, BEEP_INTERVAL_MS);
 
     if (_ttsInterval) clearInterval(_ttsInterval);
     _ttsInterval = setInterval(speakTts, 30_000);
   }, []);
 
   /**
-   * 수락/취소 → 마스터 게인을 0으로 내려 즉시 무음 (AudioContext 는 닫지 않음)
-   * AudioContext 를 닫으면 iOS 에서 다음 play() 때 재unlock 불가 → 알람 무음 버그
+   * 알람 중단 — setInterval 해제 + masterGain 0으로 즉시 무음
+   * AudioContext는 닫지 않음 (iOS는 닫힌 ctx를 gesture 없이 재unlock 불가)
    */
   const stop = useCallback(() => {
     _isPlaying = false;
-    if (_scheduleTimer) { clearTimeout(_scheduleTimer); _scheduleTimer = null; }
-    if (_ttsInterval)   { clearInterval(_ttsInterval);  _ttsInterval   = null; }
+    if (_beepTimer)   { clearInterval(_beepTimer);   _beepTimer   = null; }
+    if (_ttsInterval) { clearInterval(_ttsInterval); _ttsInterval = null; }
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
 
-    // 이미 예약된 비프를 마스터 게인으로 즉시 소거 — context 는 유지
-    if (_masterGain && _ctx) {
+    if (_masterGain && _ctx && _ctx.state !== "closed") {
+      _masterGain.gain.cancelScheduledValues(0);
       _masterGain.gain.setValueAtTime(0, _ctx.currentTime);
     }
   }, []);
