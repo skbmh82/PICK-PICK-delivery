@@ -968,7 +968,7 @@ export default function CartBottomSheet({ onClose }: Props) {
           )}
           {orderType === "delivery" && feeOutOfRange && (
             <p className="text-xs text-red-500 font-bold text-center mb-2">
-              🚫 배달 불가 지역이에요 — 최대 배달 거리(20km)를 벗어났습니다
+              🚫 배달 불가 지역이에요 — 이 가게의 배달 가능 범위를 벗어났습니다
             </p>
           )}
 

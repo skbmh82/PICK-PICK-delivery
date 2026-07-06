@@ -19,7 +19,7 @@ const UpdateStoreSchema = z.object({
   deliveryFee:            z.number().min(0).max(100000).optional(),
   minOrderAmount:         z.number().min(0).max(1000000).optional(),
   deliveryTime:           z.number().int().min(5).max(120).optional(),
-  deliveryRadiusKm:       z.number().min(1).max(30).optional(),
+  deliveryRadiusKm:       z.number().min(1).max(20).optional(),
   deliveryBaseKm:         z.number().min(0).max(20).optional(),
   deliverySurchargeUnitKm:z.number().min(0.5).max(20).optional(),
   deliverySurchargeFee:   z.number().min(0).max(100000).optional(),

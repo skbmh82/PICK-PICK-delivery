@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
   // 4. 가맹점 존재/영업 여부 확인
   const { data: store } = await admin
     .from("stores")
-    .select("id, is_open, min_order_amount, delivery_fee, delivery_time, lat, lng, delivery_base_km, delivery_surcharge_unit_km, delivery_surcharge_fee")
+    .select("id, is_open, min_order_amount, delivery_fee, delivery_time, lat, lng, delivery_radius_km, delivery_base_km, delivery_surcharge_unit_km, delivery_surcharge_fee")
     .eq("id", storeId)
     .single();
 
@@ -187,11 +187,12 @@ export async function POST(request: NextRequest) {
       baseFee:         Number(store.delivery_fee ?? 0),
       surchargeUnitKm: Number(store.delivery_surcharge_unit_km ?? 2),
       surchargeFee:    Number(store.delivery_surcharge_fee ?? 0),
+      maxDeliveryKm:   store.delivery_radius_km != null ? Number(store.delivery_radius_km) : undefined,
     });
 
     if (resolved.outOfRange) {
       return NextResponse.json(
-        { error: `배달 불가 지역입니다. 최대 배달 거리(${resolved.maxKm}km)를 초과했습니다.` },
+        { error: `배달 불가 지역입니다. 이 가게의 배달 가능 거리(${resolved.maxKm}km)를 초과했습니다.` },
         { status: 400 }
       );
     }

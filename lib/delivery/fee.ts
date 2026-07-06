@@ -38,6 +38,8 @@ export interface ResolveDeliveryFeeParams extends DeliveryFeeConfig {
   storeLng: number | null;
   destLat:  number | null;
   destLng:  number | null;
+  /** 가게 서비스 반경(km) — 이 거리 초과 시 배달 불가. 미지정 시 MAX_DELIVERY_KM */
+  maxDeliveryKm?: number;
 }
 
 export interface ResolveDeliveryFeeResult {
@@ -72,15 +74,21 @@ export function resolveDeliveryFee(p: ResolveDeliveryFeeParams): ResolveDelivery
   const { storeLat, storeLng, destLat, destLng, baseKm, baseFee, surchargeUnitKm, surchargeFee } = p;
   const cfg: DeliveryFeeConfig = { baseKm, baseFee, surchargeUnitKm, surchargeFee };
 
+  // 서비스 반경 = 노출 + 배달 한계 (절대 상한 MAX_DELIVERY_KM으로 클램프)
+  const maxKm = Math.min(
+    p.maxDeliveryKm != null && p.maxDeliveryKm > 0 ? p.maxDeliveryKm : MAX_DELIVERY_KM,
+    MAX_DELIVERY_KM,
+  );
+
   if (destLat == null || destLng == null || storeLat == null || storeLng == null) {
-    return { fee: roundTo10(baseFee), outOfRange: false, distanceKm: null, maxKm: MAX_DELIVERY_KM };
+    return { fee: roundTo10(baseFee), outOfRange: false, distanceKm: null, maxKm };
   }
 
   const distKm = haversineKm(storeLat, storeLng, destLat, destLng);
 
-  if (distKm > MAX_DELIVERY_KM) {
-    return { fee: roundTo10(baseFee), outOfRange: true, distanceKm: distKm, maxKm: MAX_DELIVERY_KM };
+  if (distKm > maxKm) {
+    return { fee: roundTo10(baseFee), outOfRange: true, distanceKm: distKm, maxKm };
   }
 
-  return { fee: calcDeliveryFee(distKm, cfg), outOfRange: false, distanceKm: distKm, maxKm: MAX_DELIVERY_KM };
+  return { fee: calcDeliveryFee(distKm, cfg), outOfRange: false, distanceKm: distKm, maxKm };
 }

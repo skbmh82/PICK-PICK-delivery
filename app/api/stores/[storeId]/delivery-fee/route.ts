@@ -27,7 +27,7 @@ export async function GET(
   // 가게 정보 (좌표 + 배달비 설정)
   const { data: store } = await admin
     .from("stores")
-    .select("id, lat, lng, delivery_fee, delivery_base_km, delivery_surcharge_unit_km, delivery_surcharge_fee")
+    .select("id, lat, lng, delivery_fee, delivery_radius_km, delivery_base_km, delivery_surcharge_unit_km, delivery_surcharge_fee")
     .eq("id", storeId)
     .single();
 
@@ -47,12 +47,16 @@ export async function GET(
   if (destLat != null && Number.isNaN(destLat)) destLat = null;
   if (destLng != null && Number.isNaN(destLng)) destLng = null;
 
+  const serviceRadiusKm = store.delivery_radius_km != null
+    ? Math.min(Number(store.delivery_radius_km), MAX_DELIVERY_KM)
+    : MAX_DELIVERY_KM;
+
   // 좌표를 못 구하면 기본 배달비로 응답 (미리보기 실패 아님)
   if (destLat == null || destLng == null) {
     return NextResponse.json({
       fee:        baseFee,
       outOfRange: false,
-      maxKm:      MAX_DELIVERY_KM,
+      maxKm:      serviceRadiusKm,
       distanceKm: null,
     });
   }
@@ -66,6 +70,7 @@ export async function GET(
     baseFee,
     surchargeUnitKm: Number(store.delivery_surcharge_unit_km ?? 2),
     surchargeFee:    Number(store.delivery_surcharge_fee ?? 0),
+    maxDeliveryKm:   store.delivery_radius_km != null ? Number(store.delivery_radius_km) : undefined,
   });
 
   return NextResponse.json({

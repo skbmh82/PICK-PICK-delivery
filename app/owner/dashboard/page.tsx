@@ -532,7 +532,7 @@ function RegisterStoreModal({ onClose, onRegistered }: {
     if (!form.address.trim()) return setError("주소를 입력해주세요");
     if (!bizRegImageUrl)      return setError("사업자등록증 사진을 업로드해주세요");
     const radius = parseFloat(form.deliveryRadiusKm);
-    if (isNaN(radius) || radius < 1 || radius > 30) return setError("배달 반경은 1~30km 사이로 입력해주세요");
+    if (isNaN(radius) || radius < 1 || radius > 20) return setError("서비스 반경은 1~20km 사이로 입력해주세요");
 
     setLoading(true);
     setError("");
@@ -763,14 +763,14 @@ function RegisterStoreModal({ onClose, onRegistered }: {
               ))}
             </div>
 
-            {/* 배달 반경 */}
+            {/* 서비스 반경 */}
             <div>
               <label className="text-xs font-bold text-pick-text-sub mb-1.5 flex items-center gap-1.5 block">
-                <MapPin size={11} /> 배달 반경 (km) *
+                <MapPin size={11} /> 서비스 반경 (km) *
               </label>
-              <p className="text-[11px] text-pick-text-sub mb-2">이 반경 내 고객에게만 가게가 노출돼요</p>
+              <p className="text-[11px] text-pick-text-sub mb-2">이 반경 내 손님에게 노출되고, 여기까지 배달돼요 (최대 20km)</p>
               <div className="flex gap-2 mb-2">
-                {[3, 5, 7, 10].map((r) => (
+                {[5, 10, 15, 20].map((r) => (
                   <button
                     key={r}
                     type="button"
@@ -789,9 +789,9 @@ function RegisterStoreModal({ onClose, onRegistered }: {
                 type="number"
                 value={form.deliveryRadiusKm}
                 onChange={(e) => set("deliveryRadiusKm", e.target.value)}
-                placeholder="직접 입력 (1~30)"
+                placeholder="직접 입력 (1~20)"
                 min="1"
-                max="30"
+                max="20"
                 step="0.5"
                 className="w-full border-2 border-pick-border rounded-2xl px-4 py-2.5 text-sm text-pick-text text-right focus:outline-none focus:border-pick-purple"
               />

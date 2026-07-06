@@ -161,6 +161,7 @@ export default async function StoreDetailPage({
     phone:          (storeRow as unknown as { phone?: string | null }).phone ?? null,
     lat:            storeRow.lat,
     lng:            storeRow.lng,
+    serviceRadiusKm:         storeRow.delivery_radius_km ?? null,
     deliveryBaseKm:          storeRow.delivery_base_km ?? null,
     deliverySurchargeUnitKm: storeRow.delivery_surcharge_unit_km ?? null,
     deliverySurchargeFee:    storeRow.delivery_surcharge_fee ?? null,

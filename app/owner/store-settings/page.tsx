@@ -804,7 +804,7 @@ export default function StoreSettingsPage() {
     if (isNaN(fee)    || fee    < 0)                return setError("기본 배달비를 올바르게 입력해주세요");
     if (isNaN(min)    || min    < 0)                return setError("최소 주문금액을 올바르게 입력해주세요");
     if (isNaN(time)   || time   < 5 || time > 120)  return setError("예상 배달 시간은 5~120분 사이로 입력해주세요");
-    if (isNaN(radius) || radius < 1 || radius > 30) return setError("배달 반경은 1~30km 사이로 입력해주세요");
+    if (isNaN(radius) || radius < 1 || radius > 20) return setError("서비스 반경은 1~20km 사이로 입력해주세요");
     if (isNaN(baseKm) || baseKm < 0 || baseKm > 20) return setError("기본 구간 거리는 0~20km 사이로 입력해주세요");
     if (isNaN(unitKm) || unitKm < 0.5 || unitKm > 20) return setError("할증 단위 거리는 0.5~20km 사이로 입력해주세요");
     if (isNaN(surFee) || surFee < 0)                return setError("할증 요금을 올바르게 입력해주세요");
@@ -1184,12 +1184,13 @@ export default function StoreSettingsPage() {
             />
           </Field>
 
-          <Field label="배달 반경 (km)" icon={<MapPin size={12} />}>
-            <p className="text-[11px] text-pick-text-sub mb-2">
-              이 반경 내 고객에게만 가게가 노출돼요
+          <Field label="서비스 반경 (km)" icon={<MapPin size={12} />}>
+            <p className="text-[11px] text-pick-text-sub mb-2 leading-relaxed">
+              이 반경 <strong>안</strong>의 손님에게만 가게가 노출되고, <strong>여기까지만 배달</strong>돼요.
+              (최대 20km · 반경 밖은 주문 불가)
             </p>
             <div className="flex gap-2 mb-2">
-              {[3, 5, 7, 10].map((r) => (
+              {[5, 10, 15, 20].map((r) => (
                 <button
                   key={r}
                   onClick={() => setDeliveryRadiusKm(String(r))}
@@ -1207,7 +1208,7 @@ export default function StoreSettingsPage() {
               value={deliveryRadiusKm}
               onChange={(e) => setDeliveryRadiusKm(e.target.value)}
               className={`${numInputCls}`}
-              placeholder="직접 입력 (km, 1~30)"
+              placeholder="직접 입력 (km, 1~20)"
               inputMode="decimal"
             />
           </Field>

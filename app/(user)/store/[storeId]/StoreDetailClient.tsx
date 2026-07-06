@@ -103,6 +103,7 @@ export interface StoreDetail {
   lat: number;
   lng: number;
   // 거리 할증 배달비 설정
+  serviceRadiusKm?: number | null;
   deliveryBaseKm?: number | null;
   deliverySurchargeUnitKm?: number | null;
   deliverySurchargeFee?: number | null;
@@ -769,7 +770,8 @@ export default function StoreDetailClient({
             </div>
           )}
           <p className="text-[11px] text-pick-text-sub px-1 mt-0.5">
-            정확한 배달비는 주소 입력 후 장바구니에서 확인돼요 · 최대 20km 배달
+            정확한 배달비는 주소 입력 후 장바구니에서 확인돼요
+            {store.serviceRadiusKm != null && ` · 최대 ${store.serviceRadiusKm}km 배달`}
           </p>
         </div>
       </div>
