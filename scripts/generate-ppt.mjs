@@ -88,7 +88,7 @@ const C = {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("📊  PICK PICK 진행 현황 (7/3 최신)", {
+  slide.addText("📊  PICK PICK 진행 현황 (7/6 최신)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 26, bold: true, color: C.purpleDark,
   });
@@ -1690,7 +1690,89 @@ const C = {
   });
 }
 
-// ── 슬라이드 22 — Pi Network 현황 & 아키텍처 ───────────
+// ── 슬라이드 22 — Day 21 작업 내역 (7/6) — 배달 설정 거리 연동 대개편 ──
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fill: { color: "F0FDFA" }, line: { color: "0D9488" },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 07. 06 (Day 21)", {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fontSize: 11, bold: true, color: "0F766E", align: "center",
+  });
+
+  slide.addText("🛵  배달 설정 대개편 — 배달비·서비스 반경·예상시간 거리 연동", {
+    x: 3.8, y: 0.22, w: 9.8, h: 0.55,
+    fontSize: 16, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day21 = [
+    {
+      emoji: "🔔", title: "사장님·라이더 알람 안정화",
+      desc: "AudioContext 재정지 문제 해결\n맑은 Web Audio 벨소리 복원\n대시보드 알람 pendingCount 연동\nRealtime 누락돼도 확실히 울림",
+    },
+    {
+      emoji: "🧮", title: "배달비 미리보기 = 청구액 일치",
+      desc: "resolveDeliveryFee 공용 헬퍼\n주문 API·미리보기 API 단일 소스\n장바구니 표시 = 실제 청구 배달비\n불일치(예 32,500→31,500) 차단",
+    },
+    {
+      emoji: "📐", title: "거리 할증 배달비 모델",
+      desc: "구역 테이블 → 기본구간+비례 할증\n초과 거리 정비례(10원 반올림)\n예) 기본5km/2000·2km당1000\n7km=3,000 · 10km=4,500원",
+    },
+    {
+      emoji: "🎯", title: "서비스 반경 통합",
+      desc: "노출 반경 = 배달 한계 일원화\n사장님 1~20km 단일 설정\n반경 내 노출 + 주문 가능\n반경 밖 자동 배달 불가",
+    },
+    {
+      emoji: "⏱️", title: "예상 시간 거리 연동",
+      desc: "조리 시간 + 거리×(km당 이동)\n5분 단위 반올림 자동 계산\n장바구니 '예상 도착 약 N분'\n거리별 시간 미리보기 제공",
+    },
+    {
+      emoji: "🗄️", title: "DB 스키마 확장",
+      desc: "stores 6개 컬럼 추가\ndelivery_base_km/surcharge_unit/fee\nprep_time_min/travel_per_km_min\ndelivery_zones 방식 폐지",
+    },
+  ];
+
+  day21.forEach((item, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
+    const y = 1.0 + row * 2.55;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.1, h: 2.35,
+      fill: { color: "F0FDFA" }, line: { color: "5EEAD4" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: y + 0.2, w: 0.58, h: 0.58,
+      fill: { color: C.white }, line: { color: "5EEAD4" },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.18, y: y + 0.18, w: 0.6, h: 0.6,
+      fontSize: 18, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
+      fontSize: 12, bold: true, color: "0F766E",
+    });
+    slide.addText(item.desc, {
+      x: x + 0.22, y: y + 0.78, w: 3.65, h: 1.42,
+      fontSize: 10, color: C.textDark, wrap: true,
+    });
+  });
+}
+
+// ── 슬라이드 23 — Pi Network 현황 & 아키텍처 ───────────
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
