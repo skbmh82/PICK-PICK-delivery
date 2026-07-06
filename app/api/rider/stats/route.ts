@@ -15,7 +15,7 @@ export async function GET() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: profile } = await (admin as any)
     .from("users")
-    .select("id, role, name")
+    .select("id, role, name, rider_is_approved")
     .eq("auth_id", user.id)
     .single();
 
@@ -79,7 +79,8 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    riderName: profile.name,
+    riderName:       profile.name,
+    riderIsApproved: profile.rider_is_approved ?? null,  // null=심사중, true=승인, false=반려
     today: { completed, inProgress, totalEarning },
     weekly,
   });

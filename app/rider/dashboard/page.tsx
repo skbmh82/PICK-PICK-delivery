@@ -267,7 +267,7 @@ function DashboardSkeleton() {
 
 // ── 메인 페이지 ───────────────────────────────────────
 export default function RiderDashboardPage() {
-  const [stats, setStats]           = useState<{ today: TodayStats; weekly: WeeklyDay[]; riderName: string } | null>(null);
+  const [stats, setStats]           = useState<{ today: TodayStats; weekly: WeeklyDay[]; riderName: string; riderIsApproved: boolean | null } | null>(null);
   const [availableOrders, setAvailableOrders] = useState<AvailableOrder[]>([]);
   const [loading, setLoading]       = useState(true);
   const { play: playSound, stop: stopSound, unlock: unlockSound } =
@@ -301,8 +301,12 @@ export default function RiderDashboardPage() {
     }).catch(() => {/* 무시 */});
   }, [stopSound]);
 
-  // 새 배달 요청(ready) 실시간 감지 → 알림음 재생 + 목록 갱신
-  useRiderAvailableOrderRealtime(true, () => {
+  const isApproved    = stats?.riderIsApproved === true;
+  const isApprovedRef = useRef(isApproved);
+  useEffect(() => { isApprovedRef.current = isApproved; }, [isApproved]);
+
+  // 새 배달 요청(ready) 실시간 감지 → 승인된 라이더에게만 알림음 재생 + 목록 갱신
+  useRiderAvailableOrderRealtime(isApproved, () => {
     playSound();
     fetch("/api/rider/available-orders").then(async (r) => {
       if (r.ok) {
@@ -337,7 +341,7 @@ export default function RiderDashboardPage() {
       const { orders } = await r.json() as { orders?: AvailableOrder[] };
       const fresh = orders ?? [];
       const count = fresh.length;
-      if (count > prevOrderCountRef.current) {
+      if (count > prevOrderCountRef.current && isApprovedRef.current) {
         playSound();
       } else if (count < prevOrderCountRef.current && count === 0) {
         stopSound();
