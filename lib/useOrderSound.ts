@@ -134,8 +134,10 @@ export function useOrderSound(ttsMessage?: string) {
 
     if (ctx.state === "suspended") {
       _pendingPlay = true;
-      try { await ctx.resume(); } catch { /* 다음 제스처에서 _onGesture가 처리 */ }
-      if (ctx.state === "running") startBeeping();
+      try {
+        await ctx.resume();
+        startBeeping(); // resume 성공 시 즉시 재생 시도; 내부 가드가 상태 검증
+      } catch { /* 다음 제스처에서 _onGesture가 처리 */ }
       return;
     }
     if (ctx.state !== "running") {
