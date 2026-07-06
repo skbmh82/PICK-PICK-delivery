@@ -564,7 +564,8 @@ export default function OwnerOrdersPage() {
   const [newAlert, setNewAlert] = useState(0);   // 신규 주문 건수
   const [soundOn,  setSoundOn]  = useState(true);
   const { play: playOrderSound, stop: stopOrderSound, unlock: unlockSound } = useOrderSound();
-  const alertRef = useRef(newAlert);
+  const alertRef   = useRef(newAlert);
+  const soundOnRef = useRef(soundOn);
 
   const fetchOrders = useCallback(async (t: Tab = tab) => {
     setLoading(true);
@@ -584,8 +585,9 @@ export default function OwnerOrdersPage() {
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
-  // newAlert ref 동기화 (클로저 stale 방지)
-  useEffect(() => { alertRef.current = newAlert; }, [newAlert]);
+  // ref 동기화 (클로저 stale 방지)
+  useEffect(() => { alertRef.current   = newAlert; }, [newAlert]);
+  useEffect(() => { soundOnRef.current = soundOn;  }, [soundOn]);
 
   const realtimeTarget = storeIds.length > 0 ? storeIds : storeId;
 
@@ -617,6 +619,14 @@ export default function OwnerOrdersPage() {
       const data = await res.json();
       const fresh: Order[] = data.orders ?? [];
       const freshMap = new Map(fresh.map((o) => [o.id, o]));
+
+      // 신규 pending 주문 감지 → Realtime 누락 대비 소리 재생
+      const prevIds = new Set(ordersRef.current.map((o) => o.id));
+      const newPending = fresh.filter((o) => o.status === "pending" && !prevIds.has(o.id));
+      if (newPending.length > 0) {
+        setNewAlert((n) => n + newPending.length);
+        if (soundOnRef.current) void playOrderSound();
+      }
 
       // 이전에 활성 상태였던 주문이 사라지거나 cancelled 가 되면 소리 중단
       const hadActive = ordersRef.current.some((o) =>

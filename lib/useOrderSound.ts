@@ -89,6 +89,25 @@ function speakTts() {
 export function useOrderSound(ttsMessage?: string) {
   if (ttsMessage) _ttsMessage = ttsMessage;
 
+  // 첫 번째 사용자 제스처에서 AudioContext 사전 unlock — 이후 play() 호출이 resume() 없이 작동
+  useEffect(() => {
+    const onGesture = () => {
+      const ctx = getOrCreateCtx();
+      if (ctx && ctx.state === "suspended") void ctx.resume();
+      document.removeEventListener("click",      onGesture, { capture: true });
+      document.removeEventListener("touchstart", onGesture, { capture: true });
+      document.removeEventListener("keydown",    onGesture, { capture: true });
+    };
+    document.addEventListener("click",      onGesture, { capture: true });
+    document.addEventListener("touchstart", onGesture, { capture: true });
+    document.addEventListener("keydown",    onGesture, { capture: true });
+    return () => {
+      document.removeEventListener("click",      onGesture, { capture: true });
+      document.removeEventListener("touchstart", onGesture, { capture: true });
+      document.removeEventListener("keydown",    onGesture, { capture: true });
+    };
+  }, []);
+
   // 페이지가 foreground로 돌아올 때 suspended AudioContext 복구
   useEffect(() => {
     const onVisible = () => {
@@ -117,7 +136,14 @@ export function useOrderSound(ttsMessage?: string) {
 
     const ctx = getOrCreateCtx();
     if (!ctx) return;
-    if (ctx.state === "suspended") await ctx.resume();
+    if (ctx.state === "suspended") {
+      try {
+        await ctx.resume();
+      } catch {
+        // user gesture 없이 resume() 거절된 경우 — 다음 user gesture 때 자동 복구됨
+        return;
+      }
+    }
 
     _isPlaying = true;
     scheduleBatch(ctx, ctx.currentTime + 0.05);
