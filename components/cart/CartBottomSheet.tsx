@@ -163,6 +163,12 @@ export default function CartBottomSheet({ onClose }: Props) {
   // 배달 메모
   const [note, setNote] = useState("");
 
+  // 배달비 미리보기 (서버 구역 계산과 동일 — 청구액 불일치 방지)
+  const [previewFee,    setPreviewFee]    = useState<number | null>(null);
+  const [feeLoading,    setFeeLoading]    = useState(false);
+  const [feeOutOfRange, setFeeOutOfRange] = useState(false);
+  const [zoneMinOrder,  setZoneMinOrder]  = useState(0);
+
   // 쿠폰
   const [availableCoupons, setAvailableCoupons] = useState<AvailableCoupon[]>([]);
   const [selectedCoupon,   setSelectedCoupon]   = useState<AvailableCoupon | null>(null);
@@ -282,7 +288,9 @@ export default function CartBottomSheet({ onClose }: Props) {
   const couponFreeDelivery = selectedCoupon?.coupon.type === "free_delivery";
   const couponPickRate     = selectedCoupon?.coupon.type === "pick_rate"     ? selectedCoupon.coupon.value : 0;
   const couponFixedPick    = selectedCoupon?.coupon.type === "fixed_pick"    ? selectedCoupon.coupon.value : 0;
-  const effectiveDeliveryFee = (couponFreeDelivery || orderType === "takeout") ? 0 : cart.deliveryFee;
+  // previewFee(구역 배달비)가 있으면 우선 사용, 없으면 가게 기본 배달비
+  const baseDeliveryFee      = previewFee ?? cart.deliveryFee;
+  const effectiveDeliveryFee = (couponFreeDelivery || orderType === "takeout") ? 0 : baseDeliveryFee;
   const isCouponApplicable = !selectedCoupon || itemsAmount >= selectedCoupon.coupon.minOrder;
 
   const totalPaid     = itemsAmount + effectiveDeliveryFee - pickDiscount;
@@ -295,8 +303,43 @@ export default function CartBottomSheet({ onClose }: Props) {
     ? [selectedAddr.address, selectedAddr.detail].filter(Boolean).join(" ")
     : manualAddr.trim();
 
+  // 배달 주소 변경 시 서버에 구역 배달비 미리보기 요청 (주문 API와 동일 계산)
+  const selLat = selectedAddr?.lat ?? null;
+  const selLng = selectedAddr?.lng ?? null;
+  useEffect(() => {
+    if (orderType !== "delivery" || !cart.storeId) {
+      setPreviewFee(null); setFeeOutOfRange(false); setZoneMinOrder(0);
+      return;
+    }
+    if (!deliveryAddressText && (selLat == null || selLng == null)) {
+      setPreviewFee(null); setFeeOutOfRange(false); setZoneMinOrder(0);
+      return;
+    }
+    let cancelled = false;
+    setFeeLoading(true);
+    const timer = setTimeout(async () => {
+      const qs = new URLSearchParams();
+      if (selLat != null && selLng != null) { qs.set("lat", String(selLat)); qs.set("lng", String(selLng)); }
+      if (deliveryAddressText) qs.set("address", deliveryAddressText);
+      try {
+        const res = await fetch(`/api/stores/${cart.storeId}/delivery-fee?${qs.toString()}`);
+        if (!res.ok || cancelled) return;
+        const d = await res.json() as { fee: number; minOrder: number; outOfRange: boolean };
+        if (cancelled) return;
+        setPreviewFee(d.fee);
+        setFeeOutOfRange(!!d.outOfRange);
+        setZoneMinOrder(d.minOrder ?? 0);
+      } catch { /* 실패 시 가게 기본 배달비 유지 */ }
+      finally { if (!cancelled) setFeeLoading(false); }
+    }, 400);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [orderType, cart.storeId, selLat, selLng, deliveryAddressText]);
+
+  const belowZoneMin = zoneMinOrder > 0 && itemsAmount < zoneMinOrder;
+  const blockOrder   = feeOutOfRange || belowZoneMin;
+
   const handleOrder = async () => {
-    if (isBelowMin || isOrdering) return;
+    if (isBelowMin || isOrdering || blockOrder) return;
     if (orderType === "delivery" && !deliveryAddressText) {
       setShowPicker(true);
       return;
@@ -863,7 +906,9 @@ export default function CartBottomSheet({ onClose }: Props) {
             <div className="flex items-center justify-between text-sm">
               <span className="text-pick-text-sub flex items-center gap-1"><Bike size={13} />배달비</span>
               <span className="font-bold text-pick-text">
-                {effectiveDeliveryFee === 0
+                {feeLoading && orderType === "delivery"
+                  ? <span className="inline-block w-3 h-3 border-2 border-pick-border border-t-pick-purple rounded-full animate-spin align-middle" />
+                  : effectiveDeliveryFee === 0
                   ? <span className="text-green-600">{couponFreeDelivery ? "무료 (쿠폰)" : "무료"}</span>
                   : `+${effectiveDeliveryFee.toLocaleString()}원`}
               </span>
@@ -924,10 +969,21 @@ export default function CartBottomSheet({ onClose }: Props) {
               📍 배달 주소를 입력해주세요
             </p>
           )}
+          {orderType === "delivery" && feeOutOfRange && (
+            <p className="text-xs text-red-500 font-bold text-center mb-2">
+              🚫 배달 불가 지역이에요 — 가게 배달 범위를 벗어났습니다
+            </p>
+          )}
+          {orderType === "delivery" && !feeOutOfRange && belowZoneMin && (
+            <p className="text-xs text-amber-600 font-bold text-center mb-2">
+              ⚠️ 이 지역 최소 주문금액은 {zoneMinOrder.toLocaleString()}원이에요
+              {" "}({(zoneMinOrder - itemsAmount).toLocaleString()}원 더 담아주세요)
+            </p>
+          )}
 
           <button
             onClick={() => void handleOrder()}
-            disabled={isBelowMin || isOrdering || (!!user && !userPhone)}
+            disabled={isBelowMin || isOrdering || (!!user && !userPhone) || blockOrder}
             className="w-full bg-gradient-to-r from-pick-purple to-pick-purple-light text-white font-black py-4 rounded-full shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isOrdering ? (

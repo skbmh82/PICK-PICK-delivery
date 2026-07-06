@@ -4,18 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createNotification } from "@/lib/notifications";
 import { geocodeAddress } from "@/lib/kakao/geocode";
-
-/** Haversine 공식 — 두 좌표 간 거리(km) */
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R    = 6371;
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLng = (lng2 - lng1) * (Math.PI / 180);
-  const a    =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-    Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+import { resolveDeliveryFee, type DeliveryZone } from "@/lib/delivery/fee";
 
 const OrderItemSchema = z.object({
   menuId:   z.string().uuid(),
@@ -186,42 +175,38 @@ export async function POST(request: NextRequest) {
   }
 
   // 8-1. 구역별 배달비 서버 계산 (delivery 주문 + 좌표 확보된 경우)
+  //      배달비 미리보기 API(/api/stores/[storeId]/delivery-fee)와 동일 로직 공유
   let finalDeliveryFee = deliveryFee; // 클라이언트 값 기본 사용
   if (orderType === "delivery" && finalLat != null && finalLng != null) {
-    const storeLat = Number(store.lat);
-    const storeLng = Number(store.lng);
+    const { data: zones } = await admin
+      .from("delivery_zones")
+      .select("min_km, max_km, delivery_fee, min_order_amount")
+      .eq("store_id", storeId)
+      .order("sort_order", { ascending: true });
 
-    if (storeLat && storeLng) {
-      const { data: zones } = await admin
-        .from("delivery_zones")
-        .select("min_km, max_km, delivery_fee, min_order_amount")
-        .eq("store_id", storeId)
-        .order("sort_order", { ascending: true });
+    const resolved = resolveDeliveryFee({
+      storeLat:    store.lat != null ? Number(store.lat) : null,
+      storeLng:    store.lng != null ? Number(store.lng) : null,
+      destLat:     finalLat,
+      destLng:     finalLng,
+      zones:       (zones as DeliveryZone[] | null),
+      fallbackFee: deliveryFee,
+    });
 
-      if (zones && zones.length > 0) {
-        const distKm = haversineKm(storeLat, storeLng, finalLat, finalLng);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const matchedZone = (zones as any[]).find(
-          (z) => distKm >= Number(z.min_km) && distKm < Number(z.max_km)
-        );
+    if (resolved.outOfRange) {
+      return NextResponse.json(
+        { error: `배달 불가 지역입니다. 가게의 배달 범위(${resolved.maxKm}km)를 초과했습니다.` },
+        { status: 400 }
+      );
+    }
 
-        if (!matchedZone) {
-          return NextResponse.json(
-            { error: `배달 불가 지역입니다. 가게의 배달 범위(${zones[zones.length - 1].max_km}km)를 초과했습니다.` },
-            { status: 400 }
-          );
-        }
+    finalDeliveryFee = resolved.fee;
 
-        finalDeliveryFee = Number(matchedZone.delivery_fee);
-
-        const zoneMinOrder = Number(matchedZone.min_order_amount);
-        if (zoneMinOrder > 0 && totalAmount < zoneMinOrder) {
-          return NextResponse.json(
-            { error: `이 지역의 최소 주문금액은 ${zoneMinOrder.toLocaleString()}원입니다.` },
-            { status: 400 }
-          );
-        }
-      }
+    if (resolved.zoneMinOrder > 0 && totalAmount < resolved.zoneMinOrder) {
+      return NextResponse.json(
+        { error: `이 지역의 최소 주문금액은 ${resolved.zoneMinOrder.toLocaleString()}원입니다.` },
+        { status: 400 }
+      );
     }
   }
 
