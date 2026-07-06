@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { X, Trash2, Minus, Plus, ShoppingBag, Bike, Coins, MapPin, ChevronRight, Home, Briefcase, Check, Ticket, ChevronDown, Package, RefreshCw, Phone } from "lucide-react";
+import { X, Trash2, Minus, Plus, ShoppingBag, Bike, Coins, MapPin, ChevronRight, Home, Briefcase, Check, Ticket, ChevronDown, Package, RefreshCw, Phone, Clock } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 import { useOrderStore } from "@/stores/orderStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -165,6 +165,7 @@ export default function CartBottomSheet({ onClose }: Props) {
 
   // 배달비 미리보기 (서버 거리 할증 계산과 동일 — 청구액 불일치 방지)
   const [previewFee,    setPreviewFee]    = useState<number | null>(null);
+  const [previewEta,    setPreviewEta]    = useState<number | null>(null);
   const [feeLoading,    setFeeLoading]    = useState(false);
   const [feeOutOfRange, setFeeOutOfRange] = useState(false);
 
@@ -307,11 +308,11 @@ export default function CartBottomSheet({ onClose }: Props) {
   const selLng = selectedAddr?.lng ?? null;
   useEffect(() => {
     if (orderType !== "delivery" || !cart.storeId) {
-      setPreviewFee(null); setFeeOutOfRange(false);
+      setPreviewFee(null); setPreviewEta(null); setFeeOutOfRange(false);
       return;
     }
     if (!deliveryAddressText && (selLat == null || selLng == null)) {
-      setPreviewFee(null); setFeeOutOfRange(false);
+      setPreviewFee(null); setPreviewEta(null); setFeeOutOfRange(false);
       return;
     }
     let cancelled = false;
@@ -323,9 +324,10 @@ export default function CartBottomSheet({ onClose }: Props) {
       try {
         const res = await fetch(`/api/stores/${cart.storeId}/delivery-fee?${qs.toString()}`);
         if (!res.ok || cancelled) return;
-        const d = await res.json() as { fee: number; outOfRange: boolean };
+        const d = await res.json() as { fee: number; outOfRange: boolean; etaMin: number | null };
         if (cancelled) return;
         setPreviewFee(d.fee);
+        setPreviewEta(d.etaMin ?? null);
         setFeeOutOfRange(!!d.outOfRange);
       } catch { /* 실패 시 가게 기본 배달비 유지 */ }
       finally { if (!cancelled) setFeeLoading(false); }
@@ -418,7 +420,7 @@ export default function CartBottomSheet({ onClose }: Props) {
       pickReward,
       totalPaid,
       deliveryAddress:  deliveryAddressText,
-      estimatedMinutes: 30,
+      estimatedMinutes: orderType === "takeout" ? 15 : (previewEta ?? 30),
       placedAt,
     });
 
@@ -910,6 +912,12 @@ export default function CartBottomSheet({ onClose }: Props) {
                   : `+${effectiveDeliveryFee.toLocaleString()}원`}
               </span>
             </div>
+            {orderType === "delivery" && previewEta != null && !feeOutOfRange && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-pick-text-sub flex items-center gap-1"><Clock size={13} />예상 도착</span>
+                <span className="font-bold text-pick-text">약 {previewEta}분</span>
+              </div>
+            )}
             {selectedCoupon && isCouponApplicable && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-pick-purple font-medium flex items-center gap-1">

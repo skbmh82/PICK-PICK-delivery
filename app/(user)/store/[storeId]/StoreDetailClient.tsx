@@ -710,7 +710,7 @@ export default function StoreDetailClient({
         <div className="flex gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 bg-pick-bg border border-pick-border rounded-full px-3.5 py-2">
             <Clock size={13} className="text-pick-purple" />
-            <span className="text-xs font-semibold text-pick-text">{store.deliveryTime}분 예상</span>
+            <span className="text-xs font-semibold text-pick-text">조리 ~{store.deliveryTime}분 + 거리</span>
           </div>
           <div className="flex items-center gap-1.5 bg-pick-bg border border-pick-border rounded-full px-3.5 py-2">
             <Bike size={13} className="text-pick-purple" />

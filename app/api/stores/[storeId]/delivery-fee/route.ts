@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 import { geocodeAddress } from "@/lib/kakao/geocode";
-import { resolveDeliveryFee, MAX_DELIVERY_KM } from "@/lib/delivery/fee";
+import { resolveDeliveryFee, calcEtaMinutes, MAX_DELIVERY_KM } from "@/lib/delivery/fee";
 
 /**
  * GET /api/stores/[storeId]/delivery-fee — 배달 주소 기준 배달비 미리보기
@@ -27,7 +27,7 @@ export async function GET(
   // 가게 정보 (좌표 + 배달비 설정)
   const { data: store } = await admin
     .from("stores")
-    .select("id, lat, lng, delivery_fee, delivery_radius_km, delivery_base_km, delivery_surcharge_unit_km, delivery_surcharge_fee")
+    .select("id, lat, lng, delivery_fee, delivery_radius_km, delivery_base_km, delivery_surcharge_unit_km, delivery_surcharge_fee, prep_time_min, travel_time_per_km_min")
     .eq("id", storeId)
     .single();
 
@@ -50,6 +50,8 @@ export async function GET(
   const serviceRadiusKm = store.delivery_radius_km != null
     ? Math.min(Number(store.delivery_radius_km), MAX_DELIVERY_KM)
     : MAX_DELIVERY_KM;
+  const prepMin     = Number(store.prep_time_min ?? 15);
+  const travelPerKm = Number(store.travel_time_per_km_min ?? 3);
 
   // 좌표를 못 구하면 기본 배달비로 응답 (미리보기 실패 아님)
   if (destLat == null || destLng == null) {
@@ -58,6 +60,7 @@ export async function GET(
       outOfRange: false,
       maxKm:      serviceRadiusKm,
       distanceKm: null,
+      etaMin:     null,
     });
   }
 
@@ -73,10 +76,15 @@ export async function GET(
     maxDeliveryKm:   store.delivery_radius_km != null ? Number(store.delivery_radius_km) : undefined,
   });
 
+  const etaMin = resolved.outOfRange || resolved.distanceKm == null
+    ? null
+    : calcEtaMinutes(resolved.distanceKm, prepMin, travelPerKm);
+
   return NextResponse.json({
     fee:        resolved.fee,
     outOfRange: resolved.outOfRange,
     maxKm:      resolved.maxKm,
     distanceKm: resolved.distanceKm,
+    etaMin,
   });
 }

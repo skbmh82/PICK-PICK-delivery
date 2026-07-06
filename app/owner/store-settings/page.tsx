@@ -7,7 +7,7 @@ import {
   ChevronLeft, Check, Loader2, Star, FileText, AlertCircle,
   ImagePlus, Camera, Ticket, Plus, X, Tag, CalendarDays, Gift, Image, Truck,
 } from "lucide-react";
-import { calcDeliveryFee, MAX_DELIVERY_KM } from "@/lib/delivery/fee";
+import { calcDeliveryFee, calcEtaMinutes, MAX_DELIVERY_KM } from "@/lib/delivery/fee";
 
 // ── 타입 ──────────────────────────────────────────────
 interface StoreData {
@@ -22,6 +22,8 @@ interface StoreData {
   deliveryFee:           number;
   minOrderAmount:        number;
   deliveryTime:          number;
+  prepTimeMin:             number;
+  travelTimePerKmMin:      number;
   deliveryRadiusKm:      number;
   deliveryBaseKm:          number;
   deliverySurchargeUnitKm: number;
@@ -437,6 +439,25 @@ function DeliveryFeeExample({ baseKm, baseFee, unitKm, unitFee }: {
   );
 }
 
+// ── 예상 배달 시간 미리보기 (거리 연동) ────────────────
+function EtaExample({ prepMin, travelPerKm }: { prepMin: number; travelPerKm: number }) {
+  const eta = (km: number) => calcEtaMinutes(km, prepMin, travelPerKm);
+  const rows = [1, 3, 5, 10].map((km) => ({ km, min: eta(km) }));
+  return (
+    <div className="mt-3 bg-pick-bg rounded-2xl border border-pick-border px-3 py-2.5">
+      <p className="text-[10px] font-black text-pick-purple mb-1.5">⏱️ 예상 시간 미리보기</p>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+        {rows.map((r) => (
+          <div key={r.km} className="flex justify-between text-[11px]">
+            <span className="text-pick-text-sub">{r.km}km</span>
+            <span className="font-black text-pick-text">약 {r.min}분</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── 사장님 쿠폰 관리 섹션 ─────────────────────────────
 interface OwnerCoupon {
   id: string; code: string; title: string;
@@ -703,7 +724,8 @@ export default function StoreSettingsPage() {
   const [isOpen,         setIsOpen]         = useState(true);
   const [deliveryFee,      setDeliveryFee]      = useState("");
   const [minOrderAmount,   setMinOrderAmount]   = useState("");
-  const [deliveryTime,     setDeliveryTime]     = useState("");
+  const [prepTimeMin,        setPrepTimeMin]        = useState("15");
+  const [travelTimePerKmMin, setTravelTimePerKmMin] = useState("3");
   const [deliveryRadiusKm, setDeliveryRadiusKm] = useState("5");
   const [deliveryBaseKm,          setDeliveryBaseKm]          = useState("3");
   const [deliverySurchargeUnitKm, setDeliverySurchargeUnitKm] = useState("2");
@@ -735,6 +757,8 @@ export default function StoreSettingsPage() {
         deliveryFee:          Number(s.delivery_fee),
         minOrderAmount:       Number(s.min_order_amount),
         deliveryTime:         Number(s.delivery_time),
+        prepTimeMin:          Number(s.prep_time_min ?? 15),
+        travelTimePerKmMin:   Number(s.travel_time_per_km_min ?? 3),
         deliveryRadiusKm:     Number(s.delivery_radius_km ?? 5),
         deliveryBaseKm:          Number(s.delivery_base_km ?? 3),
         deliverySurchargeUnitKm: Number(s.delivery_surcharge_unit_km ?? 2),
@@ -757,7 +781,8 @@ export default function StoreSettingsPage() {
       setIsOpen(data.isOpen);
       setDeliveryFee(String(data.deliveryFee));
       setMinOrderAmount(String(data.minOrderAmount));
-      setDeliveryTime(String(data.deliveryTime));
+      setPrepTimeMin(String(data.prepTimeMin));
+      setTravelTimePerKmMin(String(data.travelTimePerKmMin));
       setDeliveryRadiusKm(String(data.deliveryRadiusKm));
       setDeliveryBaseKm(String(data.deliveryBaseKm));
       setDeliverySurchargeUnitKm(String(data.deliverySurchargeUnitKm));
@@ -795,7 +820,8 @@ export default function StoreSettingsPage() {
 
     const fee    = parseInt(deliveryFee,      10);
     const min    = parseInt(minOrderAmount,   10);
-    const time   = parseInt(deliveryTime,     10);
+    const prep    = parseInt(prepTimeMin,        10);
+    const travel  = parseFloat(travelTimePerKmMin);
     const radius = parseFloat(deliveryRadiusKm);
     const baseKm  = parseFloat(deliveryBaseKm);
     const unitKm  = parseFloat(deliverySurchargeUnitKm);
@@ -803,7 +829,8 @@ export default function StoreSettingsPage() {
 
     if (isNaN(fee)    || fee    < 0)                return setError("기본 배달비를 올바르게 입력해주세요");
     if (isNaN(min)    || min    < 0)                return setError("최소 주문금액을 올바르게 입력해주세요");
-    if (isNaN(time)   || time   < 5 || time > 120)  return setError("예상 배달 시간은 5~120분 사이로 입력해주세요");
+    if (isNaN(prep)   || prep   < 5 || prep > 120)  return setError("조리 시간은 5~120분 사이로 입력해주세요");
+    if (isNaN(travel) || travel < 0 || travel > 30) return setError("km당 이동 시간은 0~30분 사이로 입력해주세요");
     if (isNaN(radius) || radius < 1 || radius > 20) return setError("서비스 반경은 1~20km 사이로 입력해주세요");
     if (isNaN(baseKm) || baseKm < 0 || baseKm > 20) return setError("기본 구간 거리는 0~20km 사이로 입력해주세요");
     if (isNaN(unitKm) || unitKm < 0.5 || unitKm > 20) return setError("할증 단위 거리는 0.5~20km 사이로 입력해주세요");
@@ -824,7 +851,9 @@ export default function StoreSettingsPage() {
           isOpen,
           deliveryFee:      fee,
           minOrderAmount:   min,
-          deliveryTime:     time,
+          deliveryTime:     prep,   // 목록 카드 기준 표시값 = 조리 시간
+          prepTimeMin:         prep,
+          travelTimePerKmMin:  travel,
           deliveryRadiusKm: radius,
           deliveryBaseKm:          baseKm,
           deliverySurchargeUnitKm: unitKm,
@@ -1159,28 +1188,36 @@ export default function StoreSettingsPage() {
             />
           </Field>
 
-          <Field label="예상 배달 시간 (분)" icon={<Clock size={12} />}>
-            <div className="flex gap-2">
-              {[20, 30, 40, 50, 60].map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setDeliveryTime(String(t))}
-                  className={`flex-1 py-2.5 rounded-2xl text-xs font-bold transition-all active:scale-95 ${
-                    deliveryTime === String(t)
-                      ? "bg-pick-purple text-white"
-                      : "bg-pick-bg border border-pick-border text-pick-text-sub"
-                  }`}
-                >
-                  {t}분
-                </button>
-              ))}
+          <Field label="예상 배달 시간" icon={<Clock size={12} />}>
+            <p className="text-[11px] text-pick-text-sub mb-2 leading-relaxed">
+              <strong>조리 시간</strong>에 거리별 <strong>이동 시간</strong>이 자동으로 더해져요.
+              (예상 시간 = 조리 + 거리 × km당 이동)
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-[10px] font-bold text-pick-text-sub mb-1 text-center">조리 시간(분)</p>
+                <input
+                  value={prepTimeMin}
+                  onChange={(e) => setPrepTimeMin(e.target.value.replace(/\D/g, ""))}
+                  className={`${numInputCls} text-center`}
+                  placeholder="15"
+                  inputMode="numeric"
+                />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-pick-text-sub mb-1 text-center">km당 이동(분)</p>
+                <input
+                  value={travelTimePerKmMin}
+                  onChange={(e) => setTravelTimePerKmMin(e.target.value.replace(/[^0-9.]/g, ""))}
+                  className={`${numInputCls} text-center`}
+                  placeholder="3"
+                  inputMode="decimal"
+                />
+              </div>
             </div>
-            <input
-              value={deliveryTime}
-              onChange={(e) => setDeliveryTime(e.target.value.replace(/\D/g, ""))}
-              className={`${numInputCls} mt-2`}
-              placeholder="직접 입력 (분)"
-              inputMode="numeric"
+            <EtaExample
+              prepMin={parseInt(prepTimeMin, 10) || 0}
+              travelPerKm={parseFloat(travelTimePerKmMin) || 0}
             />
           </Field>
 

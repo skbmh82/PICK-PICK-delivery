@@ -4,7 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createNotification } from "@/lib/notifications";
 import { geocodeAddress } from "@/lib/kakao/geocode";
-import { resolveDeliveryFee } from "@/lib/delivery/fee";
+import { resolveDeliveryFee, calcEtaMinutes } from "@/lib/delivery/fee";
 
 const OrderItemSchema = z.object({
   menuId:   z.string().uuid(),
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
   // 4. 가맹점 존재/영업 여부 확인
   const { data: store } = await admin
     .from("stores")
-    .select("id, is_open, min_order_amount, delivery_fee, delivery_time, lat, lng, delivery_radius_km, delivery_base_km, delivery_surcharge_unit_km, delivery_surcharge_fee")
+    .select("id, is_open, min_order_amount, delivery_fee, delivery_time, lat, lng, delivery_radius_km, delivery_base_km, delivery_surcharge_unit_km, delivery_surcharge_fee, prep_time_min, travel_time_per_km_min")
     .eq("id", storeId)
     .single();
 
@@ -177,6 +177,7 @@ export async function POST(request: NextRequest) {
   // 8-1. 거리 할증 배달비 서버 계산 (delivery 주문 + 좌표 확보된 경우)
   //      배달비 미리보기 API(/api/stores/[storeId]/delivery-fee)와 동일 로직 공유
   let finalDeliveryFee = deliveryFee; // 클라이언트 값 기본 사용
+  let deliveryDistanceKm: number | null = null;
   if (orderType === "delivery" && finalLat != null && finalLng != null) {
     const resolved = resolveDeliveryFee({
       storeLat:        store.lat != null ? Number(store.lat) : null,
@@ -197,8 +198,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    finalDeliveryFee = resolved.fee;
+    finalDeliveryFee   = resolved.fee;
+    deliveryDistanceKm = resolved.distanceKm;
   }
+
+  // 예상 시간 = 조리 시간 + 거리×(km당 이동 시간). 포장은 조리 시간만.
+  const prepMin      = Number(store.prep_time_min ?? 15);
+  const travelPerKm  = Number(store.travel_time_per_km_min ?? 3);
+  const estimatedMin = orderType === "takeout"
+    ? calcEtaMinutes(0, prepMin, 0)
+    : calcEtaMinutes(deliveryDistanceKm ?? 0, prepMin, travelPerKm);
 
   // 9. 주문 생성 (admin 클라이언트로 RLS 우회)
   // PI 결제: 서버 측 Pi 콜백에서 orderId로 연결하므로 별도 ref 불필요
@@ -225,9 +234,7 @@ export async function POST(request: NextRequest) {
       delivery_lat:     finalLat,
       delivery_lng:     finalLng,
       delivery_note:    deliveryNote ?? null,
-      estimated_time:   orderType === "takeout"
-        ? Math.max((store.delivery_time ?? 30) - 10, 10)
-        : store.delivery_time ?? 30,
+      estimated_time:   estimatedMin,
       toss_order_id:    tossOrderId,
       order_type:       orderType,
     })

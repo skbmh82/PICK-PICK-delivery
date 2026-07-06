@@ -65,6 +65,15 @@ function roundTo10(v: number): number {
 }
 
 /**
+ * 예상 배달 시간(분) = 조리 시간 + 거리 × (km당 이동 시간)
+ * 5분 단위 반올림, 최소 5분. (포장은 travelPerKmMin·distanceKm를 0으로 호출)
+ */
+export function calcEtaMinutes(distanceKm: number, prepMin: number, travelPerKmMin: number): number {
+  const raw = prepMin + Math.max(0, distanceKm) * Math.max(0, travelPerKmMin);
+  return Math.max(5, Math.round(raw / 5) * 5);
+}
+
+/**
  * 좌표 기반 배달비 확정.
  * - 목적지/가게 좌표 없음 → 거리 계산 불가 → 기본 배달비로 응답(outOfRange=false)
  * - 거리 > MAX_DELIVERY_KM → outOfRange=true
