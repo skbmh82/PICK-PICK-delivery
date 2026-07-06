@@ -12,14 +12,19 @@ import { useCallback, useEffect } from "react";
  *   - HTMLAudioElement는 사용자 제스처로 한 번 "unlock"되면 이후 어떤 컨텍스트
  *     (실시간 콜백·백그라운드 포함)에서도 .play()가 안정적으로 동작함.
  *
+ * unlock은 muted play→pause 트릭 1회로만 수행(가드) → 리스너/버튼 동시 클릭
+ * 충돌(play interrupted by pause) 방지.
+ *
  * 알람음은 런타임에 WAV(3초 루프)를 합성해 Blob URL로 재생 → 외부 파일 불필요.
  */
 
 // ── 모듈 레벨 싱글톤 ─────────────────────────────────
 let _audio:     HTMLAudioElement | null = null;
-let _unlocked   = false;   // 사용자 제스처로 재생 허용됐는가
+let _unlocked    = false;   // 사용자 제스처로 재생 허용됐는가
+let _blessing    = false;   // unlock 진행 중 (중복 방지)
 let _isPlaying   = false;
 let _pendingPlay = false;   // unlock 전에 play() 호출 시 → 다음 제스처 대기
+let _wantConfirm = false;   // 소리 버튼으로 unlock → 확인음 1회 요청
 let _ttsInterval: ReturnType<typeof setInterval> | null = null;
 let _ttsMessage   = "픽픽 주문이 들어왔습니다";
 
@@ -30,22 +35,27 @@ function buildAlarmBlobUrl(): string {
   const n          = Math.floor(sampleRate * loopSec);
   const samples    = new Float32Array(n);
 
-  // [주파수, 시작(초), 길이(초)]
+  // [주파수, 시작(초), 길이(초)] — 맑고 또렷한 4음
   const notes: [number, number, number][] = [
-    [880, 0.00, 0.12],
-    [880, 0.20, 0.12],
-    [523, 0.42, 0.22],
-    [784, 0.60, 0.32],
+    [880,  0.00, 0.13],
+    [880,  0.19, 0.13],
+    [1047, 0.40, 0.15],
+    [1319, 0.60, 0.34],
   ];
 
   for (const [freq, offset, dur] of notes) {
     const start = Math.floor(offset * sampleRate);
     const len   = Math.floor(dur * sampleRate);
     for (let i = 0; i < len; i++) {
-      const t   = i / sampleRate;
-      const env = Math.min(1, t / 0.008) * Math.exp(-t * 5); // 빠른 어택 + 감쇠
+      const t = i / sampleRate;
+      // 크리스프한 어택(3ms) + 빠른 감쇠 → 맑은 "삑"
+      const env  = Math.min(1, t / 0.003) * Math.exp(-t * 9);
+      // 기본음 + 2배음(밝기) 살짝 섞기
+      const wave =
+        Math.sin(2 * Math.PI * freq * t) * 0.85 +
+        Math.sin(2 * Math.PI * freq * 2 * t) * 0.15;
       const idx = start + i;
-      if (idx < n) samples[idx] += Math.sin(2 * Math.PI * freq * t) * env * 0.6;
+      if (idx < n) samples[idx] += wave * env * 0.7;
     }
   }
 
@@ -87,9 +97,9 @@ function buildAlarmBlobUrl(): string {
 function getAudio(): HTMLAudioElement | null {
   if (typeof window === "undefined") return null;
   if (_audio) return _audio;
-  const a  = new Audio(buildAlarmBlobUrl());
-  a.loop   = true;
-  a.volume = 1;
+  const a   = new Audio(buildAlarmBlobUrl());
+  a.loop    = true;
+  a.volume  = 1;
   a.preload = "auto";
   _audio = a;
   return _audio;
@@ -106,47 +116,68 @@ function speakTts() {
   window.speechSynthesis.speak(u);
 }
 
+/** 반복 알람 시작 */
 function startAlarm() {
   if (_isPlaying) return;
   const a = getAudio();
   if (!a) return;
   _isPlaying   = true;
   _pendingPlay = false;
-  a.loop        = true;   // unlock 확인음이 loop를 껐을 수 있으므로 복원
+  a.loop        = true;
   a.currentTime = 0;
   void a.play().catch(() => {
-    // 아직 unlock 안 됐으면 실패 → 다음 제스처 대기
     _isPlaying   = false;
-    _pendingPlay = true;
+    _pendingPlay = true;   // 아직 허용 안 됨 → 다음 제스처 대기
   });
   if (_ttsInterval) clearInterval(_ttsInterval);
   speakTts();
   _ttsInterval = setInterval(speakTts, 30_000);
 }
 
-/**
- * 모듈 레벨 제스처 핸들러 — 안정적 참조로 addEventListener 중복 방지.
- * 첫 클릭/터치 때 오디오를 "블레스(unlock)": 무음으로 play→pause 하여
- * 이후 실시간 콜백에서도 .play()가 허용되게 만듦.
- * 대기 중(_pendingPlay)인 알람이 있으면 즉시 시작.
- */
-function _onGesture() {
+/** 확인음 1회 (loop 없이 한 번만) */
+function playConfirmOnce() {
   const a = getAudio();
-  if (!a) return;
-  if (!_unlocked) {
-    a.play()
-      .then(() => {
-        _unlocked = true;
-        if (_pendingPlay && !_isPlaying) {
-          startAlarm();          // 대기 알람 즉시 시작
-        } else {
-          a.pause();             // 조용히 블레스만
-          a.currentTime = 0;
-        }
-      })
-      .catch(() => { /* 다음 제스처에서 재시도 */ });
-    return;
-  }
+  if (!a || _isPlaying) return;
+  a.loop = false;
+  a.currentTime = 0;
+  void a.play().catch(() => {});
+  const onEnded = () => { a.loop = true; a.removeEventListener("ended", onEnded); };
+  a.addEventListener("ended", onEnded);
+}
+
+/**
+ * 오디오 unlock (muted play→pause 트릭, 1회만).
+ * 완료 후: 대기 알람이 있으면 시작, 아니면 확인음 요청 시 1회 재생.
+ */
+function blessAudio() {
+  const a = getAudio();
+  if (!a || _unlocked || _blessing) return;
+  _blessing = true;
+  const prevMuted = a.muted;
+  a.muted = true;
+  a.play()
+    .then(() => {
+      a.pause();
+      a.currentTime = 0;
+      a.muted   = prevMuted;
+      _unlocked = true;
+      _blessing = false;
+      if (_pendingPlay && !_isPlaying) {
+        startAlarm();
+      } else if (_wantConfirm) {
+        _wantConfirm = false;
+        playConfirmOnce();
+      }
+    })
+    .catch(() => {
+      a.muted   = prevMuted;
+      _blessing = false;   // 다음 제스처에서 재시도
+    });
+}
+
+/** 모듈 레벨 제스처 핸들러 — 첫 상호작용에서 unlock */
+function _onGesture() {
+  if (!_unlocked) { blessAudio(); return; }
   if (_pendingPlay && !_isPlaying) startAlarm();
 }
 
@@ -170,7 +201,7 @@ export function useOrderSound(ttsMessage?: string) {
   const play = useCallback(() => {
     if (typeof window === "undefined") return;
     if (_isPlaying) return;
-    if (!_unlocked) { _pendingPlay = true; return; }
+    if (!_unlocked) { _pendingPlay = true; blessAudio(); return; }
     startAlarm();
   }, []);
 
@@ -185,18 +216,11 @@ export function useOrderSound(ttsMessage?: string) {
     }
   }, []);
 
-  /** 소리 버튼 클릭(user gesture) → 오디오 unlock + 확인음 1회 */
+  /** 소리 버튼 클릭(user gesture) → unlock + 확인음 1회 */
   const unlock = useCallback(() => {
-    const a = getAudio();
-    if (!a) return;
-    // 확인음은 1회만: loop 잠시 해제하고 재생, 끝나면 원복
-    a.loop = false;
-    a.currentTime = 0;
-    void a.play()
-      .then(() => { _unlocked = true; })
-      .catch(() => { /* 무시 */ });
-    const onEnded = () => { a.loop = true; a.removeEventListener("ended", onEnded); };
-    a.addEventListener("ended", onEnded);
+    if (_unlocked) { playConfirmOnce(); return; }
+    _wantConfirm = true;
+    blessAudio();
   }, []);
 
   return { play, stop, unlock };
