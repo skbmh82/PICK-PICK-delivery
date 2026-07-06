@@ -109,7 +109,6 @@ export function useOrderSound(ttsMessage?: string) {
 
   /**
    * 신규 주문 알람 시작 — setInterval로 BEEP_INTERVAL_MS마다 비프 1회
-   * (배치 선예약 제거 → stop() 시 setInterval.clear만으로 즉시 중단 가능)
    */
   const play = useCallback(async () => {
     if (_isPlaying) return;
@@ -120,18 +119,19 @@ export function useOrderSound(ttsMessage?: string) {
 
     if (ctx.state === "suspended") {
       try { await ctx.resume(); }
-      catch { return; }   // iOS 정책상 resume() 거절 시
+      catch { return; }
     }
     if (ctx.state !== "running") return;
 
-    // master gain 복원 (이전 stop이 0으로 내렸을 수 있음)
+    // stop() 이후 gain이 0 상태일 수 있으므로 반드시 1로 복원
     if (_masterGain) {
-      _masterGain.gain.cancelScheduledValues(0);
+      _masterGain.gain.cancelAndHoldAtTime?.(0)
+        ?? _masterGain.gain.cancelScheduledValues(0);
       _masterGain.gain.setValueAtTime(1, ctx.currentTime);
     }
 
     _isPlaying = true;
-    playOneBeep(ctx);   // 즉시 1회
+    playOneBeep(ctx);
     _beepTimer = setInterval(() => {
       if (!_isPlaying || !_ctx || _ctx.state !== "running") return;
       playOneBeep(_ctx);
@@ -142,19 +142,19 @@ export function useOrderSound(ttsMessage?: string) {
   }, []);
 
   /**
-   * 알람 중단 — setInterval 해제 + masterGain 0으로 즉시 무음
-   * AudioContext는 닫지 않음 (iOS는 닫힌 ctx를 gesture 없이 재unlock 불가)
+   * 알람 중단 — interval만 해제, masterGain은 건드리지 않음
+   *
+   * stop() 에서 masterGain을 0으로 내리면 다음 play() 에서
+   * cancelScheduledValues 타이밍 문제로 gain이 복원되지 않아
+   * 이후 알람이 전혀 울리지 않는 버그 발생.
+   * → clearInterval만으로 새 beep 중단, 현재 음은 최대 0.8 초 후 자연 소멸.
    */
   const stop = useCallback(() => {
     _isPlaying = false;
     if (_beepTimer)   { clearInterval(_beepTimer);   _beepTimer   = null; }
     if (_ttsInterval) { clearInterval(_ttsInterval); _ttsInterval = null; }
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-
-    if (_masterGain && _ctx && _ctx.state !== "closed") {
-      _masterGain.gain.cancelScheduledValues(0);
-      _masterGain.gain.setValueAtTime(0, _ctx.currentTime);
-    }
+    // masterGain 은 건드리지 않음 — gain=1 유지해야 다음 play() 가 정상 작동
   }, []);
 
   return { play, stop, unlock };
