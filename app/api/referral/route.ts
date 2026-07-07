@@ -24,16 +24,31 @@ export async function GET() {
 
   const code = toReferralCode(profile.id);
 
-  // 내가 초대한 기록 — wallet_transactions 에서 '친구초대 보상' 건수 집계
-  const { data: txRows } = await admin
+  // 실제 지급된 초대자 보상 트랜잭션 (description: "친구초대 보상 ...")
+  // — 피초대자 가입 보상("친구초대 가입 보상 ...")과 구분됨
+  const walletId = await getWalletId(admin, profile.id);
+  const { data: rewardRows } = await admin
     .from("wallet_transactions")
-    .select("id")
-    .eq("wallet_id", await getWalletId(admin, profile.id))
+    .select("amount")
+    .eq("wallet_id", walletId)
     .eq("type", "reward")
-    .ilike("description", "친구초대%");
+    .ilike("description", "친구초대 보상%");
 
-  const referralCount = (txRows ?? []).length;
-  const totalReward   = referralCount * Number(process.env.PICK_REFERRAL_REWARD ?? 50);
+  // 실제 지급액 합산 (건수 × 상수 추정이 아니라 트랜잭션 금액 그대로)
+  const fulfilledCount = (rewardRows ?? []).length;
+  const totalReward    = (rewardRows ?? []).reduce(
+    (sum: number, r: { amount: number | string }) => sum + Number(r.amount), 0,
+  );
+
+  // owner·rider 조건 미충족으로 대기 중인 초대도 실적에 포함
+  const { count: pendingCount } = await admin
+    .from("pending_referral_rewards")
+    .select("id", { count: "exact", head: true })
+    .eq("referrer_user_id", profile.id)
+    .eq("fulfilled", false)
+    .gt("referrer_amount", 0);
+
+  const referralCount = fulfilledCount + (pendingCount ?? 0);
 
   return NextResponse.json({ code, referralCount, totalReward });
 }
