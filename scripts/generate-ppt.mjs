@@ -88,7 +88,7 @@ const C = {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("📊  PICK PICK 진행 현황 (7/6 최신)", {
+  slide.addText("📊  PICK PICK 진행 현황 (7/7 최신)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 26, bold: true, color: C.purpleDark,
   });
@@ -1772,7 +1772,71 @@ const C = {
   });
 }
 
-// ── 슬라이드 23 — Pi Network 현황 & 아키텍처 ───────────
+// ── 슬라이드 23 — Day 22 작업 내역 (7/7) — 로그인 안내 · 초대 보상 수정 ──
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fill: { color: "EEF2FF" }, line: { color: "4F46E5" },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 07. 07 (Day 22)", {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fontSize: 11, bold: true, color: "4338CA", align: "center",
+  });
+
+  slide.addText("🔐  Pi 생태계 전용 로그인 안내 · 초대 보상 표시 수정", {
+    x: 3.8, y: 0.22, w: 9.8, h: 0.55,
+    fontSize: 17, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day22 = [
+    {
+      emoji: "🔐", title: "Pi 전용 로그인 화면 안내",
+      desc: "Pi 생태계 전용 서비스임을 명시\nPi Browser 로그인 = 정식 경로 강조\n카카오·이메일 → 점선 박스로 분리\n'🔧 개발자 검토·테스트용' 배지 부착\n심사·테스트 목적 안내로 오해 방지",
+    },
+    {
+      emoji: "🎁", title: "초대 보상 표시 버그 수정",
+      desc: "'내가 받은 보상' 계산 오류 수정\n(건수 × 50 → 실제 지급액 합산)\n지갑엔 5,000 정상 적립, 표시만 50P\nwallet_transactions 금액 그대로 집계\n대기 중(사장님·라이더) 초대도 실적 포함",
+    },
+  ];
+
+  day22.forEach((item, i) => {
+    const x = 2.36 + i * 4.5;
+    const y = 1.7;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.1, h: 3.5,
+      fill: { color: "EEF2FF" }, line: { color: "C7D2FE" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.22, y: y + 0.26, w: 0.7, h: 0.7,
+      fill: { color: C.white }, line: { color: "C7D2FE" },
+      rectRadius: 0.12,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.22, y: y + 0.24, w: 0.72, h: 0.72,
+      fontSize: 22, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 1.06, y: y + 0.34, w: 2.8, h: 0.55,
+      fontSize: 14, bold: true, color: "4338CA",
+    });
+    slide.addText(item.desc, {
+      x: x + 0.28, y: y + 1.15, w: 3.55, h: 2.2,
+      fontSize: 11, color: C.textDark, wrap: true, lineSpacingMultiple: 1.15,
+    });
+  });
+}
+
+// ── 슬라이드 24 — Pi Network 현황 & 아키텍처 ───────────
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
