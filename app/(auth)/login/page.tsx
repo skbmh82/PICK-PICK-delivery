@@ -81,8 +81,8 @@ function NormalLogin({ onPiClick }: { onPiClick: () => void }) {
   };
 
   return (
-    <div className="w-full max-w-xs flex flex-col gap-4">
-      {/* Pi Browser 로그인 */}
+    <div className="w-full max-w-xs flex flex-col gap-3">
+      {/* Pi Browser 로그인 — 정식 로그인 */}
       <button
         onClick={onPiClick}
         className="w-full flex items-center justify-center gap-3 py-3.5 rounded-full bg-gradient-to-r from-[#4C1D95] to-[#A855F7] font-bold text-white text-sm active:scale-95 transition-all shadow-md"
@@ -90,72 +90,83 @@ function NormalLogin({ onPiClick }: { onPiClick: () => void }) {
         <span className="text-lg leading-none">π</span>
         Pi Browser로 로그인
       </button>
+      <p className="text-center text-[11px] text-gray-400 leading-relaxed">
+        PICK PICK은 <strong className="text-pick-purple">Pi 생태계 전용</strong> 서비스예요.<br />
+        <strong>Pi Browser</strong>로 접속해 로그인해 주세요.
+      </p>
 
-      <div className="flex items-center gap-3">
-        <div className="flex-1 h-px bg-gray-200" />
-        <span className="text-xs text-gray-400">또는</span>
-        <div className="flex-1 h-px bg-gray-200" />
-      </div>
-
-      {/* 카카오 로그인 */}
-      <button
-        onClick={() => void handleKakaoLogin()}
-        disabled={kakaoLoading}
-        className="w-full flex items-center justify-center gap-3 py-3.5 rounded-full bg-[#FEE500] font-bold text-[#3C1E1E] text-sm active:scale-95 transition-all disabled:opacity-60 shadow-sm"
-      >
-        {kakaoLoading
-          ? <span className="w-5 h-5 border-2 border-[#3C1E1E]/30 border-t-[#3C1E1E] rounded-full animate-spin" />
-          : <KakaoIcon />}
-        카카오로 로그인
-      </button>
-
-      {/* 이메일 로그인 폼 */}
-      <form onSubmit={(e) => void handleEmailLogin(e)} className="flex flex-col gap-3">
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="이메일"
-          required
-          className="w-full border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text focus:outline-none focus:border-pick-purple bg-white"
-        />
-        <div className="relative">
-          <input
-            type={showPw ? "text" : "password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="비밀번호"
-            required
-            className="w-full border-2 border-pick-border rounded-2xl px-4 py-3 pr-11 text-sm text-pick-text focus:outline-none focus:border-pick-purple bg-white"
-          />
-          <button
-            type="button"
-            onClick={() => setShowPw((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-          >
-            {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
-          </button>
+      {/* ── 개발자 검토·테스트용 로그인 블록 ── */}
+      <div className="mt-2 rounded-3xl border-2 border-dashed border-gray-300 bg-white/50 p-4 flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
+          <span className="self-start text-[10px] font-black text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-2.5 py-1">
+            🔧 개발자 검토·테스트용
+          </span>
+          <p className="text-[11px] text-gray-400 leading-relaxed">
+            Pi Network 심사 및 내부 테스트 전용 로그인이에요.
+            일반 이용자는 위의 <strong>Pi Browser 로그인</strong>을 이용해 주세요.
+          </p>
         </div>
 
-        {error && <p className="text-xs text-red-500 font-bold text-center">{error}</p>}
-
+        {/* 카카오 로그인 */}
         <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#1d4ed8] to-[#38bdf8] text-white font-black text-sm active:scale-95 transition-all disabled:opacity-60 shadow-md"
+          onClick={() => void handleKakaoLogin()}
+          disabled={kakaoLoading}
+          className="w-full flex items-center justify-center gap-3 py-3 rounded-full bg-[#FEE500] font-bold text-[#3C1E1E] text-sm active:scale-95 transition-all disabled:opacity-60 shadow-sm"
         >
-          {loading
-            ? <span className="inline-block w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-            : "로그인"}
+          {kakaoLoading
+            ? <span className="w-5 h-5 border-2 border-[#3C1E1E]/30 border-t-[#3C1E1E] rounded-full animate-spin" />
+            : <KakaoIcon />}
+          카카오로 로그인
         </button>
-      </form>
 
-      <p className="text-center text-xs text-gray-400">
-        계정이 없으신가요?{" "}
-        <Link href="/register" className="text-pick-purple font-bold underline underline-offset-2">
-          회원가입
-        </Link>
-      </p>
+        {/* 이메일 로그인 폼 */}
+        <form onSubmit={(e) => void handleEmailLogin(e)} className="flex flex-col gap-3">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="이메일"
+            required
+            className="w-full border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text focus:outline-none focus:border-pick-purple bg-white"
+          />
+          <div className="relative">
+            <input
+              type={showPw ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="비밀번호"
+              required
+              className="w-full border-2 border-pick-border rounded-2xl px-4 py-3 pr-11 text-sm text-pick-text focus:outline-none focus:border-pick-purple bg-white"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPw((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+            >
+              {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+
+          {error && <p className="text-xs text-red-500 font-bold text-center">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 rounded-full bg-gradient-to-r from-[#1d4ed8] to-[#38bdf8] text-white font-black text-sm active:scale-95 transition-all disabled:opacity-60 shadow-md"
+          >
+            {loading
+              ? <span className="inline-block w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              : "로그인"}
+          </button>
+        </form>
+
+        <p className="text-center text-xs text-gray-400">
+          계정이 없으신가요?{" "}
+          <Link href="/register" className="text-pick-purple font-bold underline underline-offset-2">
+            회원가입
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }
