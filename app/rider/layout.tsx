@@ -24,6 +24,7 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
   const [toggling,   setToggling]   = useState(false);
   const [name,       setName]       = useState("라이더");
   const [isApproved, setIsApproved] = useState(false);
+  const [armed,      setArmed]      = useState(false);   // 이번 세션 알림 활성화 여부
   const [notifState, setNotifState] = useState<"loading" | "default" | "granted" | "denied">("loading");
   const { unlock: unlockSound, stop: stopOrderSound } = useOrderSound();
 
@@ -90,8 +91,8 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
   const handleToggle = async () => {
     if (toggling) return;
     const next = !isOnline;
-    // ⚠️ 온라인 전환 = 라이더의 '영업 시작' — 사용자 제스처 안에서 알림 arm(확인음)
-    if (next) unlockSound();
+    // ⚠️ 운행 시작(온라인) = 알림 arm — 사용자 제스처 안에서 알림 arm(확인음)
+    if (next) { unlockSound(); setArmed(true); }
     else      stopOrderSound();
     setToggling(true);
     try {
@@ -119,24 +120,37 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
           </div>
         </div>
 
-        {/* 온/오프라인 토글 */}
-        <button
-          onClick={() => void handleToggle()}
-          disabled={toggling || !isApproved}
-          title={!isApproved ? "서류 심사 승인 후 배달 가능합니다" : undefined}
-          className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 transition-all disabled:opacity-50 ${
-            isOnline
-              ? "bg-white/20 border border-white/30"
-              : "bg-white/10 border border-white/10"
-          }`}
-        >
-          <span className={`w-2 h-2 rounded-full transition-all ${
-            isOnline ? "bg-green-300 animate-pulse" : "bg-white/40"
-          }`} />
-          <span className="text-white text-xs font-bold">
-            {toggling ? "변경 중..." : isOnline ? "운행 중" : "운행 종료"}
-          </span>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* 운행 중인데 이번 세션 알림이 아직 꺼진 경우 → 알림 켜기 유도 */}
+          {isOnline && !armed && (
+            <button
+              onClick={() => { unlockSound(); setArmed(true); }}
+              className="flex items-center gap-1 rounded-full px-3 py-1.5 bg-white text-sky-600 text-xs font-black shadow animate-bounce"
+              title="탭하면 배달 요청 알림 소리가 켜져요"
+            >
+              🔔 알림 켜기
+            </button>
+          )}
+
+          {/* 운행 시작/종료 토글 (누르면 운행 + 알림) */}
+          <button
+            onClick={() => void handleToggle()}
+            disabled={toggling || !isApproved}
+            title={!isApproved ? "서류 심사 승인 후 배달 가능합니다" : undefined}
+            className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 transition-all disabled:opacity-50 ${
+              isOnline
+                ? "bg-white/20 border border-white/30"
+                : "bg-white/10 border border-white/10"
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full transition-all ${
+              isOnline ? "bg-green-300 animate-pulse" : "bg-white/40"
+            }`} />
+            <span className="text-white text-xs font-bold">
+              {toggling ? "변경 중..." : isOnline ? "운행 중" : "운행 시작"}
+            </span>
+          </button>
+        </div>
       </header>
 
       {/* 미승인 배너 */}
