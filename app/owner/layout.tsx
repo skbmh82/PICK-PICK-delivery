@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 import FcmProvider from "@/components/pwa/FcmProvider";
 import { registerFcmToken } from "@/hooks/useFcmToken";
+import { useOrderSound } from "@/lib/useOrderSound";
 import {
   LayoutDashboard,
   ClipboardList,
@@ -29,6 +30,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
   const [isOpen,       setIsOpen]       = useState<boolean | null>(null);
   const [toggling,     setToggling]     = useState(false);
   const [notifState,   setNotifState]   = useState<"loading" | "default" | "granted" | "denied">("loading");
+  const { unlock: unlockSound, stop: stopOrderSound } = useOrderSound();
 
   // 알림 권한 상태 읽기 — 자동 요청 안 함 (Chrome은 user gesture 없이 팝업 안 뜸)
   useEffect(() => {
@@ -58,6 +60,9 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
   const handleToggle = async () => {
     if (toggling || isOpen === null) return;
     const next = !isOpen;
+    // ⚠️ 영업 시작(오픈) = 알림 arm — 사용자 제스처 안에서 동기 호출 (브라우저 정책)
+    if (next) unlockSound();
+    else      stopOrderSound();
     setToggling(true);
     setIsOpen(next);
     try {

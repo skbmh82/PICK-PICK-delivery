@@ -914,33 +914,7 @@ export default function OwnerDashboardPage() {
   const [hasStore,      setHasStore]      = useState<boolean | null>(null);
   const [isApproved,    setIsApproved]    = useState<boolean | null>(null);
   const [registerOpen,  setRegisterOpen]  = useState(false);
-  const [businessOn,    setBusinessOn]    = useState(false);   // 이번 세션 영업 시작(알림 arm) 여부
-  const [storeIsOpen,   setStoreIsOpen]   = useState(false);   // DB상 실제 오픈 상태
-  const [openToggling,  setOpenToggling]  = useState(false);
-  const { play: playOrderSound, stop: stopOrderSound, unlock: unlockSound } = useOrderSound();
-
-  // "영업 시작/종료" 스위치 — 알림 활성화(오디오 arm)와 가게 오픈을 함께 처리
-  const toggleBusiness = async () => {
-    if (openToggling) return;
-    const next = !businessOn;
-    // ⚠️ 오디오 arm은 반드시 사용자 제스처 안에서 동기 호출 (브라우저 자동재생 정책)
-    if (next) unlockSound();
-    else      stopOrderSound();
-    setBusinessOn(next);
-    setStoreIsOpen(next);
-    setOpenToggling(true);
-    try {
-      await fetch("/api/stores/my", {
-        method:  "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ isOpen: next }),
-      });
-    } catch {
-      /* 오픈 상태 동기화 실패해도 알림 arm은 유지 */
-    } finally {
-      setOpenToggling(false);
-    }
-  };
+  const { play: playOrderSound, stop: stopOrderSound } = useOrderSound();
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
@@ -955,7 +929,6 @@ export default function OwnerDashboardPage() {
         if (store?.id) {
           setStoreId(store.id);
           setIsApproved(!!store.is_approved);
-          setStoreIsOpen(!!store.is_open);
         }
       }
       if (statsRes.ok) {
@@ -1035,8 +1008,6 @@ export default function OwnerDashboardPage() {
   const weekly   = data?.weekly ?? [];
   const pending  = data?.pendingOrders ?? [];
   const storeName = data?.storeName ?? "사장님";
-  // 가게는 열려 있는데 이번 세션 알림이 아직 arm되지 않음 → 주의 환기
-  const needsArm = storeIsOpen && !businessOn;
 
   return (
     <div className="min-h-full py-5">
@@ -1045,38 +1016,16 @@ export default function OwnerDashboardPage() {
           <h1 className="font-black text-pick-text text-xl">
             안녕하세요, {storeName}! 👋
           </h1>
-          <p className={`text-sm mt-0.5 ${needsArm ? "text-red-500 font-bold" : "text-pick-text-sub"}`}>
-            {businessOn
-              ? "영업 중이에요 · 새 주문 알림이 켜져 있어요 🔔"
-              : needsArm
-              ? "🔔 가게가 열려 있어요 · ‘영업 시작’을 눌러 알림을 켜주세요"
-              : "‘영업 시작’을 누르면 주문 알림이 울려요"}
+          <p className="text-sm text-pick-text-sub mt-0.5">
+            상단 <strong className="text-orange-500">‘영업 중’</strong>을 켜면 새 주문 알림이 울려요 🔔
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {/* 영업 시작/종료 스위치 (= 알림 활성화) */}
-          <button
-            onClick={() => void toggleBusiness()}
-            disabled={openToggling}
-            title={businessOn ? "탭하면 영업을 종료해요" : "탭하면 영업을 시작하고 주문 알림이 켜져요"}
-            className={`flex items-center gap-2 rounded-full pl-3 pr-4 py-2 font-black text-sm shadow-md active:scale-95 transition-all disabled:opacity-60 ${
-              businessOn
-                ? "bg-green-500 text-white"
-                : needsArm
-                ? "bg-gradient-to-r from-pick-purple to-pick-purple-light text-white ring-2 ring-red-300 animate-bounce"
-                : "bg-gradient-to-r from-pick-purple to-pick-purple-light text-white ring-2 ring-pick-purple-light/40"
-            }`}
-          >
-            <span className={`w-2.5 h-2.5 rounded-full bg-white ${businessOn ? "animate-pulse" : ""}`} />
-            {openToggling ? "변경 중…" : businessOn ? "영업 중" : "영업 시작"}
-          </button>
-          <button
-            onClick={fetchDashboard}
-            className="p-2 rounded-full bg-pick-bg border border-pick-border text-pick-text-sub"
-          >
-            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
-          </button>
-        </div>
+        <button
+          onClick={fetchDashboard}
+          className="p-2 rounded-full bg-pick-bg border border-pick-border text-pick-text-sub flex-shrink-0"
+        >
+          <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+        </button>
       </div>
 
       {/* 승인 대기 배너 */}
