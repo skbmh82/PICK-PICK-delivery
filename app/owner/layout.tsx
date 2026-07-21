@@ -106,35 +106,32 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* 영업 중인데 이번 세션 알림이 아직 꺼진 경우 → 알림 켜기 유도 */}
-          {isOpen === true && !armed && (
-            <button
-              onClick={() => { unlockSound(); setArmed(true); }}
-              className="flex items-center gap-1 rounded-full px-3 py-1.5 bg-white text-orange-600 text-xs font-black shadow animate-bounce"
-              title="탭하면 주문 알림 소리가 켜져요"
-            >
-              🔔 알림 켜기
-            </button>
-          )}
-
-          {/* 영업 상태 토글 (누르면 영업 시작/종료 + 알림) */}
-          <button
-            onClick={() => void handleToggle()}
-            disabled={toggling || isOpen === null}
-            className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 transition-all active:scale-95 disabled:opacity-60 ${
-              isOpen ? "bg-white/20" : "bg-black/20"
-            }`}
-          >
-            <span className={`w-2 h-2 rounded-full transition-colors ${
-              isOpen ? "bg-green-300 animate-pulse" : "bg-gray-400"
-            }`} />
-            <span className="text-white text-xs font-bold">
-              {isOpen === null ? "로딩 중" : isOpen ? "영업 중" : "영업 시작"}
-            </span>
-          </button>
-        </div>
+        {/* 영업 시작/종료 토글 (누르면 영업 + 알림) */}
+        <button
+          onClick={() => void handleToggle()}
+          disabled={toggling || isOpen === null}
+          className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 transition-all active:scale-95 disabled:opacity-60 ${
+            isOpen ? "bg-white/20" : "bg-black/20"
+          }`}
+        >
+          <span className={`w-2 h-2 rounded-full transition-colors ${
+            isOpen ? "bg-green-300 animate-pulse" : "bg-gray-400"
+          }`} />
+          <span className="text-white text-xs font-bold">
+            {isOpen === null ? "로딩 중" : isOpen ? "영업 중" : "영업 시작"}
+          </span>
+        </button>
       </header>
+
+      {/* 영업 중인데 이번 세션 알림이 꺼진 경우 → 헤더 아래 얇은 띠로 안내 */}
+      {isOpen === true && !armed && (
+        <button
+          onClick={() => { unlockSound(); setArmed(true); }}
+          className="w-full flex items-center justify-center gap-1.5 py-2 bg-amber-100 text-amber-800 text-xs font-bold active:bg-amber-200 transition-colors"
+        >
+          🔔 새 주문 알림이 꺼져 있어요 · <span className="underline underline-offset-2">탭해서 켜기</span>
+        </button>
+      )}
 
       {/* 알림 권한 배너 */}
       {notifState === "default" && (
