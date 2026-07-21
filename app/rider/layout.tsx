@@ -22,7 +22,6 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
   const user       = useAuthStore((s) => s.user);
   const [isOnline,   setIsOnline]   = useState(false);
   const [toggling,   setToggling]   = useState(false);
-  const [name,       setName]       = useState("라이더");
   const [isApproved, setIsApproved] = useState(false);
   const [armed,      setArmed]      = useState(false);   // 이번 세션 알림 활성화 여부
   const [notifState, setNotifState] = useState<"loading" | "default" | "granted" | "denied">("loading");
@@ -53,7 +52,6 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
       .then((d) => {
         if (typeof d.isActive  === "boolean") setIsOnline(d.isActive);
         if (typeof d.isApproved === "boolean") setIsApproved(d.isApproved);
-        if (d.name) setName(d.name as string);
       })
       .catch(() => {/* 비로그인 등 무시 */});
   }, [user]);
@@ -112,20 +110,19 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
     <div id="app-shell">
       {/* 라이더 전용 헤더 */}
       <header className="sticky top-0 z-40 flex items-center justify-between px-5 py-3.5 bg-gradient-to-r from-sky-600 to-blue-500">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/my-pick"
-            className="flex items-center gap-0.5 pl-1.5 pr-3 py-1.5 rounded-full bg-white/25 hover:bg-white/40 active:scale-95 transition-all"
-            title="MyPICK으로 돌아가기"
-          >
-            <ChevronLeft size={16} className="text-white" />
-            <span className="text-white text-xs font-black">MyPICK</span>
-          </Link>
-          <div>
-            <p className="text-white font-black text-base leading-tight">🛵 라이더 모드</p>
-            <p className="text-white/75 text-xs">{name}님</p>
-          </div>
-        </div>
+        <Link
+          href="/my-pick"
+          className="flex items-center gap-0.5 pl-1.5 pr-3 py-1.5 rounded-full bg-white/25 hover:bg-white/40 active:scale-95 transition-all z-10"
+          title="MyPICK으로 돌아가기"
+        >
+          <ChevronLeft size={16} className="text-white" />
+          <span className="text-white text-xs font-black">MyPICK</span>
+        </Link>
+
+        {/* 중앙 타이틀 */}
+        <p className="absolute left-1/2 -translate-x-1/2 text-white font-black text-lg tracking-tight">
+          🛵 라이더 모드
+        </p>
 
         {/* 운행 시작/종료 토글 (누르면 운행 + 알림) */}
         <button

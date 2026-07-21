@@ -26,7 +26,6 @@ const OWNER_NAV = [
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [storeName,    setStoreName]    = useState<string | null>(null);
   const [isOpen,       setIsOpen]       = useState<boolean | null>(null);
   const [toggling,     setToggling]     = useState(false);
   const [armed,        setArmed]        = useState(false);   // 이번 세션 알림 활성화(오디오 arm) 여부
@@ -56,7 +55,6 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
       .then((r) => r.ok ? r.json() : null)
       .then((d) => {
         if (d?.store) {
-          setStoreName(d.store.name);
           setIsOpen(d.store.is_open ?? true);
         }
       })
@@ -94,22 +92,19 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
     <div id="app-shell">
       {/* 사장님 전용 헤더 */}
       <header className="sticky top-0 z-40 flex items-center justify-between px-5 py-3.5 bg-gradient-to-r from-amber-600 to-orange-500">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/my-pick"
-            className="flex items-center gap-0.5 pl-1.5 pr-3 py-1.5 rounded-full bg-white/25 hover:bg-white/40 active:scale-95 transition-all"
-            title="MyPICK으로 돌아가기"
-          >
-            <ChevronLeft size={16} className="text-white" />
-            <span className="text-white text-xs font-black">MyPICK</span>
-          </Link>
-          <div>
-            <p className="text-white font-black text-base leading-tight">🏪 사장님 모드</p>
-            <p className="text-white/75 text-xs">
-              {storeName ?? "내 가게"}
-            </p>
-          </div>
-        </div>
+        <Link
+          href="/my-pick"
+          className="flex items-center gap-0.5 pl-1.5 pr-3 py-1.5 rounded-full bg-white/25 hover:bg-white/40 active:scale-95 transition-all z-10"
+          title="MyPICK으로 돌아가기"
+        >
+          <ChevronLeft size={16} className="text-white" />
+          <span className="text-white text-xs font-black">MyPICK</span>
+        </Link>
+
+        {/* 중앙 타이틀 */}
+        <p className="absolute left-1/2 -translate-x-1/2 text-white font-black text-lg tracking-tight">
+          🏪 사장님 모드
+        </p>
 
         {/* 영업 시작/종료 토글 (누르면 영업 + 알림) */}
         <button
