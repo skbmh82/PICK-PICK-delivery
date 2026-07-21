@@ -112,15 +112,15 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
       <header className="sticky top-0 z-40 flex items-center justify-between px-5 py-3.5 bg-gradient-to-r from-sky-600 to-blue-500">
         <Link
           href="/my-pick"
-          className="flex items-center gap-0.5 pl-1.5 pr-3 py-1.5 rounded-full bg-white/25 hover:bg-white/40 active:scale-95 transition-all z-10"
+          className="flex items-center gap-0.5 pl-1 pr-2 py-1 rounded-full bg-white/25 hover:bg-white/40 active:scale-95 transition-all z-10"
           title="MyPICK으로 돌아가기"
         >
-          <ChevronLeft size={16} className="text-white" />
-          <span className="text-white text-xs font-black">MyPICK</span>
+          <ChevronLeft size={13} className="text-white" />
+          <span className="text-white text-[10px] font-black">MyPICK</span>
         </Link>
 
         {/* 중앙 타이틀 */}
-        <p className="absolute left-1/2 -translate-x-1/2 text-white font-black text-lg tracking-tight">
+        <p className="absolute left-1/2 -translate-x-1/2 text-white font-black text-xl tracking-tight whitespace-nowrap">
           🛵 라이더 모드
         </p>
 
@@ -129,16 +129,16 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
           onClick={() => void handleToggle()}
           disabled={toggling || !isApproved}
           title={!isApproved ? "서류 심사 승인 후 배달 가능합니다" : undefined}
-          className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 transition-all disabled:opacity-50 ${
+          className={`z-10 flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-all disabled:opacity-50 ${
             isOnline
               ? "bg-white/20 border border-white/30"
               : "bg-white/10 border border-white/10"
           }`}
         >
-          <span className={`w-2 h-2 rounded-full transition-all ${
+          <span className={`w-1.5 h-1.5 rounded-full transition-all ${
             isOnline ? "bg-green-300 animate-pulse" : "bg-white/40"
           }`} />
-          <span className="text-white text-xs font-bold">
+          <span className="text-white text-[10px] font-bold">
             {toggling ? "변경 중..." : isOnline ? "운행 중" : "운행 시작"}
           </span>
         </button>

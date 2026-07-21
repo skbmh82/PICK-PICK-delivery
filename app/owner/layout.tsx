@@ -94,15 +94,15 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
       <header className="sticky top-0 z-40 flex items-center justify-between px-5 py-3.5 bg-gradient-to-r from-amber-600 to-orange-500">
         <Link
           href="/my-pick"
-          className="flex items-center gap-0.5 pl-1.5 pr-3 py-1.5 rounded-full bg-white/25 hover:bg-white/40 active:scale-95 transition-all z-10"
+          className="flex items-center gap-0.5 pl-1 pr-2 py-1 rounded-full bg-white/25 hover:bg-white/40 active:scale-95 transition-all z-10"
           title="MyPICK으로 돌아가기"
         >
-          <ChevronLeft size={16} className="text-white" />
-          <span className="text-white text-xs font-black">MyPICK</span>
+          <ChevronLeft size={13} className="text-white" />
+          <span className="text-white text-[10px] font-black">MyPICK</span>
         </Link>
 
         {/* 중앙 타이틀 */}
-        <p className="absolute left-1/2 -translate-x-1/2 text-white font-black text-lg tracking-tight">
+        <p className="absolute left-1/2 -translate-x-1/2 text-white font-black text-xl tracking-tight whitespace-nowrap">
           🏪 사장님 모드
         </p>
 
@@ -110,14 +110,14 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
         <button
           onClick={() => void handleToggle()}
           disabled={toggling || isOpen === null}
-          className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 transition-all active:scale-95 disabled:opacity-60 ${
+          className={`z-10 flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-all active:scale-95 disabled:opacity-60 ${
             isOpen ? "bg-white/20" : "bg-black/20"
           }`}
         >
-          <span className={`w-2 h-2 rounded-full transition-colors ${
+          <span className={`w-1.5 h-1.5 rounded-full transition-colors ${
             isOpen ? "bg-green-300 animate-pulse" : "bg-gray-400"
           }`} />
-          <span className="text-white text-xs font-bold">
+          <span className="text-white text-[10px] font-bold">
             {isOpen === null ? "로딩 중" : isOpen ? "영업 중" : "영업 시작"}
           </span>
         </button>
