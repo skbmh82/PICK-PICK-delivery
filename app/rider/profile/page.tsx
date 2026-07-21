@@ -224,7 +224,7 @@ export default function RiderProfilePage() {
             profile.isOnline ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
           }`}>
             <span className={`w-1.5 h-1.5 rounded-full ${profile.isOnline ? "bg-green-500 animate-pulse" : "bg-gray-400"}`} />
-            {profile.isOnline ? "온라인" : "오프라인"}
+            {profile.isOnline ? "운행 중" : "운행 종료"}
           </div>
 
           {/* 이름 */}

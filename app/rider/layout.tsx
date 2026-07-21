@@ -134,7 +134,7 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
             isOnline ? "bg-green-300 animate-pulse" : "bg-white/40"
           }`} />
           <span className="text-white text-xs font-bold">
-            {toggling ? "변경 중..." : isOnline ? "온라인" : "오프라인"}
+            {toggling ? "변경 중..." : isOnline ? "운행 중" : "운행 종료"}
           </span>
         </button>
       </header>
