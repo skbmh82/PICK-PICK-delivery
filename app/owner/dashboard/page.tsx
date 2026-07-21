@@ -1016,9 +1016,7 @@ export default function OwnerDashboardPage() {
           <h1 className="font-black text-pick-text text-xl">
             안녕하세요, {storeName}! 👋
           </h1>
-          <p className="text-sm text-pick-text-sub mt-0.5">
-            상단 <strong className="text-orange-500">‘영업 중’</strong>을 켜면 새 주문 알림이 울려요 🔔
-          </p>
+          <p className="text-sm text-pick-text-sub mt-0.5">오늘도 대박 나세요! 🔥</p>
         </div>
         <button
           onClick={fetchDashboard}
