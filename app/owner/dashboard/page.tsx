@@ -915,6 +915,7 @@ export default function OwnerDashboardPage() {
   const [isApproved,    setIsApproved]    = useState<boolean | null>(null);
   const [registerOpen,  setRegisterOpen]  = useState(false);
   const [businessOn,    setBusinessOn]    = useState(false);   // 이번 세션 영업 시작(알림 arm) 여부
+  const [storeIsOpen,   setStoreIsOpen]   = useState(false);   // DB상 실제 오픈 상태
   const [openToggling,  setOpenToggling]  = useState(false);
   const { play: playOrderSound, stop: stopOrderSound, unlock: unlockSound } = useOrderSound();
 
@@ -926,6 +927,7 @@ export default function OwnerDashboardPage() {
     if (next) unlockSound();
     else      stopOrderSound();
     setBusinessOn(next);
+    setStoreIsOpen(next);
     setOpenToggling(true);
     try {
       await fetch("/api/stores/my", {
@@ -953,6 +955,7 @@ export default function OwnerDashboardPage() {
         if (store?.id) {
           setStoreId(store.id);
           setIsApproved(!!store.is_approved);
+          setStoreIsOpen(!!store.is_open);
         }
       }
       if (statsRes.ok) {
@@ -1032,6 +1035,8 @@ export default function OwnerDashboardPage() {
   const weekly   = data?.weekly ?? [];
   const pending  = data?.pendingOrders ?? [];
   const storeName = data?.storeName ?? "사장님";
+  // 가게는 열려 있는데 이번 세션 알림이 아직 arm되지 않음 → 주의 환기
+  const needsArm = storeIsOpen && !businessOn;
 
   return (
     <div className="min-h-full py-5">
@@ -1040,9 +1045,11 @@ export default function OwnerDashboardPage() {
           <h1 className="font-black text-pick-text text-xl">
             안녕하세요, {storeName}! 👋
           </h1>
-          <p className="text-sm text-pick-text-sub mt-0.5">
+          <p className={`text-sm mt-0.5 ${needsArm ? "text-red-500 font-bold" : "text-pick-text-sub"}`}>
             {businessOn
               ? "영업 중이에요 · 새 주문 알림이 켜져 있어요 🔔"
+              : needsArm
+              ? "🔔 가게가 열려 있어요 · ‘영업 시작’을 눌러 알림을 켜주세요"
               : "‘영업 시작’을 누르면 주문 알림이 울려요"}
           </p>
         </div>
@@ -1055,6 +1062,8 @@ export default function OwnerDashboardPage() {
             className={`flex items-center gap-2 rounded-full pl-3 pr-4 py-2 font-black text-sm shadow-md active:scale-95 transition-all disabled:opacity-60 ${
               businessOn
                 ? "bg-green-500 text-white"
+                : needsArm
+                ? "bg-gradient-to-r from-pick-purple to-pick-purple-light text-white ring-2 ring-red-300 animate-bounce"
                 : "bg-gradient-to-r from-pick-purple to-pick-purple-light text-white ring-2 ring-pick-purple-light/40"
             }`}
           >
