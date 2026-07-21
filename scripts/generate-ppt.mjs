@@ -1836,7 +1836,89 @@ const C = {
   });
 }
 
-// ── 슬라이드 24 — Pi Network 현황 & 아키텍처 ───────────
+// ── 슬라이드 24 — Day 23 작업 내역 (7/7) — 영업/운행 스위치 · 헤더 UX 대개편 ──
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fill: { color: "ECFDF5" }, line: { color: "10B981" },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 07. 07 (Day 23)", {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fontSize: 11, bold: true, color: "047857", align: "center",
+  });
+
+  slide.addText("🔔  알림 = '영업/운행 시작' 스위치 통합 · 사장님·라이더 헤더 UX 정리", {
+    x: 3.8, y: 0.22, w: 9.8, h: 0.55,
+    fontSize: 16, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day23 = [
+    {
+      emoji: "🔔", title: "'영업/운행 시작' 스위치 통합",
+      desc: "종·스피커 버튼의 정체 모호 문제 개선\n브라우저 정책상 필요한 알림 arm을\n'영업 시작'·'운행 시작' 행동에 녹임\n누르면 확인음 + 영업/운행 시작",
+    },
+    {
+      emoji: "🔀", title: "사장님 영업 토글 일원화",
+      desc: "대시보드 중복 '영업 시작' 버튼 제거\n상단 헤더 영업 토글 하나로 통일\n(is_open 오픈 + 알림을 함께 처리)\n'영업 중' 표기 중복 혼란 해소",
+    },
+    {
+      emoji: "🏷️", title: "라이더 문구 통일",
+      desc: "온라인/오프라인 → '운행 중/운행 시작'\n꺼진 상태 = 행동형 '시작' 라벨\n프로필 상태 배지도 동일하게 통일\n사장님 '영업 중'과 톤 일치",
+    },
+    {
+      emoji: "🔕", title: "알림 꺼짐 감지 배너",
+      desc: "영업/운행 중이나 이번 세션 알림 미활성 시\n헤더 아래 얇은 띠로 '알림 켜기' 안내\n탭하면 알림만 arm (영업상태 불변)\n상단바에서 분리 → 심플 유지",
+    },
+    {
+      emoji: "♻️", title: "재진입 알림 오표시 수정",
+      desc: "MyPICK 갔다와도 알림 다시 눌러야 하던\n오표시 제거. isOrderSoundArmed()로\n실제 오디오(컨텍스트) 상태 판별\n이미 켜져 있으면 배너 안 뜸",
+    },
+    {
+      emoji: "🧭", title: "헤더 UX 심플화",
+      desc: "타이틀 중앙 정렬 + 확대(text-xl)\n가게명·이름 서브텍스트 제거\n뒤로가기 → '‹ MyPICK' 라벨 버튼\n양옆 버튼 축소로 타이틀 강조",
+    },
+  ];
+
+  day23.forEach((item, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
+    const y = 1.0 + row * 2.55;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.1, h: 2.35,
+      fill: { color: "ECFDF5" }, line: { color: "6EE7B7" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: y + 0.2, w: 0.58, h: 0.58,
+      fill: { color: C.white }, line: { color: "6EE7B7" },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.18, y: y + 0.18, w: 0.6, h: 0.6,
+      fontSize: 18, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
+      fontSize: 12, bold: true, color: "047857",
+    });
+    slide.addText(item.desc, {
+      x: x + 0.22, y: y + 0.78, w: 3.65, h: 1.42,
+      fontSize: 10, color: C.textDark, wrap: true,
+    });
+  });
+}
+
+// ── 슬라이드 25 — Pi Network 현황 & 아키텍처 ───────────
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
