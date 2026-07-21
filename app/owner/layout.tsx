@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 import FcmProvider from "@/components/pwa/FcmProvider";
 import { registerFcmToken } from "@/hooks/useFcmToken";
-import { useOrderSound } from "@/lib/useOrderSound";
+import { useOrderSound, isOrderSoundArmed } from "@/lib/useOrderSound";
 import {
   LayoutDashboard,
   ClipboardList,
@@ -44,6 +44,11 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
     const p = await Notification.requestPermission();
     setNotifState(p as "default" | "granted" | "denied");
     if (p === "granted") await registerFcmToken();
+  }, []);
+
+  // 앱 내 재진입(MyPICK 등) 시 실제 오디오 상태로 복원 → '알림 켜기' 오표시 방지
+  useEffect(() => {
+    if (isOrderSoundArmed()) setArmed(true);
   }, []);
 
   useEffect(() => {

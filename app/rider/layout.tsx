@@ -8,7 +8,7 @@ import FcmProvider from "@/components/pwa/FcmProvider";
 import { registerFcmToken } from "@/hooks/useFcmToken";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuthStore } from "@/stores/authStore";
-import { useOrderSound } from "@/lib/useOrderSound";
+import { useOrderSound, isOrderSoundArmed } from "@/lib/useOrderSound";
 
 const RIDER_NAV = [
   { href: "/rider/dashboard", label: "배달현황", Icon: Navigation },
@@ -31,6 +31,11 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (typeof window === "undefined" || !("Notification" in window)) return;
     setNotifState(Notification.permission as "default" | "granted" | "denied");
+  }, []);
+
+  // 앱 내 재진입(MyPICK 등) 시 실제 오디오 상태로 복원 → '알림 켜기' 오표시 방지
+  useEffect(() => {
+    if (isOrderSoundArmed()) setArmed(true);
   }, []);
 
   const handleRequestNotif = useCallback(async () => {

@@ -27,6 +27,15 @@ const BEEP_INTERVAL_MS = 3000;
 
 type WindowWithWebkit = Window & { webkitAudioContext?: typeof AudioContext };
 
+/**
+ * 알림음이 현재 활성화(arm)돼 있는지 — 오디오 컨텍스트가 running 상태인가.
+ * 앱 내 라우트 이동(MyPICK↔사장님/라이더)은 모듈 싱글톤이 유지되므로,
+ * 화면 재진입 시 이 값으로 '알림 켜기' 안내를 다시 띄울지 판별한다.
+ */
+export function isOrderSoundArmed(): boolean {
+  return typeof window !== "undefined" && _ctx != null && _ctx.state === "running";
+}
+
 function getOrCreateCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
   if (_ctx && _ctx.state !== "closed") return _ctx;
