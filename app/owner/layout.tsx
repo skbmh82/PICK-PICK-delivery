@@ -92,9 +92,11 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
         <div className="flex items-center gap-3">
           <Link
             href="/my-pick"
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+            className="flex items-center gap-0.5 pl-1.5 pr-3 py-1.5 rounded-full bg-white/25 hover:bg-white/40 active:scale-95 transition-all"
+            title="MyPICK으로 돌아가기"
           >
-            <ChevronLeft size={18} className="text-white" />
+            <ChevronLeft size={16} className="text-white" />
+            <span className="text-white text-xs font-black">MyPICK</span>
           </Link>
           <div>
             <p className="text-white font-black text-base leading-tight">🏪 사장님 모드</p>
