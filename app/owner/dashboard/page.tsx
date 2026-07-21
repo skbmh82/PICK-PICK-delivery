@@ -914,7 +914,31 @@ export default function OwnerDashboardPage() {
   const [hasStore,      setHasStore]      = useState<boolean | null>(null);
   const [isApproved,    setIsApproved]    = useState<boolean | null>(null);
   const [registerOpen,  setRegisterOpen]  = useState(false);
+  const [businessOn,    setBusinessOn]    = useState(false);   // 이번 세션 영업 시작(알림 arm) 여부
+  const [openToggling,  setOpenToggling]  = useState(false);
   const { play: playOrderSound, stop: stopOrderSound, unlock: unlockSound } = useOrderSound();
+
+  // "영업 시작/종료" 스위치 — 알림 활성화(오디오 arm)와 가게 오픈을 함께 처리
+  const toggleBusiness = async () => {
+    if (openToggling) return;
+    const next = !businessOn;
+    // ⚠️ 오디오 arm은 반드시 사용자 제스처 안에서 동기 호출 (브라우저 자동재생 정책)
+    if (next) unlockSound();
+    else      stopOrderSound();
+    setBusinessOn(next);
+    setOpenToggling(true);
+    try {
+      await fetch("/api/stores/my", {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ isOpen: next }),
+      });
+    } catch {
+      /* 오픈 상태 동기화 실패해도 알림 arm은 유지 */
+    } finally {
+      setOpenToggling(false);
+    }
+  };
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
@@ -1012,25 +1036,38 @@ export default function OwnerDashboardPage() {
   return (
     <div className="min-h-full py-5">
       <div className="px-4 mb-5 flex items-center justify-between">
-        <div>
+        <div className="min-w-0">
           <h1 className="font-black text-pick-text text-xl">
             안녕하세요, {storeName}! 👋
           </h1>
-          <p className="text-sm text-pick-text-sub mt-0.5">오늘도 맛있는 하루 보내세요 🍗</p>
+          <p className="text-sm text-pick-text-sub mt-0.5">
+            {businessOn
+              ? "영업 중이에요 · 새 주문 알림이 켜져 있어요 🔔"
+              : "‘영업 시작’을 누르면 주문 알림이 울려요"}
+          </p>
         </div>
-        <button
-          onClick={unlockSound}
-          className="p-2 rounded-full bg-pick-bg border border-pick-border text-pick-text-sub"
-          title="알림 소리 켜기 (한 번 눌러주세요)"
-        >
-          🔔
-        </button>
-        <button
-          onClick={fetchDashboard}
-          className="p-2 rounded-full bg-pick-bg border border-pick-border text-pick-text-sub"
-        >
-          <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* 영업 시작/종료 스위치 (= 알림 활성화) */}
+          <button
+            onClick={() => void toggleBusiness()}
+            disabled={openToggling}
+            title={businessOn ? "탭하면 영업을 종료해요" : "탭하면 영업을 시작하고 주문 알림이 켜져요"}
+            className={`flex items-center gap-2 rounded-full pl-3 pr-4 py-2 font-black text-sm shadow-md active:scale-95 transition-all disabled:opacity-60 ${
+              businessOn
+                ? "bg-green-500 text-white"
+                : "bg-gradient-to-r from-pick-purple to-pick-purple-light text-white ring-2 ring-pick-purple-light/40"
+            }`}
+          >
+            <span className={`w-2.5 h-2.5 rounded-full bg-white ${businessOn ? "animate-pulse" : ""}`} />
+            {openToggling ? "변경 중…" : businessOn ? "영업 중" : "영업 시작"}
+          </button>
+          <button
+            onClick={fetchDashboard}
+            className="p-2 rounded-full bg-pick-bg border border-pick-border text-pick-text-sub"
+          >
+            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+          </button>
+        </div>
       </div>
 
       {/* 승인 대기 배너 */}

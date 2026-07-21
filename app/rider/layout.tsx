@@ -8,6 +8,7 @@ import FcmProvider from "@/components/pwa/FcmProvider";
 import { registerFcmToken } from "@/hooks/useFcmToken";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuthStore } from "@/stores/authStore";
+import { useOrderSound } from "@/lib/useOrderSound";
 
 const RIDER_NAV = [
   { href: "/rider/dashboard", label: "배달현황", Icon: Navigation },
@@ -24,6 +25,7 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
   const [name,       setName]       = useState("라이더");
   const [isApproved, setIsApproved] = useState(false);
   const [notifState, setNotifState] = useState<"loading" | "default" | "granted" | "denied">("loading");
+  const { unlock: unlockSound, stop: stopOrderSound } = useOrderSound();
 
   useEffect(() => {
     if (typeof window === "undefined" || !("Notification" in window)) return;
@@ -87,8 +89,11 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
 
   const handleToggle = async () => {
     if (toggling) return;
-    setToggling(true);
     const next = !isOnline;
+    // ⚠️ 온라인 전환 = 라이더의 '영업 시작' — 사용자 제스처 안에서 알림 arm(확인음)
+    if (next) unlockSound();
+    else      stopOrderSound();
+    setToggling(true);
     try {
       await sendLocationPatch(next);
       setIsOnline(next);

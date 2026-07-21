@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Bike, TrendingUp, MapPin, CheckCircle, Clock, Star, RefreshCw, Volume2 } from "lucide-react";
+import { Bike, TrendingUp, MapPin, CheckCircle, Clock, Star, RefreshCw } from "lucide-react";
 import { useRiderAvailableOrderRealtime, useRiderAvailableOrderStatusRealtime } from "@/hooks/useRealtime";
 import { useOrderSound } from "@/lib/useOrderSound";
 
@@ -270,7 +270,7 @@ export default function RiderDashboardPage() {
   const [stats, setStats]           = useState<{ today: TodayStats; weekly: WeeklyDay[]; riderName: string; riderIsApproved: boolean | null } | null>(null);
   const [availableOrders, setAvailableOrders] = useState<AvailableOrder[]>([]);
   const [loading, setLoading]       = useState(true);
-  const { play: playSound, stop: stopSound, unlock: unlockSound } =
+  const { play: playSound, stop: stopSound } =
     useOrderSound("픽픽 라이더 요청이 왔습니다");
   const prevOrderCountRef = useRef(0);
 
@@ -372,22 +372,12 @@ export default function RiderDashboardPage() {
           <h1 className="font-black text-pick-text text-xl">안녕하세요, {name}님! 🛵</h1>
           <p className="text-sm text-pick-text-sub mt-0.5">오늘도 안전하게 달려요!</p>
         </div>
-        <div className="flex items-center gap-2">
-          {/* 알림 소리 잠금 해제 */}
-          <button
-            onClick={() => unlockSound()}
-            className="p-2 rounded-full border bg-sky-500 text-white border-sky-500 transition-colors"
-            title="알림 소리 켜기 (한 번 눌러주세요)"
-          >
-            <Volume2 size={15} />
-          </button>
-          <button
-            onClick={fetchData}
-            className="p-2 rounded-full bg-pick-bg border border-pick-border text-pick-text-sub"
-          >
-            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
-          </button>
-        </div>
+        <button
+          onClick={fetchData}
+          className="p-2 rounded-full bg-pick-bg border border-pick-border text-pick-text-sub"
+        >
+          <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+        </button>
       </div>
 
       <AvailableOrderAlerts orders={availableOrders} onAccepted={handleOrderAccepted} />
