@@ -842,7 +842,7 @@ function StatsTab({ stats }: { stats: PlatformStats | null }) {
     { label: "전체 주문",    value: stats.orders.total.toLocaleString(),             unit: "건",  bg: "bg-amber-50",   text: "text-amber-700",    icon: <ShoppingBag size={18} className="text-amber-600" /> },
     { label: "오늘 주문",    value: stats.orders.today.toLocaleString(),             unit: "건",  bg: "bg-sky-50",     text: "text-sky-700",      icon: <ShoppingBag size={18} className="text-sky-500" /> },
     { label: "이번달 매출",  value: Math.round(stats.revenue.thisMonth / 1000).toLocaleString(), unit: "천원", bg: "bg-orange-50", text: "text-orange-700", icon: <Coins size={18} className="text-orange-500" /> },
-    { label: "PICK 유통량",  value: stats.pick.circulation.toLocaleString(),         unit: "P",   bg: "bg-pick-bg",    text: "text-pick-purple",  icon: <Coins size={18} className="text-pick-purple" /> },
+    { label: "PICK 유통량 (Pi)",  value: stats.pick.circulation.toLocaleString(),         unit: "P",   bg: "bg-pick-bg",    text: "text-pick-purple",  icon: <Coins size={18} className="text-pick-purple" /> },
   ];
 
   return (
@@ -885,6 +885,7 @@ function StatsTab({ stats }: { stats: PlatformStats | null }) {
         <h3 className="text-sm font-black text-pick-text flex items-center gap-2">
           <Coins size={15} className="text-pick-yellow" />
           PICK 토큰 현황
+          <span className="text-[10px] font-bold text-pick-text-sub">· Pi 인증 유저 기준</span>
         </h3>
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-pick-bg rounded-2xl p-3 text-center">

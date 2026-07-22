@@ -43,8 +43,10 @@ export async function GET() {
     admin.from("orders")
       .select("id, status, total_amount")
       .gte("created_at", monthStart),
-    // PICK 토큰 유통량
-    admin.from("wallets").select("pick_balance, total_earned"),
+    // PICK 토큰 유통량 — Pi 인증 유저만 집계 (테스트/비-Pi 계정 제외)
+    admin.from("wallets")
+      .select("pick_balance, total_earned, users!inner(pi_uid)")
+      .not("users.pi_uid", "is", null),
     // 승인 대기 가맹점
     admin.from("stores").select("id").eq("is_approved", false),
   ]);
