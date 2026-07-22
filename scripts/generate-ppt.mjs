@@ -88,7 +88,7 @@ const C = {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("📊  PICK PICK 진행 현황 (7/7 최신)", {
+  slide.addText("📊  PICK PICK 진행 현황 (7/22 최신)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 26, bold: true, color: C.purpleDark,
   });
@@ -1918,7 +1918,89 @@ const C = {
   });
 }
 
-// ── 슬라이드 25 — Pi Network 현황 & 아키텍처 ───────────
+// ── 슬라이드 25 — Day 24 작업 내역 (7/22) — 데이터 클린업 · 어뷰징 방지 · 지표 정상화 ──
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fill: { color: "F5F3FF" }, line: { color: "7C3AED" },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 07. 22 (Day 24)", {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fontSize: 11, bold: true, color: "6D28D9", align: "center",
+  });
+
+  slide.addText("🧹  테스트넷 데이터 클린업 · 초대 어뷰징 방지 · 관리자 지표 정상화", {
+    x: 3.8, y: 0.22, w: 9.8, h: 0.55,
+    fontSize: 16, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day24 = [
+    {
+      emoji: "🧹", title: "테스트넷 데이터 클린업",
+      desc: "중복 관리자·비-Pi 테스트 계정 정리\n주인 없는 고아 시드 가게 삭제\n(Pi 유저·데모 카탈로그·본인 계정 보존)\n가맹점 37 → 21로 정상화",
+    },
+    {
+      emoji: "🔗", title: "Pi 리셋 중복 계정 방지",
+      desc: "테스트넷 리셋로 pi_uid 바뀌어도\n같은 pi_username 계정에 재연결\nPI_RELINK_BY_USERNAME(테스트넷 전용)\n로그인 이메일·비번 자동 갱신",
+    },
+    {
+      emoji: "🛡️", title: "초대 어뷰징 방지",
+      desc: "양방향(서로) 초대 차단 → 자기초대 파밍 방지\n초대코드 입력·출석부에 전환 안내 노출\n어뷰징 감사 SQL(pick-abuse-audit)\n파밍 클러스터 30,050 PICK 회수",
+    },
+    {
+      emoji: "🗓️", title: "출석 활동 보너스",
+      desc: "최근 7일 실주문 있으면 출석 +50\n순수 탭 파밍 50 / 실이용 유저 100\n진짜 이용 → 보상 연결\n지갑 UI에 보너스 표시",
+    },
+    {
+      emoji: "📄", title: "PICK 전환 정책 문서화",
+      desc: "테스트넷→메인넷 비율 전환 정책\n출처별 가중치(실주문1.0/초대0.5/출석0.2)\nKYC 게이트·어뷰징 제외·산정 공식\ndocs/pick-conversion-policy.md",
+    },
+    {
+      emoji: "📊", title: "관리자 지표 정상화",
+      desc: "PICK 유통량을 Pi 인증 유저만 집계\n(테스트 계정 대량 충전 왜곡 제거)\n454,230 → 실제 Pi 분배 ~15,750\n대시보드 라벨 'Pi 기준' 명시",
+    },
+  ];
+
+  day24.forEach((item, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
+    const y = 1.0 + row * 2.55;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.1, h: 2.35,
+      fill: { color: "F5F3FF" }, line: { color: "C4B5FD" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: y + 0.2, w: 0.58, h: 0.58,
+      fill: { color: C.white }, line: { color: "C4B5FD" },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.18, y: y + 0.18, w: 0.6, h: 0.6,
+      fontSize: 18, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
+      fontSize: 12, bold: true, color: "6D28D9",
+    });
+    slide.addText(item.desc, {
+      x: x + 0.22, y: y + 0.78, w: 3.65, h: 1.42,
+      fontSize: 9.5, color: C.textDark, wrap: true,
+    });
+  });
+}
+
+// ── 슬라이드 26 — Pi Network 현황 & 아키텍처 ───────────
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
