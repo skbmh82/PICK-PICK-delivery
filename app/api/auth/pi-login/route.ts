@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
 
     let authUserId: string;
     let role = requestedRole;
+    let relinked = false;   // 테스트넷 리셋 등으로 기존 계정에 새 pi_uid 재연결됨
 
     if (existingProfile) {
       authUserId = existingProfile.auth_id as string;
@@ -65,38 +66,71 @@ export async function POST(req: NextRequest) {
         .update({ pi_username: piUsername, updated_at: new Date().toISOString() })
         .eq("pi_uid", piUid);
     } else {
-      const { data: authData, error: createError } = await admin.auth.admin.createUser({
-        email:         piEmail,
-        password:      piPassword,
-        email_confirm: true,
-        user_metadata: { pi_uid: piUid, pi_username: piUsername },
-      });
-
-      if (createError || !authData.user) {
-        const { data: { users } } = await admin.auth.admin.listUsers();
-        const found = users.find((u) => u.email === piEmail);
-        if (!found) {
-          return NextResponse.json({ error: "계정 생성 실패" }, { status: 500 });
-        }
-        authUserId = found.id;
-      } else {
-        authUserId = authData.user.id;
+      // pi_uid로 못 찾음 → (테스트넷 리셋 대비) 같은 pi_username 기존 계정이 있으면 재연결.
+      // ⚠️ 메인넷은 pi_uid가 고정이라 불필요 + username 재활용 리스크가 있으므로
+      //    PI_RELINK_BY_USERNAME=true (테스트넷 전용)일 때만 활성화한다.
+      let relinkTarget: { id: string; auth_id: string; role: string } | null = null;
+      if (process.env.PI_RELINK_BY_USERNAME === "true" && piUsername) {
+        const { data } = await admin
+          .from("users")
+          .select("id, auth_id, role")
+          .eq("pi_username", piUsername)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        relinkTarget = data as { id: string; auth_id: string; role: string } | null;
       }
 
-      const { data: newProfile } = await admin
-        .from("users")
-        .insert({
-          auth_id:     authUserId,
-          name:        piUsername,
-          pi_uid:      piUid,
-          pi_username: piUsername,
-          role:        requestedRole,
-        })
-        .select("id")
-        .single();
+      if (relinkTarget) {
+        // 기존 계정에 새 pi_uid 이어붙임 (신규 계정 생성 방지 → 잔액·권한·주문 유지)
+        authUserId = relinkTarget.auth_id;
+        role       = relinkTarget.role ?? "user";
+        relinked   = true;
+        // 로그인 계정 이메일·비번을 새 pi_uid 기준으로 갱신 (토큰 발급이 piEmail/piPassword를 사용)
+        await admin.auth.admin.updateUserById(authUserId, {
+          email:         piEmail,
+          password:      piPassword,
+          email_confirm: true,
+          user_metadata: { pi_uid: piUid, pi_username: piUsername },
+        });
+        await admin
+          .from("users")
+          .update({ pi_uid: piUid, pi_username: piUsername, updated_at: new Date().toISOString() })
+          .eq("id", relinkTarget.id);
+      } else {
+        const { data: authData, error: createError } = await admin.auth.admin.createUser({
+          email:         piEmail,
+          password:      piPassword,
+          email_confirm: true,
+          user_metadata: { pi_uid: piUid, pi_username: piUsername },
+        });
 
-      if (newProfile?.id) {
-        await admin.from("wallets").insert({ user_id: newProfile.id });
+        if (createError || !authData.user) {
+          const { data: { users } } = await admin.auth.admin.listUsers();
+          const found = users.find((u) => u.email === piEmail);
+          if (!found) {
+            return NextResponse.json({ error: "계정 생성 실패" }, { status: 500 });
+          }
+          authUserId = found.id;
+        } else {
+          authUserId = authData.user.id;
+        }
+
+        const { data: newProfile } = await admin
+          .from("users")
+          .insert({
+            auth_id:     authUserId,
+            name:        piUsername,
+            pi_uid:      piUid,
+            pi_username: piUsername,
+            role:        requestedRole,
+          })
+          .select("id")
+          .single();
+
+        if (newProfile?.id) {
+          await admin.from("wallets").insert({ user_id: newProfile.id });
+        }
       }
     }
 
@@ -151,7 +185,7 @@ export async function POST(req: NextRequest) {
       role,
       access_token:  tokenData.access_token,
       refresh_token: tokenData.refresh_token,
-      isNew:         !existingProfile,   // 신규 가입 여부
+      isNew:         !existingProfile && !relinked,   // 신규 가입 여부 (재연결은 기존 회원)
     });
 
     const cookieOpts = {
