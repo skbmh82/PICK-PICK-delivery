@@ -655,6 +655,7 @@ export default function WalletPage() {
   const [streak,         setStreak]         = useState(0);
   const [checkLoading,   setCheckLoading]   = useState(false);
   const [weekComplete,   setWeekComplete]   = useState(false);
+  const [activityBonus,  setActivityBonus]  = useState(0);
   const checkinFetched = useRef(false);
 
   const fetchWallet = useCallback(async () => {
@@ -677,6 +678,7 @@ export default function WalletPage() {
         const json = await res.json();
         setCheckedToday(json.checkedToday);
         setStreak(json.streak);
+        setActivityBonus(json.activityBonus ?? 0);
       }
     } catch { /* 무시 */ }
   }, []);
@@ -953,7 +955,9 @@ export default function WalletPage() {
                 <span className="w-10 h-10 rounded-2xl bg-pick-purple/10 flex items-center justify-center text-lg">👆</span>
                 <div>
                   <p className="text-sm font-black text-pick-text">오늘의 출석 보상</p>
-                  <p className="text-xs text-pick-text-sub">매일 탭하고 PICK을 모으세요</p>
+                  <p className="text-xs text-pick-text-sub">
+                    {activityBonus > 0 ? "최근 주문 활동 보너스 +50 적용 중 🛒" : "매일 탭하고 PICK을 모으세요"}
+                  </p>
                 </div>
               </div>
               {streak > 0 && (
@@ -975,10 +979,12 @@ export default function WalletPage() {
                   </div>
                   <div className="flex flex-col items-start leading-tight flex-1">
                     <span className="text-base">출석하고 PICK 받기</span>
-                    <span className="text-xs text-white/70 font-medium">+50 PICK ≈ ₩50</span>
+                    <span className="text-xs text-white/70 font-medium">
+                      +{50 + activityBonus} PICK{activityBonus > 0 ? " (기본 50 + 활동 50)" : ""}
+                    </span>
                   </div>
                   <div className="flex flex-col items-center flex-shrink-0">
-                    <span className="text-2xl font-black text-pick-yellow-light leading-none">50</span>
+                    <span className="text-2xl font-black text-pick-yellow-light leading-none">{50 + activityBonus}</span>
                     <span className="text-xs font-black text-pick-yellow-light/80">PICK</span>
                   </div>
                 </>

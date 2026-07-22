@@ -4,6 +4,20 @@ import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 
 const CHECKIN_REWARD  = 50;  // 매일 기본 PICK
 const WEEKLY_BONUS    = 100; // 7일 완료 보너스 PICK
+const ACTIVITY_BONUS  = 50;  // 최근 7일 내 실제 주문이 있으면 가산 (순수 탭 파밍 억제)
+
+// 최근 7일 내 유효 주문(취소·환불·결제대기 제외) 존재 여부
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function hasRecentOrder(admin: any, userId: string): Promise<boolean> {
+  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+  const { count } = await admin
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("created_at", weekAgo)
+    .not("status", "in", "(awaiting_pi_payment,cancelled,refunded)");
+  return (count ?? 0) > 0;
+}
 
 // GET /api/wallet/checkin — 오늘 출석 여부 + 연속 출석일 조회
 export async function GET() {
@@ -42,11 +56,13 @@ export async function GET() {
     .maybeSingle();
 
   const currentStreak = todayCheckin?.streak ?? lastCheckin?.streak ?? 0;
+  const activityBonus = (await hasRecentOrder(admin, profile.id)) ? ACTIVITY_BONUS : 0;
 
   return NextResponse.json({
     checkedToday: !!todayCheckin,
     streak:       currentStreak,
     reward:       CHECKIN_REWARD,
+    activityBonus,   // 최근 주문 있으면 오늘 출석에 가산될 보너스
   });
 }
 
@@ -92,7 +108,8 @@ export async function POST() {
 
   const streak         = yesterdayCheckin ? yesterdayCheckin.streak + 1 : 1;
   const isWeekComplete = streak % 7 === 0;
-  const totalReward    = CHECKIN_REWARD + (isWeekComplete ? WEEKLY_BONUS : 0);
+  const activityBonus  = (await hasRecentOrder(admin, profile.id)) ? ACTIVITY_BONUS : 0;
+  const totalReward    = CHECKIN_REWARD + (isWeekComplete ? WEEKLY_BONUS : 0) + activityBonus;
 
   // 출석 기록 저장
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -122,9 +139,10 @@ export async function POST() {
       .update({ pick_balance: newBalance, total_earned: newTotalEarned, updated_at: new Date().toISOString() })
       .eq("id", wallet.id);
 
-    const description = isWeekComplete
-      ? `7일 연속 출석 완료 보너스! (${streak}일 연속, 기본 ${CHECKIN_REWARD} + 보너스 ${WEEKLY_BONUS})`
-      : `오늘의 출석 보상 (${streak}일 연속)`;
+    const parts = [`기본 ${CHECKIN_REWARD}`];
+    if (isWeekComplete) parts.push(`7일보너스 ${WEEKLY_BONUS}`);
+    if (activityBonus)  parts.push(`활동보너스 ${activityBonus}`);
+    const description = `출석 보상 (${streak}일 연속 · ${parts.join(" + ")})`;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (admin as any)
@@ -143,6 +161,8 @@ export async function POST() {
     streak,
     reward:         CHECKIN_REWARD,
     bonusReward:    isWeekComplete ? WEEKLY_BONUS : 0,
+    activityBonus,
+    totalReward,
     isWeekComplete,
     weekNumber:     Math.ceil(streak / 7),
   });
