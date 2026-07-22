@@ -1006,6 +1006,11 @@ export default function WalletPage() {
         )}
       </div>
 
+      {/* 테스트넷 PICK 전환 안내 */}
+      <p className="text-[11px] text-pick-text-sub leading-relaxed bg-pick-bg rounded-xl px-3 py-2 border border-pick-border">
+        ⚠️ 테스트넷 적립 PICK은 토큰발행 정책에 따라 비율로 전환되며, 어뷰징 계정은 제외됩니다.
+      </p>
+
       {/* ── 로그인 안내 ── */}
       {!isLoggedIn && (
         <div className="bg-pick-bg border-2 border-pick-border rounded-3xl p-6 flex flex-col items-center text-center">

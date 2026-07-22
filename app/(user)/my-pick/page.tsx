@@ -372,6 +372,9 @@ function ReferralCard() {
             적용
           </button>
         </div>
+        <p className="text-[11px] text-pick-text-sub mt-3 leading-relaxed bg-pick-bg rounded-xl px-3 py-2 border border-pick-border">
+          ⚠️ 테스트넷 적립 PICK은 토큰발행 정책에 따라 비율로 전환되며, 어뷰징 계정은 제외됩니다.
+        </p>
         {msg && (
           <p className={`text-xs font-bold mt-3 ${msg.ok ? "text-green-600" : "text-red-500"}`}>
             {msg.ok ? "🎉 " : "⚠️ "}{msg.text}

@@ -96,6 +96,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "초대자의 지갑을 찾을 수 없습니다" }, { status: 404 });
   }
 
+  // 양방향 초대 차단: 이미 이 초대자(referrer)가 내 코드를 썼다면(=내가 그를 초대함) 거부.
+  //  - 다계정 자기초대 파밍(서로 주고받기) 방지
+  const [{ data: revPending }, { data: revTx }] = await Promise.all([
+    admin.from("pending_referral_rewards")
+      .select("id").eq("referrer_user_id", me.id).eq("invitee_user_id", referrer.id).limit(1),
+    admin.from("wallet_transactions")
+      .select("id").eq("wallet_id", referrerWallet.id).eq("type", "reward")
+      .eq("description", `친구초대 가입 보상 (초대자: ${me.name})`).limit(1),
+  ]);
+  if ((revPending && revPending.length > 0) || (revTx && revTx.length > 0)) {
+    return NextResponse.json(
+      { error: "서로 초대는 할 수 없어요. (상대가 이미 내 초대 코드를 사용했어요)" },
+      { status: 400 },
+    );
+  }
+
   // 역할 결정
   const effectiveRole = newRole ?? (me.role as string) ?? "user";
   const inviteeReward = INVITEE_REWARD[effectiveRole] ?? INVITEE_REWARD.user;
