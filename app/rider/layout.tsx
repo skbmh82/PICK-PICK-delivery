@@ -22,7 +22,7 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
   const user       = useAuthStore((s) => s.user);
   const [isOnline,   setIsOnline]   = useState(false);
   const [toggling,   setToggling]   = useState(false);
-  const [isApproved, setIsApproved] = useState(false);
+  const [isApproved, setIsApproved] = useState<boolean | null>(null);   // null=조회 전(로딩)
   const [armed,      setArmed]      = useState(false);   // 이번 세션 알림 활성화 여부
   const [notifState, setNotifState] = useState<"loading" | "default" | "granted" | "denied">("loading");
   const { unlock: unlockSound, stop: stopOrderSound } = useOrderSound();
@@ -127,8 +127,8 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
         {/* 운행 시작/종료 토글 (누르면 운행 + 알림) */}
         <button
           onClick={() => void handleToggle()}
-          disabled={toggling || !isApproved}
-          title={!isApproved ? "서류 심사 승인 후 배달 가능합니다" : undefined}
+          disabled={toggling || isApproved !== true}
+          title={isApproved === false ? "서류 심사 승인 후 배달 가능합니다" : undefined}
           className={`z-10 flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-all disabled:opacity-50 ${
             isOnline
               ? "bg-white/20 border border-white/30"
@@ -154,8 +154,8 @@ export default function RiderLayout({ children }: { children: React.ReactNode })
         </button>
       )}
 
-      {/* 미승인 배너 */}
-      {!isApproved && (
+      {/* 미승인 배너 — 조회 완료 후 '미승인'으로 확정됐을 때만 (로딩 중 플래시 방지) */}
+      {isApproved === false && (
         <div className="mx-4 mt-2 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center gap-3">
           <span className="text-xl flex-shrink-0">⏳</span>
           <div>
