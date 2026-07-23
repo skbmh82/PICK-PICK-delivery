@@ -72,6 +72,40 @@ WHERE t.description LIKE '친구초대%'
 GROUP BY u.pi_username
 ORDER BY referral_pick DESC;
 
+-- 5b) 자기거래 링(self-dealing) — 라이더 배달의 고객/가게 다양성 낮음 ---
+--    한 사람이 유저·사장님·라이더를 다 만들어 "내 주문→내 가게→내 배달"로
+--    배달비 PICK을 자가 발행하는 폐쇄 루프 정황. 다양성이 낮을수록 의심.
+SELECT ru.pi_username AS rider, ru.email,
+       count(*)                        AS deliveries,
+       count(DISTINCT o.user_id)       AS distinct_customers,
+       count(DISTINCT o.store_id)      AS distinct_stores,
+       COALESCE(sum(e.amount_pick),0)  AS rider_pick
+FROM public.rider_earnings e
+JOIN public.orders o ON o.id = e.order_id
+JOIN public.users  ru ON ru.id = e.rider_id
+GROUP BY ru.pi_username, ru.email
+HAVING count(*) >= 3 AND count(DISTINCT o.user_id) <= 2   -- 배달 3건+ 인데 고객 1~2명
+ORDER BY rider_pick DESC;
+
+-- 5c) 전송 몰빵(consolidation) — 여러 발신자로부터 PICK 수신 -------
+--    다계정→단일계정으로 PICK을 모아 KYC 우회 시도하는 정황.
+--    (전송받은 PICK은 원칙 전환 제외 + 발신자 수 많으면 클러스터로 간주)
+WITH recv AS (
+  SELECT w.user_id,
+         substring(t.description from '(.+)님으로부터 수신') AS sender_name,
+         t.amount
+  FROM public.wallet_transactions t
+  JOIN public.wallets w ON w.id = t.wallet_id
+  WHERE t.type = 'transfer' AND t.description LIKE '%님으로부터 수신%'
+)
+SELECT u.pi_username, u.email,
+       count(*)                     AS transfer_in_count,
+       count(DISTINCT sender_name)  AS distinct_senders,
+       sum(amount)                  AS total_received
+FROM recv r JOIN public.users u ON u.id = r.user_id
+GROUP BY u.pi_username, u.email
+ORDER BY total_received DESC;
+
 -- 5) 계정별 PICK 출처 분해 (스냅샷 산정용) ---------------------
 --    출석 / 초대 / 기타 로 나눠 '진짜 활동' 가중치 판단에 사용
 SELECT u.pi_username, w.pick_balance,
