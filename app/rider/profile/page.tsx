@@ -440,10 +440,7 @@ export default function RiderProfilePage() {
           <span className="text-3xl">{grade.emoji}</span>
           <div>
             <p className="font-black text-pick-text text-lg">{grade.grade}</p>
-            <p className="text-xs text-sky-600 font-bold">
-              배달비 +{grade.bonus}% 보너스
-              {grade.bonus === 0 && " (기본)"}
-            </p>
+            <p className="text-xs text-sky-600 font-bold">누적 수익 레벨</p>
           </div>
         </div>
         {/* 등급 진행 바 */}
