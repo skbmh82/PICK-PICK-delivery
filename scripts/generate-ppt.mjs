@@ -88,7 +88,7 @@ const C = {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("📊  PICK PICK 진행 현황 (7/22 최신)", {
+  slide.addText("📊  PICK PICK 진행 현황 (7/23 최신)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 26, bold: true, color: C.purpleDark,
   });
@@ -2000,7 +2000,81 @@ const C = {
   });
 }
 
-// ── 슬라이드 26 — Pi Network 현황 & 아키텍처 ───────────
+// ── 슬라이드 26 — Day 25 작업 내역 (7/23) — 라이더 UX 수정 · 보상 정책 보강 · FAQ 정리 ──
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fill: { color: "FFF7ED" }, line: { color: "EA580C" },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 07. 23 (Day 25)", {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fontSize: 11, bold: true, color: "C2410C", align: "center",
+  });
+
+  slide.addText("🏍️  라이더 UX 수정 · 보상/전환 정책 보강 · FAQ 정리", {
+    x: 3.8, y: 0.22, w: 9.8, h: 0.55,
+    fontSize: 17, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day25 = [
+    {
+      emoji: "🏍️", title: "라이더 '심사 대기' 배너 플래시 수정",
+      desc: "승인된 라이더도 진입 시 '서류 심사 대기'\n배너가 잠깐 뜨던 문제(초기값 false).\nisApproved를 3-상태(null/true/false)로\n바꿔 조회 완료 후에만 표시.",
+    },
+    {
+      emoji: "🛡️", title: "전환 정책·감사 보강",
+      desc: "라이더 배달 수익 가중치(1.0) 명시\n'잔액 아닌 출처' 원칙 + 전송받은 PICK 제외\n자기거래 링·전송 몰빵 감사 쿼리 추가\n(다계정 몰빵으로 KYC 우회 차단)",
+    },
+    {
+      emoji: "🏅", title: "라이더 등급 중립화",
+      desc: "미적용 혜택 '배달비 +X% 보너스' 제거\n→ '누적 수익 레벨'로 게이미피케이션화\n등급 혜택 로직은 메인넷 숙제로 보류\n(경제 확정 후 설계)",
+    },
+    {
+      emoji: "📝", title: "FAQ·공지 실제화",
+      desc: "옛날/미구현 문구 교정: 초대 50→역할별,\n리뷰 10→사진리뷰 보상, 첫주문 30 삭제,\nPICK결제→혼합결제, 등급혜택→메인넷 예정,\n배달시간·배달비 거리연동, Pi 로그인 반영.",
+    },
+  ];
+
+  day25.forEach((item, i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const x = 0.7 + col * 6.2;
+    const y = 1.15 + row * 2.75;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 5.9, h: 2.5,
+      fill: { color: "FFF7ED" }, line: { color: "FED7AA" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.22, y: y + 0.24, w: 0.62, h: 0.62,
+      fill: { color: C.white }, line: { color: "FED7AA" },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.22, y: y + 0.22, w: 0.64, h: 0.64,
+      fontSize: 20, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 1.0, y: y + 0.3, w: 4.7, h: 0.5, valign: "middle",
+      fontSize: 14, bold: true, color: "C2410C",
+    });
+    slide.addText(item.desc, {
+      x: x + 0.28, y: y + 1.0, w: 5.35, h: 1.4,
+      fontSize: 11, color: C.textDark, wrap: true, lineSpacingMultiple: 1.12,
+    });
+  });
+}
+
+// ── 슬라이드 27 — Pi Network 현황 & 아키텍처 ───────────
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
