@@ -438,9 +438,12 @@ export default async function HomePage({
   return (
     <div className="min-h-full pb-4">
       <LocationBar />
-      <Suspense fallback={null}>
-        <SearchBar />
-      </Suspense>
+      {/* 검색바 자리 출석 게이트: 메인홈 첫 진입 시 출석 탭 → 완료 → 검색바 전환 */}
+      <CheckinBanner enabled={!showSearch && !showCategory}>
+        <Suspense fallback={null}>
+          <SearchBar />
+        </Suspense>
+      </CheckinBanner>
 
       {showSearch ? (
         <SearchResultsView query={search!.trim()} sort={sort} lat={userLat} lng={userLng} />
@@ -452,9 +455,6 @@ export default async function HomePage({
           <Suspense fallback={<div className="mx-4 h-[120px] rounded-3xl bg-pick-border/30 animate-pulse" />}>
             <HomeAdSection />
           </Suspense>
-
-          {/* 출석 넛지 배너 (원탭 체크인) */}
-          <CheckinBanner />
 
           {/* 카테고리 그리드 — 배너 바로 아래 */}
           <CategoryGrid />

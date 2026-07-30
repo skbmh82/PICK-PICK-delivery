@@ -1,46 +1,46 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Flame, Gift } from "lucide-react";
+import { Gift } from "lucide-react";
 
-interface CheckinState {
-  checkedToday: boolean;
-  streak:       number;
-  activityBonus: number;
-}
+type Phase = "loading" | "checkin" | "flash" | "search";
 
 /**
- * 홈 상단 출석 넛지 배너 — 원탭 출석으로 활성화율 끌어올리기.
- * - 미출석: '오늘 출석하고 +N PICK' 버튼 → 그 자리에서 체크인
- * - 완료:   '출석 완료 · N일 연속' 표시
- * - 비로그인/조회 실패: 렌더 안 함
+ * 홈 최상단(검색바 자리) 출석 게이트.
+ * 미출석이면 검색바 대신 '오늘 출석' 탭이 먼저 뜨고,
+ * 탭하면 '출석 완료'가 잠깐 뜬 뒤 검색바(children)로 전환된다.
+ * 이미 출석했거나 비로그인/메인홈이 아니면 곧바로 children(검색바)만 렌더.
  */
-export default function CheckinBanner() {
-  const [state,   setState]   = useState<CheckinState | null>(null);
-  const [hidden,  setHidden]  = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [reward,  setReward]  = useState<number | null>(null);
+export default function CheckinBanner({
+  enabled,
+  children,
+}: {
+  enabled: boolean;
+  children: React.ReactNode;
+}) {
+  const [phase,         setPhase]         = useState<Phase>(enabled ? "loading" : "search");
+  const [streak,        setStreak]        = useState(0);
+  const [activityBonus, setActivityBonus] = useState(0);
+  const [loading,       setLoading]       = useState(false);
+  const [reward,        setReward]        = useState(0);
 
   useEffect(() => {
+    if (!enabled) { setPhase("search"); return; }
     let cancelled = false;
     fetch("/api/wallet/checkin")
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((d) => {
         if (cancelled) return;
-        setState({
-          checkedToday:  !!d.checkedToday,
-          streak:        d.streak ?? 0,
-          activityBonus: d.activityBonus ?? 0,
-        });
+        if (d.checkedToday) { setPhase("search"); return; }   // 이미 출석 → 바로 검색
+        setStreak(d.streak ?? 0);
+        setActivityBonus(d.activityBonus ?? 0);
+        setPhase("checkin");
       })
-      .catch(() => { if (!cancelled) setHidden(true); }); // 비로그인 등 → 숨김
+      .catch(() => { if (!cancelled) setPhase("search"); });    // 비로그인 등 → 검색
     return () => { cancelled = true; };
-  }, []);
+  }, [enabled]);
 
-  if (hidden || !state) return null;
-
-  const todayReward = 50 + state.activityBonus;
+  const todayReward = 50 + activityBonus;
 
   const handleCheckin = async () => {
     if (loading) return;
@@ -50,58 +50,57 @@ export default function CheckinBanner() {
       if (res.ok) {
         const d = await res.json();
         setReward(d.totalReward ?? todayReward);
-        setState((s) => (s ? { ...s, checkedToday: true, streak: d.streak ?? s.streak } : s));
+        setPhase("flash");
+        setTimeout(() => setPhase("search"), 1600);   // '완료' 잠깐 → 검색 전환
+      } else {
+        setPhase("search");
       }
+    } catch {
+      setPhase("search");
     } finally {
       setLoading(false);
     }
   };
 
-  // ── 출석 완료 상태 ──
-  if (state.checkedToday) {
+  if (phase === "search") return <>{children}</>;
+
+  if (phase === "loading") {
+    return <div className="mx-4 mt-3 h-12 rounded-full bg-pick-border/30 animate-pulse" />;
+  }
+
+  if (phase === "flash") {
     return (
-      <div className="mx-4 mt-3 rounded-3xl bg-gradient-to-r from-pick-purple to-pick-purple-light px-4 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-9 h-9 rounded-2xl bg-white/20 flex items-center justify-center text-lg flex-shrink-0">✅</span>
-          <div className="min-w-0">
-            <p className="text-white font-black text-sm leading-tight">
-              오늘 출석 완료!{reward ? ` +${reward.toLocaleString()} PICK` : ""}
-            </p>
-            <p className="text-white/80 text-[11px] flex items-center gap-1">
-              <Flame size={11} /> {state.streak}일 연속 · 내일도 잊지 마세요
-            </p>
-          </div>
-        </div>
-        <Link href="/wallet" className="flex-shrink-0 text-[11px] font-black text-white/90 bg-white/15 rounded-full px-3 py-1.5">
-          지갑
-        </Link>
+      <div className="mx-4 mt-3 h-12 rounded-full bg-gradient-to-r from-pick-purple to-pick-purple-light flex items-center justify-center shadow-md">
+        <span className="text-white font-black text-sm">🎉 출석 완료! +{reward.toLocaleString()} PICK</span>
       </div>
     );
   }
 
-  // ── 미출석 상태 (원탭 체크인) ──
+  // ── 미출석: 검색바 자리에 출석 탭 ──
   return (
-    <button
-      onClick={() => void handleCheckin()}
-      disabled={loading}
-      className="mx-4 mt-3 w-[calc(100%-2rem)] rounded-3xl bg-gradient-to-r from-pick-purple to-pick-purple-light px-4 py-3.5 flex items-center justify-between shadow-md active:scale-[0.98] transition-transform disabled:opacity-70"
-    >
-      <div className="flex items-center gap-3 min-w-0">
-        <span className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center flex-shrink-0">
-          <Gift size={20} className="text-white" />
+    <div className="mx-4 mt-3">
+      <button
+        onClick={() => void handleCheckin()}
+        disabled={loading}
+        className="w-full rounded-full bg-gradient-to-r from-pick-purple to-pick-purple-light px-4 py-3 flex items-center justify-between shadow-md active:scale-[0.98] transition-transform disabled:opacity-70"
+      >
+        <span className="flex items-center gap-2.5 min-w-0">
+          <Gift size={18} className="text-white flex-shrink-0" />
+          <span className="text-white font-black text-sm truncate">
+            오늘 출석하고 <span className="text-pick-yellow-light">+{todayReward} PICK</span>
+            {streak > 0 && <span className="text-white/80 font-bold"> · {streak}일 연속 🔥</span>}
+          </span>
         </span>
-        <div className="text-left min-w-0">
-          <p className="text-white font-black text-sm leading-tight">
-            오늘 출석하고 <span className="text-pick-yellow-light">+{todayReward} PICK</span> 받기
-          </p>
-          <p className="text-white/80 text-[11px]">
-            {state.streak > 0 ? `${state.streak}일 연속 중 🔥 · ` : ""}7일 연속 시 +100 보너스
-          </p>
-        </div>
-      </div>
-      <span className="flex-shrink-0 text-xs font-black text-pick-purple bg-white rounded-full px-3.5 py-2">
-        {loading ? "…" : "출석"}
-      </span>
-    </button>
+        <span className="flex-shrink-0 text-xs font-black text-pick-purple bg-white rounded-full px-3.5 py-1.5">
+          {loading ? "…" : "출석"}
+        </span>
+      </button>
+      <button
+        onClick={() => setPhase("search")}
+        className="w-full text-center text-[11px] text-pick-text-sub mt-1.5"
+      >
+        나중에 할게요
+      </button>
+    </div>
   );
 }
