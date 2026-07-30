@@ -176,6 +176,7 @@ function PiLogin() {
   const [status,       setStatus]       = useState<PiStatus>("checking");
   const [error,        setError]        = useState("");
   const [selectedRole, setSelectedRole] = useState<NewRole>("user");
+  const [refCode,      setRefCode]      = useState("");   // 온보딩 초대코드 (선택)
   const started = useRef(false);
 
   useEffect(() => { void checkSession(); }, []);
@@ -239,7 +240,21 @@ function PiLogin() {
 
   async function handleRoleConfirm() {
     setStatus("saving");
-    try { await fetch("/api/users/me/role", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role: selectedRole }) }); } catch {}
+    const code = refCode.trim().toUpperCase();
+    try {
+      if (code.length === 8) {
+        // 초대코드 입력 시: 역할 설정 + 초대 보상 지급 (실패해도 온보딩은 진행)
+        const r = await fetch("/api/referral/use", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code, role: selectedRole }),
+        });
+        if (!r.ok) {
+          await fetch("/api/users/me/role", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role: selectedRole }) });
+        }
+      } else {
+        await fetch("/api/users/me/role", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role: selectedRole }) });
+      }
+    } catch {}
     setStatus("done");
     const { data: { session } } = await supabase.auth.getSession();
     const dest = destByRole(selectedRole);
@@ -276,6 +291,18 @@ function PiLogin() {
               </button>
             ))}
           </div>
+          {/* 초대 코드 (선택) */}
+          <div className="bg-pick-bg border-2 border-pick-border rounded-2xl p-3">
+            <p className="text-xs font-black text-pick-purple mb-1.5">🎁 초대 코드가 있나요? (선택)</p>
+            <input
+              value={refCode}
+              onChange={(e) => setRefCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+              maxLength={8}
+              placeholder="8자리 입력 시 +5,000 PICK"
+              className="w-full border-2 border-pick-border rounded-xl px-3 py-2.5 text-sm font-bold tracking-widest text-center uppercase text-pick-text focus:outline-none focus:border-pick-purple bg-white"
+            />
+          </div>
+
           <button onClick={() => void handleRoleConfirm()}
             className="w-full py-4 rounded-full bg-gradient-to-r from-[#4C1D95] to-[#A855F7] text-white font-black text-base shadow-lg active:scale-95 transition-all mt-1">
             시작하기 →

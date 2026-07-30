@@ -11,6 +11,7 @@ import LoadMoreStores from "./LoadMoreStores";
 import LocationBar from "./LocationBar";
 import RecentlyViewedStores from "./RecentlyViewedStores";
 import NearbyFavorites from "./NearbyFavorites";
+import CheckinBanner from "./CheckinBanner";
 
 /* ────────────── 검색 결과 뷰 ────────────── */
 async function SearchResultsView({ query, sort, lat, lng }: { query: string; sort: SortKey; lat?: number | null; lng?: number | null }) {
@@ -451,6 +452,9 @@ export default async function HomePage({
           <Suspense fallback={<div className="mx-4 h-[120px] rounded-3xl bg-pick-border/30 animate-pulse" />}>
             <HomeAdSection />
           </Suspense>
+
+          {/* 출석 넛지 배너 (원탭 체크인) */}
+          <CheckinBanner />
 
           {/* 카테고리 그리드 — 배너 바로 아래 */}
           <CategoryGrid />
