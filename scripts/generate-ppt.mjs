@@ -88,7 +88,7 @@ const C = {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
 
-  slide.addText("📊  PICK PICK 진행 현황 (7/23 최신)", {
+  slide.addText("📊  PICK PICK 진행 현황 (8/4 최신)", {
     x: 0.4, y: 0.25, w: 13.2, h: 0.65,
     fontSize: 26, bold: true, color: C.purpleDark,
   });
@@ -2074,7 +2074,89 @@ const C = {
   });
 }
 
-// ── 슬라이드 27 — Pi Network 현황 & 아키텍처 ───────────
+// ── 슬라이드 27 — Day 26 작업 내역 (8/4) — 활성화 넛지 + DB 보안 하드닝 ──
+{
+  const slide = prs.addSlide();
+  slide.background = { color: C.bgMain };
+
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fill: { color: "ECFEFF" }, line: { color: "0891B2" },
+    rectRadius: 0.1,
+  });
+  slide.addText("📅  2026. 08. 04 (Day 26)", {
+    x: 0.4, y: 0.18, w: 3.2, h: 0.55,
+    fontSize: 11, bold: true, color: "0E7490", align: "center",
+  });
+
+  slide.addText("🚀  온보딩·활성화 넛지 + DB 보안 하드닝", {
+    x: 3.8, y: 0.22, w: 9.8, h: 0.55,
+    fontSize: 17, bold: true, color: C.purpleDark,
+  });
+  slide.addShape(prs.ShapeType.rect, {
+    x: 0.4, y: 0.78, w: 12.8, h: 0.04,
+    fill: { color: C.borderPurple }, line: { color: C.borderPurple },
+  });
+
+  const day26 = [
+    {
+      emoji: "🎁", title: "온보딩 초대코드 입력",
+      desc: "Pi 신규 가입(역할 선택) 화면에 초대코드칸 추가\nreferral/use 연동(역할 설정 + 5,000 PICK)\n지금까지 초대 유입 0이던 원인(입력 순간 부재)\n해소 → 바이럴 루프 가동",
+    },
+    {
+      emoji: "🗓️", title: "홈 출석 게이트",
+      desc: "검색바 자리에 '오늘 출석 +N PICK' 탭\n원탭 체크인 → '완료' 잠깐 → 검색바 전환\n지갑에 숨어있던 출석을 홈 최상단으로\n(출석 활성률 6% 개선 목적)",
+    },
+    {
+      emoji: "🔒", title: "RLS 활성화 (보안 경고 해결)",
+      desc: "공개 접근되던 5개 테이블 RLS on\n(coupons·user_coupons·store_hours·\ndaily_checkins·pending_referral_rewards)\nSupabase 메일 경고 원인 제거",
+    },
+    {
+      emoji: "🛡️", title: "함수 search_path 고정",
+      desc: "public 함수의 mutable search_path 경고 제거\n'public, pg_temp'로 고정(호출자 상속 차단)\n앱 동작 영향 없음\n18개 함수 일괄 하드닝",
+    },
+    {
+      emoji: "🚫", title: "PICK 함수 anon 실행 차단",
+      desc: "reward/deduct/refund/spend_pick·update_order_status\n를 service_role 전용으로 (anon·authenticated 회수)\n누구나 REST로 PICK 자가발행하던 경로 폐쇄\n앱은 서버(admin) 호출이라 정상",
+    },
+    {
+      emoji: "🔍", title: "무단 유용 감사",
+      desc: "전 지갑거래를 출처 원장과 대사\n출석 309건=309행 완벽 일치, 미분류 0건\n→ 취약점은 열렸었지만 악용 흔적 없음 확인\n(라이더 불일치는 정리 작업 부수효과)",
+    },
+  ];
+
+  day26.forEach((item, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    const x = 0.25 + col * 4.3;
+    const y = 1.0 + row * 2.55;
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x, y, w: 4.1, h: 2.35,
+      fill: { color: "ECFEFF" }, line: { color: "A5F3FC" },
+      rectRadius: 0.15,
+    });
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: x + 0.18, y: y + 0.2, w: 0.58, h: 0.58,
+      fill: { color: C.white }, line: { color: "A5F3FC" },
+      rectRadius: 0.1,
+    });
+    slide.addText(item.emoji, {
+      x: x + 0.18, y: y + 0.18, w: 0.6, h: 0.6,
+      fontSize: 18, align: "center",
+    });
+    slide.addText(item.title, {
+      x: x + 0.88, y: y + 0.22, w: 3.0, h: 0.4,
+      fontSize: 12, bold: true, color: "0E7490",
+    });
+    slide.addText(item.desc, {
+      x: x + 0.22, y: y + 0.78, w: 3.65, h: 1.42,
+      fontSize: 9, color: C.textDark, wrap: true,
+    });
+  });
+}
+
+// ── 슬라이드 28 — Pi Network 현황 & 아키텍처 ───────────
 {
   const slide = prs.addSlide();
   slide.background = { color: C.bgMain };
