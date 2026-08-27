@@ -12,20 +12,20 @@ type PiStatus =
   | "roleSelect" | "saving" | "done" | "error";
 
 const PI_STATUS_LABEL: Partial<Record<PiStatus, string>> = {
-  checking: "로그인 상태 확인 중...",
-  sdk:      "Pi SDK 초기화 중...",
-  auth:     "Pi 인증 중...",
-  login:    "로그인 중...",
-  saving:   "역할 저장 중...",
-  done:     "이동 중...",
+  checking: "Checking session...",
+  sdk:      "Initializing Pi SDK...",
+  auth:     "Verifying with Pi...",
+  login:    "Signing in...",
+  saving:   "Saving your role...",
+  done:     "Redirecting...",
 };
 
 type NewRole = "user" | "owner" | "rider";
 
 const ROLE_OPTIONS = [
-  { role: "user"  as NewRole, emoji: "👤", label: "일반 유저", sub: "음식 주문 · PICK 적립",   active: "border-pick-purple bg-pick-purple/5" },
-  { role: "owner" as NewRole, emoji: "🏪", label: "사장님",   sub: "가게 등록 · 주문 관리",   active: "border-amber-400 bg-amber-50" },
-  { role: "rider" as NewRole, emoji: "🛵", label: "라이더",   sub: "배달 수행 · 수익 적립",   active: "border-sky-400 bg-sky-50" },
+  { role: "user"  as NewRole, emoji: "👤", label: "Customer", sub: "Order food · Earn PICK",       active: "border-pick-purple bg-pick-purple/5" },
+  { role: "owner" as NewRole, emoji: "🏪", label: "Merchant", sub: "List your store · Manage orders", active: "border-amber-400 bg-amber-50" },
+  { role: "rider" as NewRole, emoji: "🛵", label: "Rider",    sub: "Deliver · Earn rewards",         active: "border-sky-400 bg-sky-50" },
 ];
 
 function destByRole(role: string) {
@@ -65,7 +65,7 @@ function NormalLogin({ onPiClick }: { onPiClick: () => void }) {
         window.location.replace(destByRole(profile?.role ?? "user"));
       }
     } catch {
-      setError("로그인에 실패했습니다");
+      setError("Sign-in failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -87,23 +87,22 @@ function NormalLogin({ onPiClick }: { onPiClick: () => void }) {
         onClick={onPiClick}
         className="w-full flex items-center justify-center gap-3 py-3.5 rounded-full bg-gradient-to-r from-[#4C1D95] to-[#A855F7] font-bold text-white text-sm active:scale-95 transition-all shadow-md"
       >
-        <span className="text-lg leading-none">π</span>
-        Pi Browser로 로그인
+        Sign in with Pi
       </button>
       <p className="text-center text-[11px] text-gray-400 leading-relaxed">
-        PICK PICK은 <strong className="text-pick-purple">Pi 생태계 전용</strong> 서비스예요.<br />
-        <strong>Pi Browser</strong>로 접속해 로그인해 주세요.
+        PICK PICK is a <strong className="text-pick-purple">Pi ecosystem</strong> service.<br />
+        Please open it in <strong>Pi Browser</strong> to sign in.
       </p>
 
       {/* ── 개발자 검토·테스트용 로그인 블록 ── */}
       <div className="mt-2 rounded-3xl border-2 border-dashed border-gray-300 bg-white/50 p-4 flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <span className="self-start text-[10px] font-black text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-2.5 py-1">
-            🔧 개발자 검토·테스트용
+            🔧 For developer review · testing
           </span>
           <p className="text-[11px] text-gray-400 leading-relaxed">
-            Pi Network 심사 및 내부 테스트 전용 로그인이에요.
-            일반 이용자는 위의 <strong>Pi Browser 로그인</strong>을 이용해 주세요.
+            For Pi Network review and internal testing only.
+            Regular users, please use <strong>Sign in with Pi</strong> above.
           </p>
         </div>
 
@@ -116,7 +115,7 @@ function NormalLogin({ onPiClick }: { onPiClick: () => void }) {
           {kakaoLoading
             ? <span className="w-5 h-5 border-2 border-[#3C1E1E]/30 border-t-[#3C1E1E] rounded-full animate-spin" />
             : <KakaoIcon />}
-          카카오로 로그인
+          Sign in with Kakao
         </button>
 
         {/* 이메일 로그인 폼 */}
@@ -125,7 +124,7 @@ function NormalLogin({ onPiClick }: { onPiClick: () => void }) {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="이메일"
+            placeholder="Email"
             required
             className="w-full border-2 border-pick-border rounded-2xl px-4 py-3 text-sm text-pick-text focus:outline-none focus:border-pick-purple bg-white"
           />
@@ -134,7 +133,7 @@ function NormalLogin({ onPiClick }: { onPiClick: () => void }) {
               type={showPw ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="비밀번호"
+              placeholder="Password"
               required
               className="w-full border-2 border-pick-border rounded-2xl px-4 py-3 pr-11 text-sm text-pick-text focus:outline-none focus:border-pick-purple bg-white"
             />
@@ -156,14 +155,14 @@ function NormalLogin({ onPiClick }: { onPiClick: () => void }) {
           >
             {loading
               ? <span className="inline-block w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              : "로그인"}
+              : "Sign in"}
           </button>
         </form>
 
         <p className="text-center text-xs text-gray-400">
-          계정이 없으신가요?{" "}
+          Don&apos;t have an account?{" "}
           <Link href="/register" className="text-pick-purple font-bold underline underline-offset-2">
-            회원가입
+            Sign up
           </Link>
         </p>
       </div>
@@ -201,7 +200,7 @@ function PiLogin() {
     setStatus("sdk");
     // PiSdkLoader가 /login에서 건너뛰므로 여기서 직접 로드
     await loadPiSdk();
-    if (!window.Pi) { setError("Pi SDK를 불러올 수 없어요. 다시 시도해주세요."); setStatus("error"); return; }
+    if (!window.Pi) { setError("Couldn't load the Pi SDK. Please try again."); setStatus("error"); return; }
 
     try {
       setStatus("auth");
@@ -219,11 +218,11 @@ function PiLogin() {
       } finally { clearTimeout(timer); }
       if (!res.ok) {
         const j = await res.json().catch(() => ({})) as { error?: string };
-        setError(j.error ?? `서버 오류 (${res.status})`); setStatus("error"); return;
+        setError(j.error ?? `Server error (${res.status})`); setStatus("error"); return;
       }
       const data = await res.json() as { role: string; access_token: string; refresh_token: string; isNew: boolean };
       const { error: sessionError } = await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token });
-      if (sessionError) { setError(`세션 설정 실패: ${sessionError.message}`); setStatus("error"); return; }
+      if (sessionError) { setError(`Failed to set session: ${sessionError.message}`); setStatus("error"); return; }
       try { sessionStorage.setItem("_pp_token", data.access_token); } catch {}
       try { localStorage.setItem("_pp_token", data.access_token); } catch {}
       if (data.isNew) { setSelectedRole("user"); setStatus("roleSelect"); }
@@ -233,7 +232,7 @@ function PiLogin() {
         window.location.replace(`${dest}#_pp_at=${encodeURIComponent(data.access_token)}&_pp_rt=${encodeURIComponent(data.refresh_token)}`);
       }
     } catch (e: unknown) {
-      const msg = e instanceof Error && e.name === "AbortError" ? "서버 응답 시간 초과 (30초). 다시 시도해 주세요." : e instanceof Error ? e.message : String(e);
+      const msg = e instanceof Error && e.name === "AbortError" ? "Server timed out (30s). Please try again." : e instanceof Error ? e.message : String(e);
       setError(msg); setStatus("error");
     }
   }
@@ -275,8 +274,8 @@ function PiLogin() {
       {status === "roleSelect" && (
         <div className="w-full max-w-xs flex flex-col gap-4">
           <div className="text-center">
-            <p className="text-base font-black text-gray-700">어떤 역할로 시작할까요?</p>
-            <p className="text-xs text-gray-400 mt-1">나중에 마이페이지에서 변경할 수 있어요</p>
+            <p className="text-base font-black text-gray-700">How would you like to start?</p>
+            <p className="text-xs text-gray-400 mt-1">You can change this later in My PICK</p>
           </div>
           <div className="flex flex-col gap-3">
             {ROLE_OPTIONS.map((r) => (
@@ -293,19 +292,19 @@ function PiLogin() {
           </div>
           {/* 초대 코드 (선택) */}
           <div className="bg-pick-bg border-2 border-pick-border rounded-2xl p-3">
-            <p className="text-xs font-black text-pick-purple mb-1.5">🎁 초대 코드가 있나요? (선택)</p>
+            <p className="text-xs font-black text-pick-purple mb-1.5">🎁 Have an invite code? (optional)</p>
             <input
               value={refCode}
               onChange={(e) => setRefCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
               maxLength={8}
-              placeholder="8자리 입력 시 +5,000 PICK"
+              placeholder="Enter 8 digits for +5,000 PICK"
               className="w-full border-2 border-pick-border rounded-xl px-3 py-2.5 text-sm font-bold tracking-widest text-center uppercase text-pick-text focus:outline-none focus:border-pick-purple bg-white"
             />
           </div>
 
           <button onClick={() => void handleRoleConfirm()}
             className="w-full py-4 rounded-full bg-gradient-to-r from-[#4C1D95] to-[#A855F7] text-white font-black text-base shadow-lg active:scale-95 transition-all mt-1">
-            시작하기 →
+            Get started →
           </button>
         </div>
       )}
@@ -314,7 +313,7 @@ function PiLogin() {
           <p className="text-sm text-red-600 font-bold whitespace-pre-line break-all">⚠️ {error}</p>
           <button onClick={() => { started.current = false; setError(""); setStatus("checking"); void checkSession(); }}
             className="mt-4 px-6 py-2 bg-[#7B3FE4] text-white rounded-full text-sm font-bold active:scale-95 transition-transform">
-            다시 시도
+            Try again
           </button>
         </div>
       )}
@@ -347,7 +346,7 @@ export default function LoginPage() {
         <h1 className="text-4xl font-black text-[#4C1D95]" style={{ fontFamily: "var(--font-logo, 'Jua', sans-serif)" }}>
           PICK PICK
         </h1>
-        <p className="text-sm text-gray-500 mt-1">맛있는 음식을 PICK 하세요!</p>
+        <p className="text-sm text-gray-500 mt-1">Pick your favorite food!</p>
       </div>
 
       {mode === "pi" ? (
@@ -357,7 +356,7 @@ export default function LoginPage() {
             onClick={() => setMode("normal")}
             className="text-xs text-gray-400 underline underline-offset-2"
           >
-            이메일로 로그인
+            Sign in with email
           </button>
         </>
       ) : (
