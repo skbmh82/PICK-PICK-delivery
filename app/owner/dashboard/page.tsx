@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ClipboardList, TrendingUp, Bell, CheckCircle, XCircle, Clock, RefreshCw, Store, ChevronDown, X, Check, BarChart2, Utensils, Zap, ArrowUp, ArrowDown, Settings, MapPin, Navigation, Upload, FileImage } from "lucide-react";
 
 import { useStoreOrderRealtime, useStoreOrderStatusRealtime } from "@/hooks/useRealtime";
+import { useVisiblePolling } from "@/hooks/useVisiblePolling";
 import { useOrderSound } from "@/lib/useOrderSound";
 
 // ── 타입 ──────────────────────────────────────────────
@@ -955,21 +956,17 @@ export default function OwnerDashboardPage() {
     fetchDashboard();
   });
 
-  // 폴링 백업: 5초마다 신규 주문 수 체크 (Realtime 누락 대비)
+  // 폴링 백업: 30초마다 신규 주문 수 체크 (Realtime 누락 대비, 보일 때만)
   const prevPendingRef = useRef(0);
-  useEffect(() => {
-    if (!storeId) return;
-    const interval = setInterval(async () => {
-      const res = await fetch("/api/stores/my/stats").catch(() => null);
-      if (!res?.ok) return;
-      const fresh = await res.json() as { pendingOrders?: unknown[] };
-      const count = fresh.pendingOrders?.length ?? 0;
-      if (count === 0) stopOrderSound();
-      if (count !== prevPendingRef.current) fetchDashboard();
-      prevPendingRef.current = count;
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [storeId, fetchDashboard, stopOrderSound]);
+  useVisiblePolling(async () => {
+    const res = await fetch("/api/stores/my/stats").catch(() => null);
+    if (!res?.ok) return;
+    const fresh = await res.json() as { pendingOrders?: unknown[] };
+    const count = fresh.pendingOrders?.length ?? 0;
+    if (count === 0) stopOrderSound();
+    if (count !== prevPendingRef.current) fetchDashboard();
+    prevPendingRef.current = count;
+  }, 30000, !!storeId);
 
   // 알림음을 "신규 주문 개수" 상태에 연동 (Realtime 누락돼도 확실히 울림)
   //  - 대기 주문 ≥ 1건 → 재생 (play 내부 가드로 중복 호출 안전)

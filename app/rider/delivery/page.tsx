@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { MapPin, Package, CheckCircle, X, Clock, Bike, RefreshCw, Navigation, Map } from "lucide-react";
 import { openKakaoNavi, openKakaoRoute } from "@/lib/kakao/maps";
+import { useVisiblePolling } from "@/hooks/useVisiblePolling";
 
 // ── 타입 ──────────────────────────────────────────────
 type DBStatus = "calling_rider" | "ready" | "picked_up" | "delivering" | "delivered" | "cancelled" | "refunded";
@@ -442,17 +443,13 @@ export default function RiderDeliveryPage() {
 
   useEffect(() => { fetchTab(tab); }, [fetchTab, tab]);
 
-  // active 탭: 5초 폴링 — owner가 calling_rider→ready로 바꿀 때 즉시 반영
-  useEffect(() => {
-    if (tab !== "active") return;
-    const id = setInterval(async () => {
-      const res = await fetch("/api/rider/deliveries?tab=active").catch(() => null);
-      if (!res?.ok) return;
-      const { orders } = await res.json() as { orders?: DeliveryOrder[] };
-      if (orders) setMyDeliveries(orders);
-    }, 5000);
-    return () => clearInterval(id);
-  }, [tab]);
+  // active 탭: 30초 폴링 — owner가 calling_rider→ready로 바꿀 때 반영 (보일 때만)
+  useVisiblePolling(async () => {
+    const res = await fetch("/api/rider/deliveries?tab=active").catch(() => null);
+    if (!res?.ok) return;
+    const { orders } = await res.json() as { orders?: DeliveryOrder[] };
+    if (orders) setMyDeliveries(orders);
+  }, 30000, tab === "active");
 
   const handleAccept = async (orderId: string) => {
     setAcceptingId(orderId);

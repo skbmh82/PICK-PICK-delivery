@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Bike, TrendingUp, MapPin, CheckCircle, Clock, Star, RefreshCw } from "lucide-react";
 import { useRiderAvailableOrderRealtime, useRiderAvailableOrderStatusRealtime } from "@/hooks/useRealtime";
+import { useVisiblePolling } from "@/hooks/useVisiblePolling";
 import { useOrderSound } from "@/lib/useOrderSound";
 
 // ── 타입 ──────────────────────────────────────────────
@@ -333,29 +334,26 @@ export default function RiderDashboardPage() {
     }
   );
 
-  // 폴링 백업: 5초마다 가능 주문 수 확인 (Realtime 누락 대비)
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      // 미승인 라이더 — 혹시 울리는 알람이 있으면 즉시 중단
-      if (!isApprovedRef.current) {
-        stopSound();
-        return;
-      }
-      const r = await fetch("/api/rider/available-orders").catch(() => null);
-      if (!r?.ok) return;
-      const { orders } = await r.json() as { orders?: AvailableOrder[] };
-      const fresh = orders ?? [];
-      const count = fresh.length;
-      if (count > prevOrderCountRef.current) {
-        playSound();
-      } else if (count < prevOrderCountRef.current && count === 0) {
-        stopSound();
-      }
-      prevOrderCountRef.current = count;
-      setAvailableOrders(fresh);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [playSound, stopSound]);
+  // 폴링 백업: 30초마다 가능 주문 수 확인 (Realtime 누락 대비, 보일 때만)
+  useVisiblePolling(async () => {
+    // 미승인 라이더 — 혹시 울리는 알람이 있으면 즉시 중단
+    if (!isApprovedRef.current) {
+      stopSound();
+      return;
+    }
+    const r = await fetch("/api/rider/available-orders").catch(() => null);
+    if (!r?.ok) return;
+    const { orders } = await r.json() as { orders?: AvailableOrder[] };
+    const fresh = orders ?? [];
+    const count = fresh.length;
+    if (count > prevOrderCountRef.current) {
+      playSound();
+    } else if (count < prevOrderCountRef.current && count === 0) {
+      stopSound();
+    }
+    prevOrderCountRef.current = count;
+    setAvailableOrders(fresh);
+  }, 30000);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

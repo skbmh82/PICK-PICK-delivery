@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Home, Wallet, ClipboardList, User } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
+import { useVisiblePolling } from "@/hooks/useVisiblePolling";
 
 const NAV_ITEMS = [
   { href: "/home",    label: "홈",       Icon: Home,         badge: false },
@@ -18,25 +19,24 @@ export default function BottomNav() {
   const user     = useAuthStore((s) => s.user);
   const [activeOrderCount, setActiveOrderCount] = useState(0);
 
-  // 진행 중인 주문 수 주기적으로 갱신 (30초마다)
-  useEffect(() => {
+  // 진행 중인 주문 수 조회
+  const fetchActive = useCallback(async () => {
     if (!user) { setActiveOrderCount(0); return; }
-
-    const fetchActive = async () => {
-      try {
-        const res = await fetch("/api/orders/my?status=active&limit=1", { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json() as { activeCount?: number };
-        setActiveOrderCount(data.activeCount ?? 0);
-      } catch {
-        // 무시
-      }
-    };
-
-    void fetchActive();
-    const id = setInterval(() => void fetchActive(), 30_000);
-    return () => clearInterval(id);
+    try {
+      const res = await fetch("/api/orders/my?status=active&limit=1", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json() as { activeCount?: number };
+      setActiveOrderCount(data.activeCount ?? 0);
+    } catch {
+      // 무시
+    }
   }, [user]);
+
+  // 초기 로드 + 유저 변경 시
+  useEffect(() => { void fetchActive(); }, [fetchActive]);
+
+  // 60초마다 갱신 (탭이 보일 때만)
+  useVisiblePolling(fetchActive, 60000, !!user);
 
   return (
     <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50 bg-white dark:bg-pick-card rounded-t-3xl shadow-[0_-4px_20px_rgba(107,33,168,0.10)] border-t border-pick-border">

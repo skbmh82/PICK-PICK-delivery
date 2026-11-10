@@ -6,6 +6,7 @@ import {
   XCircle, ChevronDown, ChevronUp, RefreshCw, Bell, Volume2, VolumeX,
 } from "lucide-react";
 import { useStoreOrderRealtime, useStoreOrderStatusRealtime, type OrderStatus } from "@/hooks/useRealtime";
+import { useVisiblePolling } from "@/hooks/useVisiblePolling";
 import { useOrderSound } from "@/lib/useOrderSound";
 
 // ── 타입 ──────────────────────────────────────────────
@@ -606,45 +607,39 @@ export default function OwnerOrdersPage() {
     );
   });
 
-  // 폴링 — 5초마다 active 탭 자동 갱신 (Realtime 누락 대비)
+  // 폴링 — 30초마다 active 탭 자동 갱신 (Realtime 누락 대비, 보일 때만)
   const ordersRef = useRef(orders);
   useEffect(() => { ordersRef.current = orders; }, [orders]);
 
-  useEffect(() => {
-    if (!storeId) return;
-    const interval = setInterval(async () => {
-      if (tab !== "active") return;
-      const res = await fetch("/api/stores/my/orders?tab=active");
-      if (!res.ok) return;
-      const data = await res.json();
-      const fresh: Order[] = data.orders ?? [];
-      const freshMap = new Map(fresh.map((o) => [o.id, o]));
+  useVisiblePolling(async () => {
+    const res = await fetch("/api/stores/my/orders?tab=active");
+    if (!res.ok) return;
+    const data = await res.json();
+    const fresh: Order[] = data.orders ?? [];
+    const freshMap = new Map(fresh.map((o) => [o.id, o]));
 
-      // 신규 pending 주문 감지 → Realtime 누락 대비 소리 재생
-      const prevIds = new Set(ordersRef.current.map((o) => o.id));
-      const newPending = fresh.filter((o) => o.status === "pending" && !prevIds.has(o.id));
-      if (newPending.length > 0) {
-        setNewAlert((n) => n + newPending.length);
-        if (soundOnRef.current) void playOrderSound();
-      }
+    // 신규 pending 주문 감지 → Realtime 누락 대비 소리 재생
+    const prevIds = new Set(ordersRef.current.map((o) => o.id));
+    const newPending = fresh.filter((o) => o.status === "pending" && !prevIds.has(o.id));
+    if (newPending.length > 0) {
+      setNewAlert((n) => n + newPending.length);
+      if (soundOnRef.current) void playOrderSound();
+    }
 
-      // 이전에 활성 상태였던 주문이 사라지거나 cancelled 가 되면 소리 중단
-      const hadActive = ordersRef.current.some((o) =>
-        !["delivered", "cancelled", "refunded"].includes(o.status)
-      );
-      const prevActiveIds = ordersRef.current
-        .filter((o) => !["delivered", "cancelled", "refunded"].includes(o.status))
-        .map((o) => o.id);
-      const hasCancellation = prevActiveIds.some(
-        (id) => !freshMap.has(id) || freshMap.get(id)?.status === "cancelled"
-      );
-      if (hadActive && hasCancellation) stopOrderSound();
+    // 이전에 활성 상태였던 주문이 사라지거나 cancelled 가 되면 소리 중단
+    const hadActive = ordersRef.current.some((o) =>
+      !["delivered", "cancelled", "refunded"].includes(o.status)
+    );
+    const prevActiveIds = ordersRef.current
+      .filter((o) => !["delivered", "cancelled", "refunded"].includes(o.status))
+      .map((o) => o.id);
+    const hasCancellation = prevActiveIds.some(
+      (id) => !freshMap.has(id) || freshMap.get(id)?.status === "cancelled"
+    );
+    if (hadActive && hasCancellation) stopOrderSound();
 
-      setOrders(fresh);
-    }, 5000);
-    return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId, tab]);
+    setOrders(fresh);
+  }, 30000, !!storeId && tab === "active");
 
   const handleStatusChange = async (id: string, status: OrderStatus, estimatedTime?: number) => {
     const res = await fetch(`/api/orders/${id}/status`, {

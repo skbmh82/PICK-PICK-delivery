@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { Bell, X, Package, Gift, Megaphone, ArrowUpRight, Circle } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { fetchMyPickBalance } from "@/lib/supabase/wallet";
+import { useVisiblePolling } from "@/hooks/useVisiblePolling";
 import { useRouter } from "next/navigation";
 
 // ── 타입 ──────────────────────────────────────────────
@@ -144,7 +145,6 @@ export default function Header() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount,   setUnreadCount]   = useState(0);
   const [drawerOpen,    setDrawerOpen]    = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
@@ -155,14 +155,15 @@ export default function Header() {
     setUnreadCount(json.unreadCount ?? 0);
   }, [user]);
 
+  // 초기 로드 (잔액 + 알림)
   useEffect(() => {
     if (!user) return;
     fetchMyPickBalance(user.id).then(setBalance);
     void fetchNotifications();
-    // 30초마다 폴링
-    intervalRef.current = setInterval(() => void fetchNotifications(), 30000);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [user, fetchNotifications]);
+
+  // 60초마다 알림 폴링 (탭이 보일 때만)
+  useVisiblePolling(fetchNotifications, 60000, !!user);
 
   const handleReadAll = async () => {
     await fetch("/api/notifications/read", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
